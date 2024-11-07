@@ -110,6 +110,23 @@ def get_vector_store(text_chunks, batch_size=10):
 
     return None
 
+
+def extract_text_from_faq(json_data):
+    text_contents = []
+    for entry in json_data:
+        question = entry.get("question", "")
+        answer = entry.get("answer", "")
+        text = f"Q: {question}\nA: {answer}\n"  # Format for each question-answer pair
+        text_contents.append(text)
+    return text_contents
+
+
+def get_text_chunks_faq(text_contents):
+    # Combine all text contents into a single text block for chunking
+    combined_text = "\n".join(text_contents)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=2500, chunk_overlap=500)
+    return text_splitter.split_text(combined_text)
+
 def get_faq_embeddings(json_path="./faq.json", batch_size=10):
     try:
         if not os.path.exists(json_path):
@@ -324,17 +341,17 @@ def user_input(user_question):
     faq_vector_store = FAISS.load_local("faiss_index_questions", embeddings_model, allow_dangerous_deserialization=True)
 
     # Use MultiQueryRetriever to find relevant FAQs
-    mq_retriever = MultiQueryRetriever.from_llm(
+    mq_retriever_1 = MultiQueryRetriever.from_llm(
         retriever=faq_vector_store.as_retriever(search_kwargs={'k': 3}),
         llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
     )
-    faq_docs = mq_retriever.get_relevant_documents(query=user_question)
+    faq_docs = mq_retriever_1.get_relevant_documents(query=user_question)
 
     # Check if any FAQ is relevant
-    for doc in faq_docs:
+    for faq in faq_docs:
         similarity_score = cosine_similarity([embeddings_model.embed_query(user_question)], [embeddings_model.embed_query(doc.metadata["question"])])[0][0]
         if similarity_score >= 0.7:
-            return {"output_text": doc.metadata["answer"]}
+            return {"output_text": faq.metadata["answer"]}
 
     # Generate embedding for the user question
     question_embedding = embeddings_model.embed_query(user_question)

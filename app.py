@@ -1,6 +1,6 @@
 import streamlit as st
-from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, get_faq_embeddings, user_input
-
+from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, get_faq_embeddings, user_input, extract_text_from_faq, get_text_chunks_faq
+import json
 #changes
 # ---------------------------------------------------------
 from supabase import create_client, Client
@@ -22,10 +22,27 @@ def store_chat_data(user_message, bot_response):
         st.error(f"Error storing chat data: {e}")
         return None
 # ---------------------------------------------------------
-
-                                                                                                                                                                        
 # Title of the application
 st.title("Finance Chatbot")
+
+
+# faq section
+def load_json_file(file_path= './faq.json'):
+    with open(file_path, 'r') as file:
+        json_data = json.load(file)
+    return json_data
+
+# Extract text from the json and chunk it
+faq_content = extract_text_from_faq(json_data)
+
+faq_text_chunks = []
+for f in faq_content:
+    fc = get_text_chunks(f)
+    text_chunks.extend(fc)
+
+# Create the vector store
+faq_vector_store = get_faq_embeddings(faq_text_chunks)
+# ----------------------------------------------------------
 
 # Load PDF paths
 pdf_paths = ['Low_risk_portfolio.pdf', 'Medium_risk_portfolio.pdf', 'High_risk_portfolio.pdf']  
@@ -44,19 +61,15 @@ vector_store = get_vector_store(text_chunks)
 # User input for question
 user_question = st.text_input("Ask a question about finance:")
 
+
 if user_question:
-    # Check FAQ embeddings for the user input
-    faq_answer = get_faq_embeddings(json_path="./faq.json")
+    # Get the response from the chatbot
+    response = user_input(user_question)
 
-    if faq_answer:
-        # Display the FAQ-based answer
-        st.subheader("FAQ Response:")
-        st.write(faq_answer)
-    else:
-        # Proceed with the general user input processing
-        response = user_input(user_question)
-        st.subheader("Response:")
-        st.write(response['output_text'])
-
-    # Store chat data in Supabase
-    # store_chat_data(user_question, faq_answer if faq_answer else response['output_text'])
+    # Display the response
+    st.subheader("Response:")
+    bot_response = response.get("output_text", "No response generated.")
+    st.write(bot_response)
+    
+    #Store chat data in Supabase
+    # store_chat_data(user_question, bot_response)
