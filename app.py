@@ -17,7 +17,7 @@ def store_chat_data(user_message, bot_response):
     }
     try:
         response = supabase.table("chat_data").insert(data).execute()
-    return response
+        return response
     except Exception as e:
     st.error(f"Error storing chat data: {e}")
     return None
