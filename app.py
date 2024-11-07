@@ -6,8 +6,8 @@ from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, user
 from supabase import create_client, Client
 
 # Initialize Supabase client
-supabase_url = st.secrets["SUPABASE_URL"]
-supabase_key = st.secrets["SUPABASE_KEY"]
+supabase_url = st.secrets["supabase"]["url"]
+supabase_key = st.secrets["supabase"]["key"]
 supabase: Client = create_client(supabase_url, supabase_key)
 
 def store_chat_data(user_message, bot_response):
