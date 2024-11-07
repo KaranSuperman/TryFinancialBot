@@ -59,7 +59,7 @@ if user_question:
             store_chat_data(user_question, faq_answer)
         else:
             # Get response from main chatbot flow
-            response = user_input(user_question, st.session_state.faq_vector_store)
+            response = user_input(user_question)
             st.subheader("Response:")
             bot_response = response.get("output_text")
             st.write(bot_response)
