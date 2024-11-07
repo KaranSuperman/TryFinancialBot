@@ -110,11 +110,24 @@ def get_vector_store(text_chunks, batch_size=10):
 
     return None
 
-def create_faq_embeddings(faq_data, embeddings_model):
-    """
-    Create embeddings for FAQ questions and store them in FAISS with their answers as metadata.
-    """
+def initialize_vector_stores(pdf_paths):
+    """Initialize both main and FAQ vector stores"""
     try:
+        # Initialize embeddings model
+        embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        
+        # Create main vector store from PDFs
+        content = extract_text_from_pdfs(pdf_paths)
+        text_chunks = []
+        for c in content:
+            tc = get_text_chunks(c)
+            text_chunks.extend(tc)
+        main_vector_store = get_vector_store(text_chunks)
+        
+        # Load and create FAQ vector store
+        with open('faq.json', 'r') as f:
+            faq_data = json.load(f)
+            
         # Prepare questions and metadata
         questions = [item["question"] for item in faq_data]
         metadata_list = [{"answer": item["answer"]} for item in faq_data]
@@ -131,26 +144,46 @@ def create_faq_embeddings(faq_data, embeddings_model):
         
         # Save FAQ vector store
         faq_vector_store.save_local("faiss_index_faq")
-        return faq_vector_store
+        return main_vector_store, faq_vector_store
     
     except Exception as e:
-        st.error(f"Error creating FAQ embeddings: {str(e)}")
-        return None
+        st.error(f"Error initializing vector stores: {str(e)}")
+        return None, None
 
-def check_faq_match(user_question, embeddings_model, threshold=0.95):
+# def create_faq_embeddings(faq_data, embeddings_model):
+#     """
+#     Create embeddings for FAQ questions and store them in FAISS with their answers as metadata.
+#     """
+#     try:
+#         # Prepare questions and metadata
+#         questions = [item["question"] for item in faq_data]
+#         metadata_list = [{"answer": item["answer"]} for item in faq_data]
+        
+#         # Generate embeddings for questions
+#         question_embeddings = embeddings_model.embed_documents(questions)
+        
+#         # Create FAISS index for FAQs
+#         faq_vector_store = FAISS.from_embeddings(
+#             [(q, emb) for q, emb in zip(questions, question_embeddings)],
+#             embeddings_model,
+#             metadatas=metadata_list
+#         )
+        
+#         # Save FAQ vector store
+#         faq_vector_store.save_local("faiss_index_faq")
+#         return faq_vector_store
+    
+#     except Exception as e:
+#         st.error(f"Error creating FAQ embeddings: {str(e)}")
+#         return None
+
+def check_faq_match(user_question, embeddings_model, faq_vector_store, threshold=0.95):
     """
     Check if user question matches any FAQ with high similarity.
-    Returns the answer if similarity exceeds threshold, None otherwise.
     """
     try:
-        # Load FAQ vector store
-        faq_db = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
-        
-        # Get embedding for user question
-        question_embedding = embeddings_model.embed_query(user_question)
-        
         # Search for similar questions
-        docs_and_scores = faq_db.similarity_search_with_score(user_question, k=1)
+        docs_and_scores = faq_vector_store.similarity_search_with_score(user_question, k=1)
         
         if docs_and_scores:
             doc, score = docs_and_scores[0]
