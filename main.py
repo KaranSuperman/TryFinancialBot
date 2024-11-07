@@ -325,7 +325,7 @@ def user_input(user_question):
     embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
     # Check for FAQ match first
-    faq_answer = check_faq_match(user_question, embeddings_model)
+    faq_answer = check_faq_match(user_question, embeddings_model,faq_vector_store)
     if faq_answer:
         return {"output_text": faq_answer}
 
