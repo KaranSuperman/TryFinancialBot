@@ -334,12 +334,12 @@ def user_input(user_question):
 
     # Retrieve documents from FAISS
     new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
-    mq_retriever1 = MultiQueryRetriever.from_llm(
+    mq_retriever = MultiQueryRetriever.from_llm(
         retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
         llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
     )
 
-    docs = mq_retriever1.get_relevant_documents(query=user_question)
+    docs = mq_retriever.get_relevant_documents(query=user_question)
 
     # Compute similarity scores between query embedding and each document
     similarity_scores = []
