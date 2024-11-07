@@ -41,6 +41,9 @@ for c in content:
 # Create the vector store
 vector_store = get_vector_store(text_chunks)
 
+# Create the FAQ embeddings
+get_faq_embeddings()
+
 # User input for question
 user_question = st.text_input("Ask a question about finance:")
 
