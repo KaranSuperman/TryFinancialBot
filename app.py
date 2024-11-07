@@ -15,8 +15,11 @@ def store_chat_data(user_message, bot_response):
         "user_message": user_message,
         "bot_response": bot_response,
     }
+    
     try:
-        response = supabase.table("chat_data").insert(data).execute()
+        # Serialize the data to a JSON string
+        data_json = json.dumps(data)
+        response = supabase.table("chat_data").insert(data_json).execute()
         return response
     except Exception as e:
         st.error(f"Error storing chat data: {e}")
