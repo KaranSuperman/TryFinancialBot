@@ -325,7 +325,8 @@ def user_input(user_question):
 
     # Check if any FAQ is relevant
     for doc in faq_docs:
-        if cosine_similarity([embeddings_model.embed_query(user_question)], [embeddings_model.embed_query(doc.metadata["question"])]) >= 0.7:
+        similarity_score = cosine_similarity([embeddings_model.embed_query(user_question)], [embeddings_model.embed_query(doc.metadata["question"])])[0][0]
+        if similarity_score >= 0.7:
             return {"output_text": doc.metadata["answer"]}
 
     # Generate embedding for the user question
@@ -333,12 +334,12 @@ def user_input(user_question):
 
     # Retrieve documents from FAISS
     new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
-    mq_retriever = MultiQueryRetriever.from_llm(
+    mq_retriever1 = MultiQueryRetriever.from_llm(
         retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
         llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
     )
 
-    docs = mq_retriever.get_relevant_documents(query=user_question)
+    docs = mq_retriever1.get_relevant_documents(query=user_question)
 
     # Compute similarity scores between query embedding and each document
     similarity_scores = []
