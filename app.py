@@ -1,5 +1,5 @@
 import streamlit as st
-from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, user_input
+from main import extract_text_from_pdfs, get_text_chunks, get_vector_store,get_faq_embeddings, user_input
 
 #changes
 # ---------------------------------------------------------
