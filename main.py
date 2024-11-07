@@ -110,8 +110,12 @@ def get_vector_store(text_chunks, batch_size=10):
 
     return None
 
-def get_faq_embeddings(json_path="./faq.json", batch_size=10):
+def get_faq_embeddings(user_question, json_path="./faq.json", batch_size=10):
     try:
+        # Ensure user_question is not empty
+        if not user_question:
+            return None  # Return None if user input is empty
+
         # Load GCP credentials from Streamlit secrets
         gcp_credentials = st.secrets["gcp_service_account"]
         
@@ -122,15 +126,13 @@ def get_faq_embeddings(json_path="./faq.json", batch_size=10):
         # Create a temporary credentials file for GCP authentication
         credentials_path = "temp_service_account.json"
         with open(credentials_path, "w") as f:
-            # json.dump(gcp_credentials, f)
             json.dump(dict(gcp_credentials), f)
-
 
         # Set environment variable for Google API authentication
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
 
         # Initialize GCP AI platform with credentials
-        credentials = service_account.Credentials.from_service_account_file(credentials_path)
+        credentials = credentials.Credentials.from_service_account_file(credentials_path)
         aiplatform.init(
             project=gcp_credentials["project_id"],
             credentials=credentials
@@ -140,9 +142,16 @@ def get_faq_embeddings(json_path="./faq.json", batch_size=10):
         gemini_api_key = st.secrets["gemini"]["api_key"]
         genai.configure(api_key=gemini_api_key)
 
-        # Load FAQ questions from the JSON file
-        with open(json_path, "r") as f:
-            faqs = json.load(f)
+        # Load FAQ questions from the JSON file (with error handling)
+        try:
+            with open(json_path, "r") as f:
+                faqs = json.load(f)
+        except FileNotFoundError:
+            st.error(f"FAQ file not found at {json_path}. Please check the file path.")
+            return None  # Return None if the file is not found
+        except json.JSONDecodeError:
+            st.error(f"Error decoding JSON in the FAQ file at {json_path}.")
+            return None  # Return None if there is an issue decoding the JSON file
 
         # Extract questions and their corresponding answers
         questions = [faq["question"] for faq in faqs]
@@ -162,23 +171,27 @@ def get_faq_embeddings(json_path="./faq.json", batch_size=10):
                 st.error(f"Error processing batch {i // batch_size}: {str(e)}")
                 continue
 
-        # Save question embeddings with answer metadata to FAISS
-        if question_embeddings:
-            vector_store = FAISS.from_embeddings(
-                question_embeddings,
-                embedding=embeddings
-            )
-            vector_store.save_local("faiss_index_questions")
-            return vector_store
-        else:
-            raise ValueError("No embeddings were successfully created")
+        # Now match the user input question to FAQ embeddings
+        user_question_embedding = embeddings.embed_query(user_question)
+        # Find the most similar FAQ
+        best_match = None
+        max_similarity = 0
+        for emb, data in question_embeddings:
+            similarity = cosine_similarity([user_question_embedding], [emb])[0][0]
+            if similarity > max_similarity:
+                max_similarity = similarity
+                best_match = data
+
+        # If a FAQ answer is found with a similarity above the threshold
+        if best_match and max_similarity >= 0.7:
+            return best_match["answer"]  # Return the FAQ answer
 
     except Exception as e:
-        st.error(f"Error in get_vector_store: {str(e)}")
-        st.error("Please check your credentials and permissions")
+        st.error(f"Error in get_faq_embeddings: {str(e)}")
+        st.error("Please check your credentials and permissions.")
         raise
 
-    return None
+    return None  # Return None if no FAQ answer is found
 
 def is_input_safe(user_input):
     disallowed_phrases = [
