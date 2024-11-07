@@ -110,7 +110,7 @@ def get_vector_store(text_chunks, batch_size=10):
 
     return None
 
-def get_faq_embeddings(json_path="faqs.json", batch_size=10):
+def get_faq_embeddings(json_path="./faq.json", batch_size=10):
     try:
         # Load GCP credentials from Streamlit secrets
         gcp_credentials = st.secrets["gcp_service_account"]
