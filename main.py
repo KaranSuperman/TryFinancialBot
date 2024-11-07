@@ -110,6 +110,10 @@ def get_vector_store(text_chunks, batch_size=10):
 
     return None
 
+def load_json_file(file_path= './faq.json'):
+    with open(file_path, 'r') as file:
+        json_data = json.load(file)
+    return json_data
 
 def extract_text_from_faq(json_data):
     text_contents = []
