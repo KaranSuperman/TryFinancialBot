@@ -112,6 +112,11 @@ def get_vector_store(text_chunks, batch_size=10):
 
 def get_faq_embeddings(json_path="./faq.json", batch_size=10):
     try:
+        if not os.path.exists(json_path):
+            raise FileNotFoundError(f"The FAQ JSON file was not found at path: {json_path}")
+        
+        with open(json_path, "r") as f:
+            faqs = json.load(f)
         # Load GCP credentials from Streamlit secrets
         gcp_credentials = st.secrets["gcp_service_account"]
         
