@@ -1,5 +1,5 @@
 import streamlit as st
-from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, user_input
+from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, create_faq_embeddings, user_input
 
 #changes
 # ---------------------------------------------------------
@@ -40,6 +40,17 @@ for c in content:
 
 # Create the vector store
 vector_store = get_vector_store(text_chunks)
+
+def initialize_embeddings():
+    # Load FAQ data
+    with open('faq.json', 'r') as f:
+        faq_data = json.load(f)
+    
+    # Initialize embeddings model
+    embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+    
+    # Create FAQ embeddings
+    create_faq_embeddings(faq_data, embeddings_model)
 
 # User input for question
 user_question = st.text_input("Ask a question about finance:")
