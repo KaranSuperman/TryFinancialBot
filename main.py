@@ -110,7 +110,73 @@ def get_vector_store(text_chunks, batch_size=10):
 
     return None
 
+def get_faq_embeddings(json_path="faqs.json", batch_size=10):
+    try:
+        # Load GCP credentials from Streamlit secrets
+        gcp_credentials = st.secrets["gcp_service_account"]
+        
+        # Convert credentials to dictionary if needed
+        if isinstance(gcp_credentials, str):
+            gcp_credentials = json.loads(gcp_credentials)
+        
+        # Create a temporary credentials file for GCP authentication
+        credentials_path = "temp_service_account.json"
+        with open(credentials_path, "w") as f:
+            json.dump(gcp_credentials, f)
 
+        # Set environment variable for Google API authentication
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
+
+        # Initialize GCP AI platform with credentials
+        credentials = service_account.Credentials.from_service_account_file(credentials_path)
+        aiplatform.init(
+            project=gcp_credentials["project_id"],
+            credentials=credentials
+        )
+
+        # Configure Gemini API for embeddings
+        gemini_api_key = st.secrets["gemini"]["api_key"]
+        genai.configure(api_key=gemini_api_key)
+
+        # Load FAQ questions from the JSON file
+        with open(json_path, "r") as f:
+            faqs = json.load(f)
+
+        # Extract questions and their corresponding answers
+        questions = [faq["question"] for faq in faqs]
+        answers = [faq["answer"] for faq in faqs]
+
+        # Generate embeddings for questions only
+        question_embeddings = []
+        for i in range(0, len(questions), batch_size):
+            batch = questions[i:i + batch_size]
+            try:
+                batch_embeddings = embeddings.embed_documents(batch)
+                question_embeddings.extend([
+                    (emb, {"question": question, "answer": answer}) 
+                    for question, answer, emb in zip(batch, answers, batch_embeddings)
+                ])
+            except Exception as e:
+                st.error(f"Error processing batch {i // batch_size}: {str(e)}")
+                continue
+
+        # Save question embeddings with answer metadata to FAISS
+        if question_embeddings:
+            vector_store = FAISS.from_embeddings(
+                question_embeddings,
+                embedding=embeddings
+            )
+            vector_store.save_local("faiss_index_questions")
+            return vector_store
+        else:
+            raise ValueError("No embeddings were successfully created")
+
+    except Exception as e:
+        st.error(f"Error in get_vector_store: {str(e)}")
+        st.error("Please check your credentials and permissions")
+        raise
+
+    return None
 
 def is_input_safe(user_input):
     disallowed_phrases = [
@@ -243,43 +309,53 @@ def user_input(user_question):
 
     # Check if the question is about stock prices
     check, symbol = (is_stock_query(user_question)).split()
-    if (check==True):
+    if check == "True":
         stock_price = get_stock_price(symbol)
         return {"output_text": f"The current stock price of {symbol} is {stock_price}."}
-    
+
+    # Load FAQ embeddings
+    faq_vector_store = FAISS.load_local("faiss_index_questions", embeddings_model, allow_dangerous_deserialization=True)
+
+    # Use MultiQueryRetriever to find relevant FAQs
+    mq_retriever = MultiQueryRetriever.from_llm(
+        retriever=faq_vector_store.as_retriever(search_kwargs={'k': 3}),
+        llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+    )
+    faq_docs = mq_retriever.get_relevant_documents(query=user_question)
+
+    # Check if any FAQ is relevant
+    for doc in faq_docs:
+        if cosine_similarity([embeddings_model.embed_query(user_question)], [embeddings_model.embed_query(doc.metadata["question"])]) >= 0.7:
+            return {"output_text": doc.metadata["answer"]}
+
     # Generate embedding for the user question
     question_embedding = embeddings_model.embed_query(user_question)
-    
+
     # Retrieve documents from FAISS
     new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
     mq_retriever = MultiQueryRetriever.from_llm(
         retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
         llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
     )
-    
+
     docs = mq_retriever.get_relevant_documents(query=user_question)
-    
+
     # Compute similarity scores between query embedding and each document
     similarity_scores = []
     for doc in docs:
-        doc_embedding = embeddings_model.embed_query(doc.page_content)  # Embed the document content
+        doc_embedding = embeddings_model.embed_query(doc.page_content)
         score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
         similarity_scores.append(score)
 
     # Get the maximum similarity score
     max_similarity = max(similarity_scores) if similarity_scores else 0
-    # st.write(f"Maximum similarity score: {max_similarity}")
 
     # Fallback mechanism: use LLM directly if similarity is below threshold
-    if max_similarity < 0.65:  # Adjust threshold as needed
-        # st.write("No relevant context found; querying the LLM directly.")
+    if max_similarity < 0.65:
         prompt1 = user_question + "In the context of Finance"
         response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
         return {"output_text": response.content} if response else {"output_text": "No response generated."}
     else:
-        # Use retrieved docs with context
-        # st.write("Using retrieved documents for context.")
-        # st.write(docs)
         prompt_template = """ About the company: 
         Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
 
