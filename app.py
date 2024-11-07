@@ -1,5 +1,5 @@
 import streamlit as st
-from main import extract_text_from_pdfs, get_text_chunks, initialize_vector_stores, user_input
+from main import extract_text_from_pdfs, get_text_chunks, initialize_vector_stores, check_faq_match, user_input
 from supabase import create_client, Client
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
