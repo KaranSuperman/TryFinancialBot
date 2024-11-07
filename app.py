@@ -59,4 +59,4 @@ if user_question:
             st.subheader("Response:")
             bot_response = response.get("output_text", "No response generated.")
             st.write(bot_response)
-            store_chat_data(user_question, bot_response)
+            # store_chat_data(user_question, bot_response)
