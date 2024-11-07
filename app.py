@@ -1,6 +1,8 @@
 import streamlit as st
 from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, user_input
-#change
+
+#changes
+# ---------------------------------------------------------
 from supabase import create_client, Client
 
 # Initialize Supabase client
@@ -14,18 +16,19 @@ def store_chat_data(user_message, bot_response):
         "bot_response": bot_response,
     }
     try:
-
         response = supabase.table("chat_data").insert(data).execute()
     return response
-        except Exception as e:
-        st.error(f"Error storing chat data: {e}")
-        return None
+    except Exception as e:
+    st.error(f"Error storing chat data: {e}")
+    return None
+# ---------------------------------------------------------
+
                                                                                                                                                                         
 # Title of the application
 st.title("Finance Chatbot")
 
 # Load PDF paths
-pdf_paths = ['Low_risk_portfolio.pdf', 'Medium_risk_portfolio.pdf', 'High_risk_portfolio.pdf']  # Update with your PDF paths
+pdf_paths = ['Low_risk_portfolio.pdf', 'Medium_risk_portfolio.pdf', 'High_risk_portfolio.pdf']  
 
 # Extract text from the PDFs and chunk it
 content = extract_text_from_pdfs(pdf_paths)
@@ -49,5 +52,6 @@ if user_question:
     st.subheader("Response:")
     bot_response = response.get("output_text", "No response generated.")
     st.write(bot_response)
+    
     #Store chat data in Supabase
     store_chat_data(user_question, bot_response)
