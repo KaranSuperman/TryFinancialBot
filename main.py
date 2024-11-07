@@ -110,6 +110,61 @@ def get_vector_store(text_chunks, batch_size=10):
 
     return None
 
+def create_faq_embeddings(faq_data, embeddings_model):
+    """
+    Create embeddings for FAQ questions and store them in FAISS with their answers as metadata.
+    """
+    try:
+        # Prepare questions and metadata
+        questions = [item["question"] for item in faq_data]
+        metadata_list = [{"answer": item["answer"]} for item in faq_data]
+        
+        # Generate embeddings for questions
+        question_embeddings = embeddings_model.embed_documents(questions)
+        
+        # Create FAISS index for FAQs
+        faq_vector_store = FAISS.from_embeddings(
+            [(q, emb) for q, emb in zip(questions, question_embeddings)],
+            embeddings_model,
+            metadatas=metadata_list
+        )
+        
+        # Save FAQ vector store
+        faq_vector_store.save_local("faiss_index_faq")
+        return faq_vector_store
+    
+    except Exception as e:
+        st.error(f"Error creating FAQ embeddings: {str(e)}")
+        return None
+
+def check_faq_match(user_question, embeddings_model, threshold=0.95):
+    """
+    Check if user question matches any FAQ with high similarity.
+    Returns the answer if similarity exceeds threshold, None otherwise.
+    """
+    try:
+        # Load FAQ vector store
+        faq_db = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
+        
+        # Get embedding for user question
+        question_embedding = embeddings_model.embed_query(user_question)
+        
+        # Search for similar questions
+        docs_and_scores = faq_db.similarity_search_with_score(user_question, k=1)
+        
+        if docs_and_scores:
+            doc, score = docs_and_scores[0]
+            # Convert score to similarity (FAISS returns distance)
+            similarity = 1 - score
+            
+            if similarity >= threshold:
+                return doc.metadata.get("answer")
+        
+        return None
+        
+    except Exception as e:
+        st.error(f"Error checking FAQ match: {str(e)}")
+        return None
 
 
 def is_input_safe(user_input):
@@ -236,7 +291,12 @@ def user_input(user_question):
     # Initialize embeddings model
     embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
-    # Check if question is relevant to finance
+    # Check for FAQ match first
+    faq_answer = check_faq_match(user_question, embeddings_model)
+    if faq_answer:
+        return {"output_text": faq_answer}
+
+    # Continue with existing flow if no FAQ match
     if not is_relevant(user_question, embeddings_model, threshold=0.5):
         st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
         return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
