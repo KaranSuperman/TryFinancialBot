@@ -27,13 +27,9 @@ st.title("Finance Chatbot")
 
 
 # faq section
-def load_json_file(file_path= './faq.json'):
-    with open(file_path, 'r') as file:
-        json_data = json.load(file)
-    return json_data
-
+json_result = load_json_file('./faq.json')
 # Extract text from the json and chunk it
-faq_content = extract_text_from_faq(json_data)
+faq_content = extract_text_from_faq(json_result)
 
 faq_text_chunks = []
 for f in faq_content:
