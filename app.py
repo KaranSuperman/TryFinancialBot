@@ -44,12 +44,15 @@ if not st.session_state.vector_stores_initialized:
 user_question = st.text_input("Ask a question about finance:")
 
 if user_question:
-    # Initialize embeddings model
     embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     
-    # First check FAQ matches
-    if st.session_state.faq_vector_store:
-        faq_answer = check_faq_match(user_question, embeddings_model,st.session_state.faq_vector_store)
+    # Check if faq_vector_store exists
+    if st.session_state.faq_vector_store is None:
+        st.error("FAQ vector store is not initialized.")
+    else:
+        # First check FAQ matches
+        faq_answer = check_faq_match(user_question, embeddings_model, st.session_state.faq_vector_store)
+        
         if faq_answer:
             st.subheader("Response:")
             st.write(faq_answer)
