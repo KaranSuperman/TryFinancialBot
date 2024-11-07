@@ -49,7 +49,7 @@ if user_question:
     
     # First check FAQ matches
     if st.session_state.faq_vector_store:
-        faq_answer = check_faq_match(user_question, embeddings_model,faq_vector_store)
+        faq_answer = check_faq_match(user_question, embeddings_model,st.session_state.faq_vector_store)
         if faq_answer:
             st.subheader("Response:")
             st.write(faq_answer)
