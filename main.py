@@ -122,7 +122,9 @@ def get_faq_embeddings(json_path="faqs.json", batch_size=10):
         # Create a temporary credentials file for GCP authentication
         credentials_path = "temp_service_account.json"
         with open(credentials_path, "w") as f:
-            json.dump(gcp_credentials, f)
+            # json.dump(gcp_credentials, f)
+            json.dump(dict(gcp_credentials), f)
+
 
         # Set environment variable for Google API authentication
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
