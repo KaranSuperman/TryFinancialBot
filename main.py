@@ -110,7 +110,7 @@ def get_vector_store(text_chunks, batch_size=10):
 
     return None
 
-def load_json_file(file_path= './faq.json'):
+def load_json_file(file_path):
     with open(file_path, 'r') as file:
         json_data = json.load(file)
     return json_data

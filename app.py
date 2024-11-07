@@ -28,13 +28,15 @@ st.title("Finance Chatbot")
 
 # faq section
 json_result = load_json_file('./faq.json')
+if json_result is None:
+    print("Failed to load the JSON file.")
 # Extract text from the json and chunk it
 faq_content = extract_text_from_faq(json_result)
 
 faq_text_chunks = []
 for f in faq_content:
     fc = get_text_chunks(f)
-    text_chunks.extend(fc)
+    faq_text_chunks.extend(fc)
 
 # Create the vector store
 faq_vector_store = get_faq_embeddings(faq_text_chunks)
