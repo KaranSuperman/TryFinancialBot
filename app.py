@@ -46,7 +46,7 @@ user_question = st.text_input("Ask a question about finance:")
 
 if user_question:
     # Check FAQ embeddings for the user input
-    faq_answer = get_faq_embeddings(user_question)
+    faq_answer = get_faq_embeddings(json_path="./faq.json")
 
     if faq_answer:
         # Display the FAQ-based answer
