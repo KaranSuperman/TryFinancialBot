@@ -59,4 +59,4 @@ if user_question:
         st.write(response['output_text'])
 
     # Store chat data in Supabase
-    store_chat_data(user_question, faq_answer if faq_answer else response['output_text'])
+    # store_chat_data(user_question, faq_answer if faq_answer else response['output_text'])
