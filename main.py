@@ -412,7 +412,7 @@ def user_input(user_question):
         faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
         # Update the code that handles the FAQ response
-        if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
+        if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
             # Get the FAQ with the highest similarity score
             best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
             
@@ -421,21 +421,24 @@ def user_input(user_question):
                 # Retrieve the answer from the dictionary
                 answer = faq_dict[best_faq.page_content]
                 
-                # Use the answer as a reference to generate a more concise response
+                # Use the answer as a reference to generate a more comprehensive response
                 prompt_template = """
                 Question: {question}
 
                 The provided answer is:
                 {answer}
 
-                Based on this information, Paasa is a financial platform that enables global market access and portfolio diversification. It was founded by the team behind the successful US digital bank, SoFi. Paasa aims to simplify the process of international investing and help users develop wealth through its services, which include cross-border flows, tailored portfolios, and individualized guidance.
+                Based on this information, let me expand on the response:
 
                 {context}
-                Please let me know if you have any other questions about Paasa or its services.
+
+                Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
                 """
-                prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer"])
+                prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                response = chain({"input_documents": docs, "question": user_question, "answer": answer,"context": """Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing."""}, return_only_outputs=True)
+                response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
+                Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
+                """}, return_only_outputs=True)
                 return response
             elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
                 # If the question is not in the dictionary, use the metadata answer
