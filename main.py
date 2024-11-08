@@ -295,11 +295,18 @@ def is_stock_query(user_question):
 
 def get_stock_price(symbol):
     try:
-        stock = yf.Ticker(symbol)
+        # If the symbol is for an Indian company, check if it ends with '.NS' or '.BO'
+        if symbol.endswith('.NS') or symbol.endswith('.BO'):
+            stock = yf.Ticker(symbol)
+        else:
+            # For global companies, ensure the symbol is valid for global exchanges
+            stock = yf.Ticker(symbol)
+        
+        # Fetch the latest closing price
         stock_price = stock.history(period="1d")["Close"].iloc[-1]
         return stock_price
     except Exception as e:
-        return "Stock data not available."
+        return f"Stock data not available for {symbol}. Error: {str(e)}"
 
 
 # def extract_stock_symbol(user_question):
