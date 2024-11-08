@@ -321,23 +321,16 @@ def user_input(user_question):
         st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
         return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
-    stock_symbols = re.findall(r'\b[A-Z]{1,5}\b', user_question)
-    if stock_symbols:
-        stock_prices = {}
-        for symbol in stock_symbols:
-            try:
-                price = get_stock_price(symbol)
-                stock_prices[symbol] = f"₹{price:.2f}" if isinstance(price, float) else "Data unavailable"
-            except Exception as e:
-                stock_prices[symbol] = f"Error: {str(e)}"
-
-        if stock_prices:
-            output_text = "Here are the current stock prices:\n"
-            for symbol, price in stock_prices.items():
-                output_text += f"{symbol}: {price}\n"
-            return {"output_text": output_text.strip()}
-        else:
-            return {"output_text": "Sorry, I was unable to retrieve the requested stock prices."}
+    check, symbol = (is_stock_query(user_question)).split()
+    if check == "True":
+        try:
+            stock_price = get_stock_price(symbol)
+            if isinstance(stock_price, float):
+                return {"output_text": f"The current stock price of {symbol} is {stock_price:.2f}."}
+            else:
+                return {"output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."}
+        except Exception as e:
+            return {"output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"}
         
     # Generate embedding for the user question
     question_embedding = embeddings_model.embed_query(user_question)
