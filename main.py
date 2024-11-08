@@ -374,9 +374,11 @@ def user_input(user_question):
     # Get the maximum similarity score
     max_similarity_faq = max(similarity_score_faq) if similarity_score_faq else 0
 
-    if similarity_score_faq:
+    if similarity_score_faq and len(similarity_score_faq) > 0:
+        # Find the FAQ with the highest similarity score
         closest_faq = max(similarity_score_faq, key=lambda x: x[0])
-        closest_answer = closest_faq.metadata.get("answer")
+        closest_answer = closest_faq.metadata.get("answer", "No answer available")  # Default if metadata lacks "answer"
+        max_similarity_faq = closest_faq[0] 
     # st.write(f"Maximum similarity score: {max_similarity}")
 
 # ---------------------------------------------------------------------------
