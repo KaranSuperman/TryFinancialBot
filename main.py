@@ -341,6 +341,8 @@ def user_input(user_question):
     check, symbol = (is_stock_query(user_question)).split()
     print(f"DEBUG: Ticker symbol extracted: {symbol}")  # Debugging line
 
+    symbol = symbol.lstrip('$').strip()
+
     if check == "True":
         try:
             stock_price = get_stock_price(symbol)
