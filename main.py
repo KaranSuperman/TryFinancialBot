@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_community.vectorstores import FAISS
+from langchain.schema import Document
 import google.generativeai as genai
 from google.oauth2 import service_account
 from google.auth import credentials
