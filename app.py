@@ -21,6 +21,28 @@ def store_chat_data(user_message, bot_response):
     except Exception as e:
         st.error(f"Error storing chat data: {e}")
         return None
+
+def store_questions(user_message):
+    data = {
+        "user_message": user_message
+    }
+    try:
+        response = supabase.table("questions_data").insert(data).execute()
+        return response
+    except Exception as e:
+        st.error(f"Error storing chat data: {e}")
+        return None
+
+def store_answers(bot_response):
+    data = {
+        "bot_response": bot_response
+    }
+    try:
+        response = supabase.table("answers_data").insert(data).execute()
+        return response
+    except Exception as e:
+        st.error(f"Error storing chat data: {e}")
+        return None
 # ---------------------------------------------------------
 
                                                                                                                                                                         
@@ -69,3 +91,5 @@ if user_question:
     
     #Store chat data in Supabase
     store_chat_data(user_question, bot_response)
+    store_questions(user_question)
+    store_answers(bot_response)
