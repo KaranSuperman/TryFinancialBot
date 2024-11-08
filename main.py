@@ -322,10 +322,14 @@ def user_input(user_question):
         return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
     # Check if the question is about stock prices
-    check, symbol = (is_stock_query(user_question)).split()
-    if (check==True):
-        stock_price = get_stock_price(symbol)
-        return {"output_text": f"The current stock price of {symbol} is {stock_price}."}
+    check, symbol = is_stock_query(user_question)
+    if check:
+        try:
+            stock = yf.Ticker(symbol)
+            stock_price = stock.info['regularMarketPrice']
+            return {"output_text": f"The current stock price of {symbol} is {stock_price:.2f}."}
+        except:
+            return {"output_text": f"Sorry, I couldn't retrieve the current stock price for {symbol}."}
     
     # Generate embedding for the user question
     question_embedding = embeddings_model.embed_query(user_question)
