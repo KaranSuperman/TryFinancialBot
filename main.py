@@ -354,7 +354,7 @@ def user_input(user_question):
 # ----------------------------------------------------------
 
 
-    # Retrieve text from FAISS
+    # Retrieve question & questions from FAISS
     new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
     mq_retriever_faq = MultiQueryRetriever.from_llm(
         retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
@@ -368,16 +368,21 @@ def user_input(user_question):
     for faq in faqs:
         faq_embedding = embeddings_model.embed_query(faq.page_content)  # Embed the faq content
         score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
-        similarity_score_faq.append(score)
+        similarity_score_faq.append(score,faq)
+
 
     # Get the maximum similarity score
-    max_similarity = max(similarity_score_faq) if similarity_score_faq else 0
+    max_similarity_faq = max(similarity_score_faq) if similarity_score_faq else 0
+
+    if similarity_score_faq:
+    max_score, closest_faq = max(similarity_score_faq, key=lambda x: x[0])
+    closest_answer = closest_faq.metadata.get("answer")
     # st.write(f"Maximum similarity score: {max_similarity}")
 
 # ---------------------------------------------------------------------------
 
     # Fallback mechanism: use LLM directly if similarity is below threshold
-    if max_similarity < 0.65:  # Adjust threshold as needed
+    if max_similarity < 0.65 or max_similarity_faq < 0.65:  # Adjust threshold as needed
         # st.write("No relevant context found; querying the LLM directly.")
         prompt1 = user_question + "In the context of Finance"
         response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
