@@ -45,13 +45,10 @@ vector_store = get_vector_store(text_chunks)
 
 # -----------------------------------------------------
 # For FAQs
-questions, metadata = extract_questions_from_json("./faq.json")
-
-# Use only the questions for creating embeddings
-faq_chunks = questions
+faq_documents = extract_questions_from_json("./faq.json")
 
 # Create the vector store
-vector_store_faq = get_vector_store_faq(faq_chunks)
+vector_store_faq = get_vector_store_faq(faq_documents)
 
 
 # -------------------------------------------------------
