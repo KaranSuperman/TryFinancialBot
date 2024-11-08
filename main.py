@@ -346,8 +346,7 @@ def user_input(user_question):
                 return {"output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."}
         except Exception as e:
             return {"output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"}
-    else:
-        return {"output_text": "No valid stock symbol provided."}
+
 
         
     # Generate embedding for the user question
