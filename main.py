@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_community.vectorstores import FAISS
-from langchain.schema import Document
 import google.generativeai as genai
 from google.oauth2 import service_account
 from google.auth import credentials
@@ -43,7 +42,7 @@ def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=2500, chunk_overlap=500)
     return text_splitter.split_text(text)
 
-def get_vector_store(text_chunks, batch_size=1):
+def get_vector_store(text_chunks, batch_size=10):
     try:
         # Load the GCP credentials from Streamlit secrets
         gcp_credentials = st.secrets["gcp_service_account"]
@@ -111,32 +110,18 @@ def get_vector_store(text_chunks, batch_size=1):
 
     return None
 # --------------------------------------------------------------------------------
-def extract_questions_from_json(json_file_path):
-    """
-    Extract questions and answers from JSON file and prepare them for vector store
-    """
-    try:
-        with open(json_file_path, 'r') as file:
-            faq_data = json.load(file)
-        
-        documents = []
-        metadatas = []
-        
-        for item in faq_data:
-            # Create Document object with question as content and answer in metadata
-            doc = Document(
-                page_content=item['question'],
-                metadata={'answer': item['answer']}
-            )
-            documents.append(doc)
-        
-        return documents
-    except Exception as e:
-        st.error(f"Error in extract_questions_from_json: {str(e)}")
-        st.error("Please check your extract_questions_from_json")
-        raise
-
-
+def extract_questions_from_json(json_path):
+    with open(json_path, "r") as f:
+        faq_data = json.load(f)
+    
+    questions = []
+    metadata = []
+    
+    for entry in faq_data:
+        questions.append(entry["question"])
+        metadata.append({"answer": entry["answer"]}) 
+    
+    return questions, metadata
 
 def get_vector_store_faq(faq_chunks, batch_size=1):
     try:
@@ -177,16 +162,28 @@ def get_vector_store_faq(faq_chunks, batch_size=1):
             credentials=credentials
         )
 
-        # Create FAISS index directly from documents
-        vector_store_faq = FAISS.from_documents(
-            documents=faq_documents,
-            embedding=embeddings
-        )
-        
-        # Save the index
-        vector_store_faq.save_local("faiss_index_faq")
-        return vector_store_faq
-        
+        # Process text chunks in batches
+        text_embeddings = []
+        for i in range(0, len(faq_chunks), batch_size):
+            batch = faq_chunks[i:i + batch_size]
+            try:
+                batch_embeddings = embeddings.embed_documents(batch)
+                text_embeddings.extend([(text, emb) for text, emb in zip(batch, batch_embeddings)])
+            except Exception as e:
+                st.error(f"Error processing batch {i//batch_size}: {str(e)}")
+                continue
+
+        # Create and save vector store
+        if text_embeddings:
+            vector_store_faq = FAISS.from_embeddings(
+                text_embeddings,
+                embedding=embeddings
+            )
+            vector_store_faq.save_local("faiss_index_faq")
+            return vector_store_faq
+        else:
+            raise ValueError("No embeddings were successfully created")
+
     except Exception as e:
         st.error(f"Error in get_vector_store: {str(e)}")
         st.error("Please check your credentials and permissions")
