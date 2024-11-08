@@ -181,11 +181,9 @@ def get_vector_store_faq(faq_documents, batch_size=1):
         return vector_store_faq
 
     except Exception as e:
-        st.error(f"Error in get_vector_store: {str(e)}")
+        st.error(f"Error in get_vector_store_faq: {str(e)}")
         st.error("Please check your credentials and permissions")
         raise
-
-    return None
 
 # -----------------------------------------------------------------------------------
 def is_input_safe(user_input):
