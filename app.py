@@ -1,4 +1,6 @@
 import streamlit as st
+from langchain.chains import ConversationalRetrievalChain
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import json
 from typing import List, Tuple, Optional
@@ -57,10 +59,81 @@ def check_faq_match(
 
 def user_input(question: str) -> dict:
     """
-    Process user input and return response
+    Process user input and return response using ConversationalRetrievalChain
+    
+    Args:
+        question (str): User's question
+        
+    Returns:
+        dict: Contains the chatbot's response with key 'output_text'
     """
-    # Implement your chatbot logic here
-    return {"output_text": "This is a placeholder response"}  # Replace with actual implementation
+    try:
+        if not st.session_state.get('memory'):
+            st.session_state.memory = ConversationBufferMemory(
+                memory_key="chat_history",
+                return_messages=True
+            )
+
+        # Create prompt template
+        template = """You are a helpful financial advisor chatbot. Use the following context to answer the user's question.
+        If you don't know the answer based on the context, say "I don't have enough information to answer that question."
+        Always provide clear, accurate, and professional responses.
+
+        Context: {context}
+        
+        Chat History: {chat_history}
+        
+        Question: {question}
+        
+        Answer: """
+
+        PROMPT = PromptTemplate(
+            input_variables=["context", "chat_history", "question"],
+            template=template
+        )
+
+        # Initialize the language model
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-pro",
+            temperature=0.7,
+            top_p=0.8,
+            top_k=40,
+            max_output_tokens=2048,
+        )
+
+        # Create the conversational chain
+        chain = ConversationalRetrievalChain.from_llm(
+            llm=llm,
+            retriever=st.session_state.main_vector_store.as_retriever(
+                search_kwargs={"k": 3}
+            ),
+            memory=st.session_state.memory,
+            combine_docs_chain_kwargs={"prompt": PROMPT},
+            return_source_documents=True,
+            verbose=True
+        )
+
+        # Get response from the chain
+        response = chain({"question": question})
+        
+        # Extract source documents for reference
+        sources = []
+        if response.get("source_documents"):
+            for doc in response["source_documents"]:
+                if doc.metadata.get("source"):
+                    sources.append(doc.metadata["source"])
+        
+        # Format the response
+        answer = response.get("answer", "I apologize, but I couldn't generate a response.")
+        if sources:
+            answer += "\n\nSources: " + ", ".join(set(sources))
+            
+        return {"output_text": answer}
+
+    except Exception as e:
+        error_msg = f"Error processing your question: {str(e)}"
+        st.error(error_msg)
+        return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}n
 
 # Initialize Supabase client
 from supabase import create_client, Client
