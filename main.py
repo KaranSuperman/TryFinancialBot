@@ -411,52 +411,36 @@ else:
     faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
     # Update the code that handles the FAQ response
-if max_similarity < 0.65:
-    prompt1 = user_question + " In the context of Finance"
-    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-    return {"output_text": response.content} if response else {"output_text": "No response generated."}
-else:
-    with open('./faq.json', 'r') as f:
-        faq_data = json.load(f)
-
-    # Create a dictionary to map questions to answers
-    faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
-
-    # Update the code that handles the FAQ response
-        if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
-            # Get the FAQ with the highest similarity score
-            best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
+    if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
+        # Get the FAQ with the highest similarity score
+        best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
+        
+        # Check if the FAQ question matches any in the JSON data
+        if best_faq.page_content in faq_dict:
+            # Retrieve the answer from the dictionary
+            answer = faq_dict[best_faq.page_content]
             
-            # Check if the FAQ question matches any in the JSON data
-            if best_faq.page_content in faq_dict:
-                # Retrieve the answer from the dictionary
-                answer = faq_dict[best_faq.page_content]
-                
-                # Use the answer as a reference to generate a more comprehensive response
-                prompt_template = """
-                Question: {question}
-
-                The provided answer is:
-                {answer}
-
-                Based on this answer, let me provide a more detailed and comprehensive response:
-
-                Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
-
-                By providing {answer}, Paasa aims to help users expand their investment opportunities beyond their local markets and gain exposure to diverse global assets. This can be a valuable service for investors looking to diversify their portfolios and potentially achieve higher returns. Paasa's focus on simplifying the process of international investing can make it more accessible for a wider range of investors.
-
-                Please let me know if you have any other questions about Paasa or its services.
-                """
-                prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer"])
-                chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                response = chain({"input_documents": docs, "question": user_question, "answer": answer}, return_only_outputs=True)
-                return response
-            elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
-                # If the question is not in the dictionary, use the metadata answer
-                return {"output_text": best_faq.metadata['answer']}
-            else:
-                # Fallback to using the FAQ content if metadata is not available
-                return {"output_text": best_faq.page_content}    
+            # Use the answer in a more comprehensive response
+            prompt_template = """
+            Question: {question}
+            
+            Answer: {answer}
+            
+            Additional context:
+            Paasa is a platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of their platform, from dollar-denominated accounts to tax-efficient tactics, helps users develop wealth while disguising complexity.
+            
+            Based on the provided answer, can you give a more detailed and comprehensive response to the original question?
+            """
+            prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer"])
+            chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+            response = chain({"input_documents": docs, "question": user_question, "answer": answer}, return_only_outputs=True)
+            return response
+        elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+            # If the question is not in the dictionary, use the metadata answer
+            return {"output_text": best_faq.metadata['answer']}
+        else:
+            # Fallback to using the FAQ content if metadata is not available
+            return {"output_text": best_faq.page_content}      
 
         else:
             # Use PDF content with normal prompt template
