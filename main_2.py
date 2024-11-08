@@ -109,89 +109,9 @@ def get_vector_store(text_chunks, batch_size=10):
         raise
 
     return None
-# --------------------------------------------------------------------------------
-def extract_questions_from_json(json_path):
-    with open(json_path, "r") as f:
-        faq_data = json.load(f)
-    
-    questions = []
-    metadata = []
-    
-    for entry in faq_data:
-        questions.append(entry["question"])
-        metadata.append({"answer": entry["answer"]}) 
-    
-    return questions, metadata
 
-def get_vector_store_faq(faq_chunks, batch_size=1):
-    try:
-        # Load the GCP credentials from Streamlit secrets
-        gcp_credentials = st.secrets["gcp_service_account"]
-        
-        # Convert credentials to dictionary if needed
-        if not isinstance(gcp_credentials, dict):
-            gcp_credentials_dict = json.loads(gcp_credentials) if isinstance(gcp_credentials, str) else dict(gcp_credentials)
-        else:
-            gcp_credentials_dict = gcp_credentials
 
-        # Create a temporary credentials file
-        credentials_path = "temp_service_account.json"
-        with open(credentials_path, "w") as f:
-            json.dump(gcp_credentials_dict, f)
 
-        # Set environment variable for authentication
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
-
-        # Initialize credentials
-        credentials = service_account.Credentials.from_service_account_file(credentials_path)
-        
-        # Initialize AI Platform
-        aiplatform.init(
-            project=gcp_credentials_dict["project_id"],
-            credentials=credentials
-        )
-
-        # Configure Gemini API
-        gemini_api_key = st.secrets["gemini"]["api_key"]
-        genai.configure(api_key=gemini_api_key)
-
-        # Create embeddings model
-        embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
-            google_api_key=gemini_api_key,
-            credentials=credentials
-        )
-
-        # Process text chunks in batches
-        text_embeddings = []
-        for i in range(0, len(faq_chunks), batch_size):
-            batch = faq_chunks[i:i + batch_size]
-            try:
-                batch_embeddings = embeddings.embed_documents(batch)
-                text_embeddings.extend([(text, emb) for text, emb in zip(batch, batch_embeddings)])
-            except Exception as e:
-                st.error(f"Error processing batch {i//batch_size}: {str(e)}")
-                continue
-
-        # Create and save vector store
-        if text_embeddings:
-            vector_store_faq = FAISS.from_embeddings(
-                text_embeddings,
-                embedding=embeddings
-            )
-            vector_store_faq.save_local("faiss_index_faq")
-            return vector_store_faq
-        else:
-            raise ValueError("No embeddings were successfully created")
-
-    except Exception as e:
-        st.error(f"Error in get_vector_store: {str(e)}")
-        st.error("Please check your credentials and permissions")
-        raise
-
-    return None
-
-# -----------------------------------------------------------------------------------
 def is_input_safe(user_input):
     disallowed_phrases = [
     "ignore previous instructions",
@@ -330,8 +250,7 @@ def user_input(user_question):
     # Generate embedding for the user question
     question_embedding = embeddings_model.embed_query(user_question)
     
-    # -----------------------------------------------------
-    # Retrieve documents from FAISS for PDF content
+    # Retrieve documents from FAISS
     new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
     mq_retriever = MultiQueryRetriever.from_llm(
         retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
@@ -340,74 +259,41 @@ def user_input(user_question):
     
     docs = mq_retriever.get_relevant_documents(query=user_question)
     
-    # Compute similarity scores for PDF content
-    pdf_similarity_scores = []
+    # Compute similarity scores between query embedding and each document
+    similarity_scores = []
     for doc in docs:
-        doc_embedding = embeddings_model.embed_query(doc.page_content)
+        doc_embedding = embeddings_model.embed_query(doc.page_content)  # Embed the document content
         score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
-        pdf_similarity_scores.append(score)
+        similarity_scores.append(score)
 
-    max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
-    # st.write(f"Maximum similarity score for PDF: {max_similarity_pdf}")
+    # Get the maximum similarity score
+    max_similarity = max(similarity_scores) if similarity_scores else 0
+    # st.write(f"Maximum similarity score: {max_similarity}")
 
-    # ----------------------------------------------------------
-    # Retrieve FAQs from FAISS
-    new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
-    mq_retriever_faq = MultiQueryRetriever.from_llm(
-        retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
-        llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
-    )
-    
-    faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
-    
-    # Compute similarity scores for FAQ content and store with their metadata
-    faq_similarity_scores = []
-    faq_with_scores = []
-    for faq in faqs:
-        faq_embedding = embeddings_model.embed_query(faq.page_content)
-        score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
-        faq_similarity_scores.append(score)
-        faq_with_scores.append((score, faq))
-
-    max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
-    # st.write(f"Maximum similarity score for FAQ: {max_similarity_faq}")
-
-    # ---------------------------------------------------------------------------
-    # Use the higher similarity score between PDF and FAQ for decision making
-    max_similarity = max(max_similarity_pdf, max_similarity_faq)
-    
-    # Fallback mechanism: use LLM directly if both similarities are below threshold
-    if max_similarity < 0.65:
-        prompt1 = user_question + " In the context of Finance"
+    # Fallback mechanism: use LLM directly if similarity is below threshold
+    if max_similarity < 0.65:  # Adjust threshold as needed
+        # st.write("No relevant context found; querying the LLM directly.")
+        prompt1 = user_question + "In the context of Finance"
         response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
         return {"output_text": response.content} if response else {"output_text": "No response generated."}
     else:
-        # If FAQ has higher similarity and above threshold, use FAQ answer
-        if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
-            # Get the FAQ with the highest similarity score
-            best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-            
-            # Extract the answer from metadata
-            if hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
-                return {"output_text": best_faq.metadata['answer']}
-            else:
-                # Fallback to using the FAQ content if metadata is not available
-                return {"output_text": best_faq.page_content}
-        else:
-            # Use PDF content with normal prompt template
-            prompt_template = """ About the company: 
-            Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
+        # Use retrieved docs with context
+        # st.write("Using retrieved documents for context.")
+        # st.write(docs)
+        prompt_template = """ About the company: 
+        Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
 
-            Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
+    Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
 
-            Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
+    Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
 
-            Answer the Question in brief.
-            Background:\n{context}?\n
-            Question:\n{question}. + Explain in detail.\n
-            Answer:
-            """
-            prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-            chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-            response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
-            return response
+        Answer the Question in brief.
+        Background:\n{context}?\n
+        Question:\n{question}. + Explain in detail.\n
+        Answer:
+        """
+        prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+        chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+        response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+        return response
+
