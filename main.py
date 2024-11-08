@@ -363,15 +363,15 @@ def user_input(user_question):
     
     faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
     
-    # Compute similarity scores between query embedding and each document
-    similarity_scores = []
+    # Compute similarity scores between query embedding and each question
+    similarity_score_faq = []
     for faq in faqs:
         faq_embedding = embeddings_model.embed_query(faq.page_content)  # Embed the faq content
         score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
-        similarity_scores.append(score)
+        similarity_score_faq.append(score)
 
     # Get the maximum similarity score
-    max_similarity = max(similarity_scores) if similarity_scores else 0
+    max_similarity = max(similarity_score_faq) if similarity_score_faq else 0
     # st.write(f"Maximum similarity score: {max_similarity}")
 
 # ---------------------------------------------------------------------------
