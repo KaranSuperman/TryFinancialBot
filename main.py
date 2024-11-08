@@ -322,11 +322,7 @@ def user_input(user_question):
         return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
     # Check if the question is about stock prices
-    # check, symbol = (is_stock_query(user_question)).split()
-
-    check, symbol = is_stock_query(user_question)  # Ensure this returns a tuple with check as True/False and symbol
-    print(f"check: {check}, symbol: {symbol}")
-    
+    check, symbol = (is_stock_query(user_question)).split()
     if (check==True):
         stock_price = get_stock_price(symbol)
         return {"output_text": f"The current stock price of {symbol} is {stock_price}."}
