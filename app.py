@@ -187,6 +187,19 @@ def check_faq_match(user_question: str, embeddings_model: GoogleGenerativeAIEmbe
         st.error(f"Error checking FAQ match: {str(e)}")
         return None
 
+
+def store_chat_data(user_message, bot_response):
+    data = {
+        "user_message": user_message,
+        "bot_response": bot_response,
+    }
+    try:
+        response = supabase.table("chat_data").insert(data).execute()
+        return response
+    except Exception as e:
+        st.error(f"Error storing chat data: {e}")
+        return None
+
 def main():
     # Title of the application
     st.title("Finance Chatbot")
