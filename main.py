@@ -130,6 +130,11 @@ def extract_questions_from_json(json_file_path):
             documents.append(doc)
         
         return documents
+    except Exception as e:
+        st.error(f"Error in extract_questions_from_json: {str(e)}")
+        st.error("Please check your extract_questions_from_json")
+        raise
+
 
 
 def get_vector_store_faq(faq_chunks, batch_size=1):
