@@ -323,7 +323,7 @@ def user_input(user_question):
 
     # Check if the question is about stock prices
     symbol = is_stock_query(user_question)
-    if check:
+    if symbol:
         try:
             stock = yf.Ticker(symbol)
             stock_price = stock.info['regularMarketPrice']
