@@ -30,7 +30,7 @@ st.title("Finance Chatbot")
 # Load PDF paths
 pdf_paths = ['Low_risk_portfolio.pdf', 'Medium_risk_portfolio.pdf', 'High_risk_portfolio.pdf']  
 
-------------------------------------------------------
+# ------------------------------------------------------
 # For PDF
 # Extract text from the PDFs and chunk it
 content = extract_text_from_pdfs(pdf_paths)
