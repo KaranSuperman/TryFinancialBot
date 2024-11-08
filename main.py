@@ -278,19 +278,14 @@ def is_relevant(question, embeddings_model, threshold=0.55):
 
 
 def is_stock_query(user_question):
-    prompt3 = '''Analyze the following question and respond strictly in two words only.
-                1. The first word should be True  or False specifying whether the question is asking for a stock price or not.
-                2. The second word should be the ticker of the stock that the question is specifying.
-                3. For Indian companies, add '.NS' for NSE listings or '.BO' for BSE listings.
-                   For example if the question is What is the stock price of Tatasteel then
-                   the response should just be: True TATASTEEL.NS.
-                4. For other companies, use the regular ticker.   
-                    For example if the question is What is the stock price of Apple then the response should just be only like this don't
-                    add any currency sign in it: 
-                    True APPLE.
-                 Here is the question:''' + user_question
+    prompt3 = '''Analyze the following question and respond with exactly two words.
+                1. First word: "True" or "False" — specify if the question is asking for a stock price.
+                2. Second word: the stock ticker. For Indian companies, append ".NS" for NSE listings or ".BO" for BSE listings.
+                   - Example: "True TATASTEEL.NS" if the question is about Tata Steel on NSE.
+                   - For non-Indian companies, provide the standard ticker only, without currency symbols.
+                   - Example: "True AAPL" if the question is about Apple.
+                Question: ''' + user_question
     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt3)]).content
-    # st.write(response)
     return response
 
 
@@ -341,7 +336,6 @@ def user_input(user_question):
     check, symbol = (is_stock_query(user_question)).split()
     print(f"DEBUG: Ticker symbol extracted: {symbol}")  # Debugging line
 
-    symbol = symbol.lstrip('$').strip()
 
     if check == "True":
         try:
