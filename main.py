@@ -377,7 +377,7 @@ def user_input(user_question):
 # ---------------------------------------------------------------------------
 
     # Fallback mechanism: use LLM directly if similarity is below threshold
-    if max_similarity < 0.65 or max_similarity_faq:  # Adjust threshold as needed
+    if max_similarity < 0.65 or max_similarity_faq < 0.65:  # Adjust threshold as needed
         # st.write("No relevant context found; querying the LLM directly.")
         prompt1 = user_question + "In the context of Finance"
         response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
