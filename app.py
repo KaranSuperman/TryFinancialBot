@@ -48,7 +48,7 @@ vector_store = get_vector_store(text_chunks)
 content_faq = extract_questions_from_json("./faq.json")
 
 text_chunks_faq = []
-for c in content:
+for c in content_faq:
     tc = text_chunks_faq(c)
     text_chunks_faq.extend(tc)
 
