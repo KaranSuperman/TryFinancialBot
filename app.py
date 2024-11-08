@@ -47,14 +47,11 @@ vector_store = get_vector_store(text_chunks)
 # For FAQs
 content_faq = extract_questions_from_json("./faq.json")
 
-text_chunks_faq = []
-for c in content_faq:
-    tc = create_chunks(c)
-    text_chunks_faq.extend(tc)
-
 # Create the vector store
-vector_store_faq = get_vector_store_faq(text_chunks_faq)
+vector_store_faq = get_vector_store_faq(content_faq)
 
+
+# -------------------------------------------------------
 # User input for question
 user_question = st.text_input("Ask a question about finance:")
 
