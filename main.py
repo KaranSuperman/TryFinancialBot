@@ -322,7 +322,7 @@ def user_input(user_question):
         return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
     # Check if the question is about stock prices
-    check, symbol = is_stock_query(user_question)
+    symbol = is_stock_query(user_question)
     if check:
         try:
             stock = yf.Ticker(symbol)
