@@ -442,21 +442,21 @@ def user_input(user_question):
                 # Fallback to using the FAQ content if metadata is not available
                 return {"output_text": best_faq.page_content}      
 
-    else:
-        # Use PDF content with normal prompt template
-        prompt_template = """ About the company: 
-        Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
+        else:
+            # Use PDF content with normal prompt template
+            prompt_template = """ About the company: 
+            Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
 
-        Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
+            Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
 
-        Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
+            Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
 
-        Answer the Question in brief.
-        Background:\n{context}?\n
-        Question:\n{question}. + Explain in detail.\n
-        Answer:
-        """
-        prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-        chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-        response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
-        return response
+            Answer the Question in brief.
+            Background:\n{context}?\n
+            Question:\n{question}. + Explain in detail.\n
+            Answer:
+            """
+            prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+            chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+            response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+            return response
