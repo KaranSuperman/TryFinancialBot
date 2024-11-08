@@ -430,11 +430,12 @@ def user_input(user_question):
 
                 Based on this information, Paasa is a financial platform that enables global market access and portfolio diversification. It was founded by the team behind the successful US digital bank, SoFi. Paasa aims to simplify the process of international investing and help users develop wealth through its services, which include cross-border flows, tailored portfolios, and individualized guidance.
 
+                {context}
                 Please let me know if you have any other questions about Paasa or its services.
                 """
                 prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                response = chain({"input_documents": docs, "question": user_question, "answer": answer}, return_only_outputs=True)
+                response = chain({"input_documents": docs, "question": user_question, "answer": answer,"context": """Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing."""}, return_only_outputs=True)
                 return response
             elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
                 # If the question is not in the dictionary, use the metadata answer
