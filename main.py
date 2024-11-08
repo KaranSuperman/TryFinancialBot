@@ -280,7 +280,7 @@ def is_relevant(question, embeddings_model, threshold=0.55):
 def is_stock_query(user_question):
     prompt3 = "Analyze the following question and respond strictly in two words only. The first word should be True or False specifying whether the question is asking for a stock price or not. The second word should be the ticker of the stock that the question is specifying. For Indian companies, add '.NS' for NSE listings or '.BO' for BSE listings. For US companies, use the regular ticker. For example if the question is What is the stock price of Tatasteel then the response should just be: True TATASTEEL.NS.   Another example if the question is What is the stock price of Apple then the response should just be: True APPLE. Here is the question:" + user_question
     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt3)]).content
-    # st.write(response)
+    st.write(response)
     return response
 
 
