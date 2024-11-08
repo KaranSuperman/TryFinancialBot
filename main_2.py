@@ -331,7 +331,7 @@ def user_input(user_question):
     question_embedding = embeddings_model.embed_query(user_question)
     
     # -----------------------------------------------------
-    # Retrieve documents from FAISS
+    # Retrieve documents from FAISS for PDF content
     new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
     mq_retriever = MultiQueryRetriever.from_llm(
         retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
@@ -340,21 +340,18 @@ def user_input(user_question):
     
     docs = mq_retriever.get_relevant_documents(query=user_question)
     
-    # Compute similarity scores between query embedding and each document
-    similarity_scores = []
+    # Compute similarity scores for PDF content
+    pdf_similarity_scores = []
     for doc in docs:
-        doc_embedding = embeddings_model.embed_query(doc.page_content)  # Embed the document content
+        doc_embedding = embeddings_model.embed_query(doc.page_content)
         score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
-        similarity_scores.append(score)
+        pdf_similarity_scores.append(score)
 
-    # Get the maximum similarity score
-    max_similarity = max(similarity_scores) if similarity_scores else 0
-    st.write(f"Maximum similarity score for pdf: {max_similarity}")
+    max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
+    # st.write(f"Maximum similarity score for PDF: {max_similarity_pdf}")
 
-# ----------------------------------------------------------
-
-
-    # Retrieve text from FAISS
+    # ----------------------------------------------------------
+    # Retrieve FAQs from FAISS
     new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
     mq_retriever_faq = MultiQueryRetriever.from_llm(
         retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
@@ -363,42 +360,54 @@ def user_input(user_question):
     
     faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
     
-    # Compute similarity scores between query embedding and each question
-    similarity_score_faq = []
+    # Compute similarity scores for FAQ content and store with their metadata
+    faq_similarity_scores = []
+    faq_with_scores = []
     for faq in faqs:
-        faq_embedding = embeddings_model.embed_query(faq.page_content)  # Embed the faq content
+        faq_embedding = embeddings_model.embed_query(faq.page_content)
         score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
-        similarity_score_faq.append(score)
+        faq_similarity_scores.append(score)
+        faq_with_scores.append((score, faq))
 
-    # Get the maximum similarity score
-    max_similarity_faq = max(similarity_score_faq) if similarity_score_faq else 0
-    st.write(f"Maximum similarity score for faq: {max_similarity}")
+    max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
+    # st.write(f"Maximum similarity score for FAQ: {max_similarity_faq}")
 
-# ---------------------------------------------------------------------------
-
-    # Fallback mechanism: use LLM directly if similarity is below threshold
-    if max_similarity < 0.65 or max_similarity_faq < 0.65:  # Adjust threshold as needed
-        # st.write("No relevant context found; querying the LLM directly.")
-        prompt1 = user_question + "In the context of Finance"
+    # ---------------------------------------------------------------------------
+    # Use the higher similarity score between PDF and FAQ for decision making
+    max_similarity = max(max_similarity_pdf, max_similarity_faq)
+    
+    # Fallback mechanism: use LLM directly if both similarities are below threshold
+    if max_similarity < 0.65:
+        prompt1 = user_question + " In the context of Finance"
         response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
         return {"output_text": response.content} if response else {"output_text": "No response generated."}
     else:
-        # Use retrieved docs with context
-        # st.write("Using retrieved documents for context.")
-        # st.write(docs)
-        prompt_template = """ About the company: 
-        Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
+        # If FAQ has higher similarity and above threshold, use FAQ answer
+        if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
+            # Get the FAQ with the highest similarity score
+            best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
+            
+            # Extract the answer from metadata
+            if hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+                return {"output_text": best_faq.metadata['answer']}
+            else:
+                # Fallback to using the FAQ content if metadata is not available
+                return {"output_text": best_faq.page_content}
+        else:
+            # Use PDF content with normal prompt template
+            prompt_template = """ About the company: 
+            Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
 
-    Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
+            Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
 
-    Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
+            Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
 
-        Answer the Question in brief.
-        Background:\n{context}?\n
-        Question:\n{question}. + Explain in detail.\n
-        Answer:
-        """
-        prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-        chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-        response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
-        return response
+            Answer the Question in brief.
+            Background:\n{context}?\n
+            Question:\n{question}. + Explain in detail.\n
+            Answer:
+            """
+            prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+            chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+            response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+            return response
