@@ -420,16 +420,20 @@ else:
             # Retrieve the answer from the dictionary
             answer = faq_dict[best_faq.page_content]
             
-            # Use the answer in a more comprehensive response
+            # Use the answer as a reference to generate a more comprehensive response
             prompt_template = """
             Question: {question}
-            
-            Answer: {answer}
-            
-            Additional context:
-            Paasa is a platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of their platform, from dollar-denominated accounts to tax-efficient tactics, helps users develop wealth while disguising complexity.
-            
-            Based on the provided answer, can you give a more detailed and comprehensive response to the original question?
+
+            The provided answer is:
+            {answer}
+
+            Based on this answer, let me provide a more detailed and comprehensive response:
+
+            Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
+
+            By providing {answer}, Paasa aims to help users expand their investment opportunities beyond their local markets and gain exposure to diverse global assets. This can be a valuable service for investors looking to diversify their portfolios and potentially achieve higher returns. Paasa's focus on simplifying the process of international investing can make it more accessible for a wider range of investors.
+
+            Please let me know if you have any other questions about Paasa or its services.
             """
             prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer"])
             chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
@@ -440,23 +444,23 @@ else:
             return {"output_text": best_faq.metadata['answer']}
         else:
             # Fallback to using the FAQ content if metadata is not available
-            return {"output_text": best_faq.page_content}      
+            return {"output_text": best_faq.page_content}     
 
-        else:
-            # Use PDF content with normal prompt template
-            prompt_template = """ About the company: 
-            Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
+    else:
+        # Use PDF content with normal prompt template
+        prompt_template = """ About the company: 
+        Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
 
-            Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
+        Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
 
-            Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
+        Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
 
-            Answer the Question in brief.
-            Background:\n{context}?\n
-            Question:\n{question}. + Explain in detail.\n
-            Answer:
-            """
-            prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-            chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-            response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
-            return response
+        Answer the Question in brief.
+        Background:\n{context}?\n
+        Question:\n{question}. + Explain in detail.\n
+        Answer:
+        """
+        prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+        chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+        response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+        return response
