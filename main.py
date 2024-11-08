@@ -348,7 +348,8 @@ def user_input(user_question):
             return {"output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"}
     else:
         return {"output_text": "No valid stock symbol provided."}
-            
+
+        
     # Generate embedding for the user question
     question_embedding = embeddings_model.embed_query(user_question)
     
