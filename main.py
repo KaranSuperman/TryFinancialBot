@@ -421,24 +421,20 @@ def user_input(user_question):
                 # Retrieve the answer from the dictionary
                 answer = faq_dict[best_faq.page_content]
                 
-                # Use the answer as a reference to generate a more comprehensive response
+                # Use the answer as a reference to generate a more concise response
                 prompt_template = """
                 Question: {question}
 
                 The provided answer is:
                 {answer}
 
-                Based on this information, let me expand on the response:
+                Based on this information, Paasa is a financial platform that enables global market access and portfolio diversification. It was founded by the team behind the successful US digital bank, SoFi. Paasa aims to simplify the process of international investing and help users develop wealth through its services, which include cross-border flows, tailored portfolios, and individualized guidance.
 
-                {context}
-
-                Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
+                Please let me know if you have any other questions about Paasa or its services.
                 """
-                prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
+                prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
-                Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
-                """}, return_only_outputs=True)
+                response = chain({"input_documents": docs, "question": user_question, "answer": answer}, return_only_outputs=True)
                 return response
             elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
                 # If the question is not in the dictionary, use the metadata answer
@@ -446,6 +442,7 @@ def user_input(user_question):
             else:
                 # Fallback to using the FAQ content if metadata is not available
                 return {"output_text": best_faq.page_content}
+
         else:
             # Use PDF content with normal prompt template
             prompt_template = """ About the company: 
