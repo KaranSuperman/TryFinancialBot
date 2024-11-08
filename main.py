@@ -109,69 +109,89 @@ def get_vector_store(text_chunks, batch_size=10):
         raise
 
     return None
-
-def initialize_vector_stores(pdf_paths):
-    """Initialize both main and FAQ vector stores"""
-    try:
-        # Initialize embeddings model
-        embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-        
-        # Create main vector store from PDFs
-        content = extract_text_from_pdfs(pdf_paths)
-        text_chunks = []
-        for c in content:
-            tc = get_text_chunks(c)
-            text_chunks.extend(tc)
-        main_vector_store = get_vector_store(text_chunks)
-        
-        # Load and create FAQ vector store
-        with open('faq.json', 'r') as f:
-            faq_data = json.load(f)
-            
-        # Prepare questions and metadata
-        questions = [item["question"] for item in faq_data]
-        metadata_list = [{"answer": item["answer"]} for item in faq_data]
-        
-        # Generate embeddings for questions
-        question_embeddings = embeddings_model.embed_documents(questions)
-        
-        # Create FAISS index for FAQs
-        faq_vector_store = FAISS.from_embeddings(
-            [(q, emb) for q, emb in zip(questions, question_embeddings)],
-            embeddings_model,
-            metadatas=metadata_list
-        )
-        
-        # Save FAQ vector store
-        faq_vector_store.save_local("faiss_index_faq")
-        return main_vector_store, faq_vector_store
+# --------------------------------------------------------------------------------
+def extract_questions_from_json(json_path):
+    with open(json_path, "r") as f:
+        faq_data = json.load(f)
     
-    except Exception as e:
-        st.error(f"Error initializing vector stores: {str(e)}")
-        return None, None
+    questions = []
+    metadata = []
+    
+    for entry in faq_data:
+        questions.append(entry["question"])
+        metadata.append({"answer": entry["answer"]}) 
+    
+    return questions, metadata
 
-def check_faq_match(user_question, embeddings_model, faq_vector_store, threshold=0.95):
-    """
-    Check if user question matches any FAQ with high similarity.
-    """
+def get_vector_store_faq(text_chunks, batch_size=10):
     try:
-        # Search for similar questions
-        docs_and_scores = faq_vector_store.similarity_search_with_score(user_question, k=1)
+        # Load the GCP credentials from Streamlit secrets
+        gcp_credentials = st.secrets["gcp_service_account"]
         
-        if docs_and_scores:
-            doc, score = docs_and_scores[0]
-            # Convert score to similarity (FAISS returns distance)
-            similarity = 1 - score
-            
-            if similarity >= threshold:
-                return doc.metadata.get("answer")
-        
-        return None
-        
-    except Exception as e:
-        st.error(f"Error checking FAQ match: {str(e)}")
-        return None
+        # Convert credentials to dictionary if needed
+        if not isinstance(gcp_credentials, dict):
+            gcp_credentials_dict = json.loads(gcp_credentials) if isinstance(gcp_credentials, str) else dict(gcp_credentials)
+        else:
+            gcp_credentials_dict = gcp_credentials
 
+        # Create a temporary credentials file
+        credentials_path = "temp_service_account.json"
+        with open(credentials_path, "w") as f:
+            json.dump(gcp_credentials_dict, f)
+
+        # Set environment variable for authentication
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
+
+        # Initialize credentials
+        credentials = service_account.Credentials.from_service_account_file(credentials_path)
+        
+        # Initialize AI Platform
+        aiplatform.init(
+            project=gcp_credentials_dict["project_id"],
+            credentials=credentials
+        )
+
+        # Configure Gemini API
+        gemini_api_key = st.secrets["gemini"]["api_key"]
+        genai.configure(api_key=gemini_api_key)
+
+        # Create embeddings model
+        embeddings = GoogleGenerativeAIEmbeddings(
+            model="models/embedding-001",
+            google_api_key=gemini_api_key,
+            credentials=credentials
+        )
+
+        # Process text chunks in batches
+        text_embeddings = []
+        for i in range(0, len(text_chunks), batch_size):
+            batch = text_chunks[i:i + batch_size]
+            try:
+                batch_embeddings = embeddings.embed_documents(batch)
+                text_embeddings.extend([(text, emb) for text, emb in zip(batch, batch_embeddings)])
+            except Exception as e:
+                st.error(f"Error processing batch {i//batch_size}: {str(e)}")
+                continue
+
+        # Create and save vector store
+        if text_embeddings:
+            vector_store_faq = FAISS.from_embeddings(
+                text_embeddings,
+                embedding=embeddings
+            )
+            vector_store_faq.save_local("faiss_index_faq")
+            return vector_store_faq
+        else:
+            raise ValueError("No embeddings were successfully created")
+
+    except Exception as e:
+        st.error(f"Error in get_vector_store: {str(e)}")
+        st.error("Please check your credentials and permissions")
+        raise
+
+    return None
+
+# -----------------------------------------------------------------------------------
 def is_input_safe(user_input):
     disallowed_phrases = [
     "ignore previous instructions",
@@ -296,11 +316,6 @@ def user_input(user_question):
     # Initialize embeddings model
     embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
-    # Check for FAQ match first
-    faq_answer = check_faq_match(user_question, embeddings_model)
-    if faq_answer:
-        return {"output_text": faq_answer}
-
     # Check if question is relevant to finance
     if not is_relevant(user_question, embeddings_model, threshold=0.5):
         st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
@@ -315,6 +330,7 @@ def user_input(user_question):
     # Generate embedding for the user question
     question_embedding = embeddings_model.embed_query(user_question)
     
+    -----------------------------------------------------
     # Retrieve documents from FAISS
     new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
     mq_retriever = MultiQueryRetriever.from_llm(
@@ -334,6 +350,31 @@ def user_input(user_question):
     # Get the maximum similarity score
     max_similarity = max(similarity_scores) if similarity_scores else 0
     # st.write(f"Maximum similarity score: {max_similarity}")
+
+----------------------------------------------------------
+
+
+    # Retrieve text from FAISS
+    new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
+    mq_retriever_faq = MultiQueryRetriever.from_llm(
+        retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
+        llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+    )
+    
+    faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
+    
+    # Compute similarity scores between query embedding and each document
+    similarity_scores = []
+    for faq in faqs:
+        faq_embedding = embeddings_model.embed_query(faq.page_content)  # Embed the faq content
+        score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
+        similarity_scores.append(score)
+
+    # Get the maximum similarity score
+    max_similarity = max(similarity_scores) if similarity_scores else 0
+    # st.write(f"Maximum similarity score: {max_similarity}")
+
+# ---------------------------------------------------------------------------
 
     # Fallback mechanism: use LLM directly if similarity is below threshold
     if max_similarity < 0.65:  # Adjust threshold as needed
