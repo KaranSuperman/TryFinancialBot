@@ -60,12 +60,6 @@ def check_faq_match(
 def user_input(question: str) -> dict:
     """
     Process user input and return response using ConversationalRetrievalChain
-    
-    Args:
-        question (str): User's question
-        
-    Returns:
-        dict: Contains the chatbot's response with key 'output_text'
     """
     try:
         if not st.session_state.get('memory'):
@@ -135,21 +129,70 @@ def user_input(question: str) -> dict:
         st.error(error_msg)
         return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
 
-# Initialize Supabase client
-from supabase import create_client, Client
+def initialize_vector_stores(pdf_paths: List[str]) -> Tuple[Optional[FAISS], Optional[FAISS]]:
+    """Initialize both main and FAQ vector stores"""
+    try:
+        # Initialize embeddings model
+        embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        
+        # Create main vector store from PDFs
+        content = extract_text_from_pdfs(pdf_paths)
+        text_chunks = []
+        for c in content:
+            tc = get_text_chunks(c)
+            text_chunks.extend(tc)
+        main_vector_store = get_vector_store(text_chunks)
+        
+        # Load and create FAQ vector store
+        with open('faq.json', 'r') as f:
+            faq_data = json.load(f)
+            
+        # Prepare questions and metadata
+        questions = [item["question"] for item in faq_data]
+        metadata_list = [{"answer": item["answer"]} for item in faq_data]
+        
+        # Generate embeddings for questions
+        question_embeddings = embeddings_model.embed_documents(questions)
+        
+        # Create FAISS index for FAQs
+        faq_vector_store = FAISS.from_embeddings(
+            [(q, emb) for q, emb in zip(questions, question_embeddings)],
+            embeddings_model,
+            metadatas=metadata_list
+        )
+        
+        # Save FAQ vector store
+        faq_vector_store.save_local("faiss_index_faq")
+        return main_vector_store, faq_vector_store
+    
+    except Exception as e:
+        st.error(f"Error initializing vector stores: {str(e)}")
+        return None, None
 
 def main():
     # Title of the application
     st.title("Finance Chatbot")
 
-    # Initialize session state for vector stores
+    # Initialize session state for vector stores and memory
     if 'vector_stores_initialized' not in st.session_state:
         st.session_state.vector_stores_initialized = False
         st.session_state.main_vector_store = None
         st.session_state.faq_vector_store = None
+        st.session_state.memory = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True
+        )
 
     # Load PDF paths
     pdf_paths = ['Low_risk_portfolio.pdf', 'Medium_risk_portfolio.pdf', 'High_risk_portfolio.pdf']
+
+    # Initialize vector stores if not already done
+    if not st.session_state.vector_stores_initialized:
+        main_store, faq_store = initialize_vector_stores(pdf_paths)
+        if main_store is not None and faq_store is not None:
+            st.session_state.main_vector_store = main_store
+            st.session_state.faq_vector_store = faq_store
+            st.session_state.vector_stores_initialized = True
 
     # Initialize Supabase connection
     try:
@@ -160,25 +203,18 @@ def main():
         st.error(f"Error connecting to Supabase: {str(e)}")
         supabase = None
 
-    # Initialize vector stores if not already done
-    if not st.session_state.vector_stores_initialized:
-        main_store, faq_store = initialize_vector_stores(pdf_paths)
-        if main_store is not None and faq_store is not None:
-            st.session_state.main_vector_store = main_store
-            st.session_state.faq_vector_store = faq_store
-            st.session_state.vector_stores_initialized = True
-
     # User input for question
     user_question = st.text_input("Ask a question about finance:")
 
     if user_question:
-        # Initialize embeddings model
-        embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-        
         try:
             # First check FAQ matches
             if st.session_state.faq_vector_store:
-                faq_answer = check_faq_match(user_question, embeddings_model, st.session_state.faq_vector_store)
+                faq_answer = check_faq_match(
+                    user_question,
+                    GoogleGenerativeAIEmbeddings(model="models/embedding-001"),
+                    st.session_state.faq_vector_store
+                )
                 if faq_answer:
                     st.subheader("Response:")
                     st.write(faq_answer)
@@ -190,23 +226,10 @@ def main():
                     st.subheader("Response:")
                     bot_response = response.get("output_text", "No response generated.")
                     st.write(bot_response)
-                    # if supabase:
-                    #     store_chat_data(supabase, user_question, bot_response)
+                    if supabase:
+                        store_chat_data(supabase, user_question, bot_response)
         except Exception as e:
             st.error(f"Error processing question: {str(e)}")
-
-def store_chat_data(supabase: Client, user_message: str, bot_response: str):
-    """Store chat data in Supabase"""
-    data = {
-        "user_message": user_message,
-        "bot_response": bot_response,
-    }
-    try:
-        response = supabase.table("chat_data").insert(data).execute()
-        return response
-    except Exception as e:
-        st.error(f"Error storing chat data: {e}")
-        return None
 
 if __name__ == "__main__":
     main()
