@@ -321,11 +321,16 @@ def user_input(user_question):
         st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
         return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
-    # Check if the question is about stock prices
-    check, symbol = (is_stock_query(user_question)).split()
-    if (check==True):
+check, symbol = (is_stock_query(user_question)).split()
+if check == "True":
+    try:
         stock_price = get_stock_price(symbol)
-        return {"output_text": f"The current stock price of {symbol} is {stock_price}."}
+        if isinstance(stock_price, float):
+            return {"output_text": f"The current stock price of {symbol} is ₹{stock_price:.2f}."}
+        else:
+            return {"output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."}
+    except Exception as e:
+        return {"output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"}
     
     # Generate embedding for the user question
     question_embedding = embeddings_model.embed_query(user_question)
