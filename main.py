@@ -370,7 +370,7 @@ def user_input(user_question):
         pdf_similarity_scores.append(score)
 
     max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
-    # st.write(f"Maximum similarity score for PDF: {max_similarity_pdf}")
+    st.write(f"Maximum similarity score for PDF: {max_similarity_pdf}")
 
     # ----------------------------------------------------------
     # Retrieve FAQs from FAISS
@@ -392,7 +392,7 @@ def user_input(user_question):
         faq_with_scores.append((score, faq))
 
     max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
-    # st.write(f"Maximum similarity score for FAQ: {max_similarity_faq}")
+    st.write(f"Maximum similarity score for FAQ: {max_similarity_faq}")
 
     # ---------------------------------------------------------------------------
     # Use the higher similarity score between PDF and FAQ for decision making
