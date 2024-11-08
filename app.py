@@ -3,6 +3,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import json
 from typing import List, Tuple, Optional
 from langchain_community.vectorstores import FAISS
+from main import extract_text_from_pdfs, get_text_chunks, initialize_vector_stores, user_input
 import os
 
 def extract_text_from_pdfs(pdf_paths: List[str]) -> List[str]:
