@@ -114,22 +114,22 @@ def extract_questions_from_json(json_file_path):
     """
     Extract questions and answers from JSON file and prepare them for vector store
     """
-
-    with open(json_file_path, 'r') as file:
-        faq_data = json.load(file)
-    
-    documents = []
-    metadatas = []
-    
-    for item in faq_data:
-        # Create Document object with question as content and answer in metadata
-        doc = Document(
-            page_content=item['question'],
-            metadata={'answer': item['answer']}
-        )
-        documents.append(doc)
-    
-    return documents
+    try:
+        with open(json_file_path, 'r') as file:
+            faq_data = json.load(file)
+        
+        documents = []
+        metadatas = []
+        
+        for item in faq_data:
+            # Create Document object with question as content and answer in metadata
+            doc = Document(
+                page_content=item['question'],
+                metadata={'answer': item['answer']}
+            )
+            documents.append(doc)
+        
+        return documents
 
 
 def get_vector_store_faq(faq_documents, batch_size=1):
