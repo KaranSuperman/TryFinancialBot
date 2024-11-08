@@ -1,15 +1,20 @@
-import yfinance as yf
 
-def get_stock_price(symbol):
-    try:
-        # Fetching data for the given symbol
-        stock = yf.Ticker(symbol)
-        stock_data = stock.history(period="1d")
-        print(stock_data)  # Debugging: check the data being fetched
-        stock_price = stock_data["Close"].iloc[-1]  # Get the last closing price
-        return stock_price
-    except Exception as e:
-        return f"Error fetching stock data for {symbol}: {str(e)}"
+import json
 
-# Test with Google's ticker
-print(get_stock_price('GOOGL'))
+def extract_questions_from_json(json_path):
+    with open(json_path, "r") as f:
+        faq_data = json.load(f)
+    
+    questions = []
+    metadata = []
+    
+    for entry in faq_data:
+        questions.append(entry["question"])
+        metadata.append({"answer": entry["answer"]}) 
+    
+    print(questions, metadata) 
+
+
+
+
+extract_questions_from_json("./new_faq.json")

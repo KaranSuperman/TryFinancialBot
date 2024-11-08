@@ -140,7 +140,7 @@ def get_vector_store_faq(faq_chunks, batch_size=1):
             json.dump(gcp_credentials_dict, f)
 
         # Set environment variable for authentication
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path 
 
         # Initialize credentials
         credentials = service_account.Credentials.from_service_account_file(credentials_path)
@@ -404,17 +404,40 @@ def user_input(user_question):
         response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
         return {"output_text": response.content} if response else {"output_text": "No response generated."}
     else:
-        # If FAQ has higher similarity and above threshold, use FAQ answer
+        with open('./faq.json', 'r') as f:
+            faq_data = json.load(f)
+
+        # Create a dictionary to map questions to answers
+        faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
+
+        # Update the code that handles the FAQ response
         if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
             # Get the FAQ with the highest similarity score
             best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
             
-            # Extract the answer from metadata
-            if hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+            # Check if the FAQ question matches any in the JSON data
+            if best_faq.page_content in faq_dict:
+                # Return the corresponding answer from the dictionary
+                return {"output_text": faq_dict[best_faq.page_content]}
+            elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+                # If the question is not in the dictionary, use the metadata answer
                 return {"output_text": best_faq.metadata['answer']}
             else:
                 # Fallback to using the FAQ content if metadata is not available
-                return {"output_text": best_faq.page_content}
+                return {"output_text": best_faq.page_content}       
+
+
+        # # If FAQ has higher similarity and above threshold, use FAQ answer
+        # if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
+        #     # Get the FAQ with the highest similarity score
+        #     best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
+            
+        #     # Extract the answer from metadata
+        #     if hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+        #         return {"output_text": best_faq.metadata['answer']}
+        #     else:
+        #         # Fallback to using the FAQ content if metadata is not available
+        #         return {"output_text": best_faq.page_content}
         else:
             # Use PDF content with normal prompt template
             prompt_template = """ About the company: 
