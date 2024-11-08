@@ -430,29 +430,22 @@ def user_input(user_question):
 
                 Based on this information, let me expand on the response:
 
-                Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
+                {context}
 
-                {answer} This suggests that Paasa's primary focus is to make it easier for individuals to invest internationally and access global markets. By providing tools, resources, and guidance, Paasa aims to empower users to diversify their investments beyond their local markets.
-
-                Some key benefits of Paasa's services may include:
-    - Exposure to a wider range of investment opportunities in different countries and sectors
-    - Potential for higher returns through global diversification
-    - Simplified process for opening accounts, managing investments, and navigating international regulations
-    - Personalized advice and support to help users make informed decisions about their global investment strategy
-
-    Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
+                Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
                 """
-                prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer"])
+                prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                response = chain({"input_documents": docs, "question": user_question, "answer": answer}, return_only_outputs=True)
+                response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
+                Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
+                """}, return_only_outputs=True)
                 return response
             elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
                 # If the question is not in the dictionary, use the metadata answer
                 return {"output_text": best_faq.metadata['answer']}
             else:
                 # Fallback to using the FAQ content if metadata is not available
-                return {"output_text": best_faq.page_content}    
-
+                return {"output_text": best_faq.page_content}
         else:
             # Use PDF content with normal prompt template
             prompt_template = """ About the company: 
