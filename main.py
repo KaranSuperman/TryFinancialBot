@@ -123,7 +123,7 @@ def extract_questions_from_json(json_path):
     
     return questions, metadata
 
-def get_vector_store_faq(text_chunks, batch_size=1):
+def get_vector_store_faq(faq_chunks, batch_size=1):
     try:
         # Load the GCP credentials from Streamlit secrets
         gcp_credentials = st.secrets["gcp_service_account"]
