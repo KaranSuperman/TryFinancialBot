@@ -349,7 +349,7 @@ def user_input(user_question):
 
     # Get the maximum similarity score
     max_similarity = max(similarity_scores) if similarity_scores else 0
-    # st.write(f"Maximum similarity score: {max_similarity}")
+    st.write(f"Maximum similarity score for pdf: {max_similarity}")
 
 # ----------------------------------------------------------
 
@@ -372,7 +372,7 @@ def user_input(user_question):
 
     # Get the maximum similarity score
     max_similarity_faq = max(similarity_score_faq) if similarity_score_faq else 0
-    st.write(f"Maximum similarity score: {max_similarity}")
+    st.write(f"Maximum similarity score for faq: {max_similarity}")
 
 # ---------------------------------------------------------------------------
 
