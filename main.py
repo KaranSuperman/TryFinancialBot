@@ -330,7 +330,7 @@ def user_input(user_question):
     # Generate embedding for the user question
     question_embedding = embeddings_model.embed_query(user_question)
     
-    -----------------------------------------------------
+    # -----------------------------------------------------
     # Retrieve documents from FAISS
     new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
     mq_retriever = MultiQueryRetriever.from_llm(
@@ -351,7 +351,7 @@ def user_input(user_question):
     max_similarity = max(similarity_scores) if similarity_scores else 0
     # st.write(f"Maximum similarity score: {max_similarity}")
 
-----------------------------------------------------------
+# ----------------------------------------------------------
 
 
     # Retrieve text from FAISS
