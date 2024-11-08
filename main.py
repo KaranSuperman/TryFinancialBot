@@ -186,9 +186,6 @@ def get_vector_store_faq(faq_chunks, batch_size=1):
         vector_store_faq.save_local("faiss_index_faq")
         return vector_store_faq
         
-        else:
-            raise ValueError("No embeddings were successfully created")
-
     except Exception as e:
         st.error(f"Error in get_vector_store: {str(e)}")
         st.error("Please check your credentials and permissions")
