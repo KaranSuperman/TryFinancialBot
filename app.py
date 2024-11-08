@@ -24,7 +24,7 @@ def store_chat_data(user_message, bot_response):
 
 def store_questions(user_message):
     data = {
-        "user_message": user_message
+        "questions": user_message
     }
     try:
         response = supabase.table("questions_data").insert(data).execute()
@@ -35,7 +35,7 @@ def store_questions(user_message):
 
 def store_answers(bot_response):
     data = {
-        "bot_response": bot_response
+        "answers": bot_response
     }
     try:
         response = supabase.table("answers_data").insert(data).execute()
