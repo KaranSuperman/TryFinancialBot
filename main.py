@@ -285,7 +285,7 @@ def is_stock_query(user_question):
                    For example if the question is What is the stock price of Tatasteel then
                    the response should just be: True TATASTEEL.NS.
                 4. For US companies, use the regular ticker.   
-                    For  example if the question is What is the stock price of Apple then the response should just be: 
+                    For example if the question is What is the stock price of Apple then the response should just be: 
                     True APPLE.
                  Here is the question:''' + user_question
     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt3)]).content
@@ -338,6 +338,8 @@ def user_input(user_question):
         return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
     check, symbol = (is_stock_query(user_question)).split()
+    print(f"DEBUG: Ticker symbol extracted: {symbol}")  # Debugging line
+
     if check == "True":
         try:
             stock_price = get_stock_price(symbol)
