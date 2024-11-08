@@ -368,7 +368,7 @@ def user_input(user_question):
     for faq in faqs:
         faq_embedding = embeddings_model.embed_query(faq.page_content)  # Embed the faq content
         score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
-        similarity_score_faq.append(score,faq)
+        similarity_score_faq.append(score)
 
 
     # Get the maximum similarity score
