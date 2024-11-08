@@ -1,5 +1,8 @@
 import streamlit as st
 from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, extract_questions_from_json, get_vector_store_faq, user_input
+
+#changes
+# ---------------------------------------------------------
 from supabase import create_client, Client
 
 # Initialize Supabase client
@@ -42,10 +45,13 @@ vector_store = get_vector_store(text_chunks)
 
 # -----------------------------------------------------
 # For FAQs
-faq_documents = extract_questions_from_json("./faq.json")
+questions, metadata = extract_questions_from_json("./faq.json")
+
+# Use only the questions for creating embeddings
+faq_chunks = questions
 
 # Create the vector store
-vector_store_faq = get_vector_store_faq(faq_documents)
+vector_store_faq = get_vector_store_faq(faq_chunks)
 
 
 # -------------------------------------------------------
