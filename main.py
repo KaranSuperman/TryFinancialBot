@@ -348,7 +348,7 @@ def user_input(user_question):
         pdf_similarity_scores.append(score)
 
     max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
-    # st.write(f"Maximum similarity score for PDF: {max_similarity_pdf}")
+    st.write(f"Maximum similarity score for PDF: {max_similarity_pdf}")
 
     # ----------------------------------------------------------
     # Retrieve FAQs from FAISS
@@ -360,17 +360,15 @@ def user_input(user_question):
     
     faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
     
-    # Compute similarity scores for FAQ content and store with their metadata
+    # Compute similarity scores for FAQ content
     faq_similarity_scores = []
-    faq_with_scores = []
     for faq in faqs:
         faq_embedding = embeddings_model.embed_query(faq.page_content)
         score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
         faq_similarity_scores.append(score)
-        faq_with_scores.append((score, faq))
 
     max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
-    # st.write(f"Maximum similarity score for FAQ: {max_similarity_faq}")
+    st.write(f"Maximum similarity score for FAQ: {max_similarity_faq}")
 
     # ---------------------------------------------------------------------------
     # Use the higher similarity score between PDF and FAQ for decision making
@@ -382,32 +380,25 @@ def user_input(user_question):
         response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
         return {"output_text": response.content} if response else {"output_text": "No response generated."}
     else:
-        # If FAQ has higher similarity and above threshold, use FAQ answer
-        if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
-            # Get the FAQ with the highest similarity score
-            best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-            
-            # Extract the answer from metadata
-            if hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
-                return {"output_text": best_faq.metadata['answer']}
-            else:
-                # Fallback to using the FAQ content if metadata is not available
-                return {"output_text": best_faq.page_content}
+        # Use the content with higher similarity score
+        if max_similarity_pdf >= max_similarity_faq:
+            context_docs = docs
         else:
-            # Use PDF content with normal prompt template
-            prompt_template = """ About the company: 
-            Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
+            context_docs = faqs
+            
+        prompt_template = """ About the company: 
+        Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
 
-            Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
+        Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
 
-            Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
+        Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
 
-            Answer the Question in brief.
-            Background:\n{context}?\n
-            Question:\n{question}. + Explain in detail.\n
-            Answer:
-            """
-            prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-            chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-            response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
-            return response
+        Answer the Question in brief.
+        Background:\n{context}?\n
+        Question:\n{question}. + Explain in detail.\n
+        Answer:
+        """
+        prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+        chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+        response = chain({"input_documents": context_docs, "question": user_question}, return_only_outputs=True)
+        return response
