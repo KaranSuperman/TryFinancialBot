@@ -411,7 +411,7 @@ def user_input(user_question):
         faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
         # Update the code that handles the FAQ response
-        if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
+        if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.95:
             # Get the FAQ with the highest similarity score
             best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
             
