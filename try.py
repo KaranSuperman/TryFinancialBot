@@ -1,20 +1,15 @@
-import json
+import yfinance as yf
 
-def load_json_file(filepath):
-    """Load JSON data from a file."""
+def get_stock_price(symbol):
     try:
-        with open(filepath, 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        print(f"Error: File {filepath} not found.")
-        return None
-    except json.JSONDecodeError:
-        print(f"Error: File {filepath} is not a valid JSON.")
-        return None
+        # Fetching data for the given symbol
+        stock = yf.Ticker(symbol)
+        stock_data = stock.history(period="1d")
+        print(stock_data)  # Debugging: check the data being fetched
+        stock_price = stock_data["Close"].iloc[-1]  # Get the last closing price
+        return stock_price
+    except Exception as e:
+        return f"Error fetching stock data for {symbol}: {str(e)}"
 
-# Now load the JSON data
-json_result = load_json_file('./faq.json')
-print(json_result)
-if json_result is None:
-    print("Failed to load the JSON file.")
-
+# Test with Google's ticker
+print(get_stock_price('GOOGL'))
