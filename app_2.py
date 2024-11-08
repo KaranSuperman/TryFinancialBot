@@ -1,5 +1,5 @@
 import streamlit as st
-from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, user_input
+from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, extract_questions_from_json, get_vector_store_faq, user_input
 
 #changes
 # ---------------------------------------------------------
@@ -30,6 +30,8 @@ st.title("Finance Chatbot")
 # Load PDF paths
 pdf_paths = ['Low_risk_portfolio.pdf', 'Medium_risk_portfolio.pdf', 'High_risk_portfolio.pdf']  
 
+# ------------------------------------------------------
+# For PDF
 # Extract text from the PDFs and chunk it
 content = extract_text_from_pdfs(pdf_paths)
 
@@ -41,6 +43,18 @@ for c in content:
 # Create the vector store
 vector_store = get_vector_store(text_chunks)
 
+# -----------------------------------------------------
+# For FAQs
+questions, metadata = extract_questions_from_json("./faq.json")
+
+# Use only the questions for creating embeddings
+faq_chunks = questions
+
+# Create the vector store
+vector_store_faq = get_vector_store_faq(faq_chunks)
+
+
+# -------------------------------------------------------
 # User input for question
 user_question = st.text_input("Ask a question about finance:")
 
