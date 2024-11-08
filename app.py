@@ -1,8 +1,7 @@
 import streamlit as st
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_community.vectorstores import FAISS
-from langchain_community.chains import ConversationalRetrievalChain
-from langchain_community.memory import ConversationBufferMemory
+from langchain.retrievers.multi_query import MultiQueryRetriever
 from langchain_core.prompts import PromptTemplate
 from supabase import create_client, Client
 import json
@@ -60,66 +59,61 @@ def check_faq_match(
 
 def user_input(question: str) -> dict:
     """
-    Process user input and return response using ConversationalRetrievalChain
+    Process user input and return response using MultiQueryRetriever
     """
     try:
-        if not st.session_state.get('memory'):
-            st.session_state.memory = ConversationBufferMemory(
-                memory_key="chat_history",
-                return_messages=True
-            )
+        # Initialize the language model
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-pro",
+            temperature=0.7,
+            max_output_tokens=2048,
+        )
 
-        # Create prompt template
+        # Create MultiQueryRetriever
+        retriever = MultiQueryRetriever.from_llm(
+            retriever=st.session_state.main_vector_store.as_retriever(
+                search_kwargs={"k": 3}
+            ),
+            llm=llm
+        )
+
+        # Generate multiple queries and get documents
+        retrieved_docs = retriever.get_relevant_documents(question)
+
+        # Create prompt template for answering
         template = """You are a helpful financial advisor chatbot. Use the following context to answer the user's question.
         If you don't know the answer based on the context, say "I don't have enough information to answer that question."
         Always provide clear, accurate, and professional responses.
 
         Context: {context}
         
-        Chat History: {chat_history}
-        
         Question: {question}
         
         Answer: """
 
         PROMPT = PromptTemplate(
-            input_variables=["context", "chat_history", "question"],
+            input_variables=["context", "question"],
             template=template
         )
 
-        # Initialize the language model
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-pro",
-            temperature=0.7,
-            top_p=0.8,
-            top_k=40,
-            max_output_tokens=2048,
-        )
-
-        # Create the conversational chain
-        chain = ConversationalRetrievalChain.from_llm(
-            llm=llm,
-            retriever=st.session_state.main_vector_store.as_retriever(
-                search_kwargs={"k": 3}
-            ),
-            memory=st.session_state.memory,
-            combine_docs_chain_kwargs={"prompt": PROMPT},
-            return_source_documents=True,
-            verbose=True
-        )
-
-        # Get response from the chain
-        response = chain({"question": question})
+        # Combine all retrieved documents into context
+        context = "\n\n".join([doc.page_content for doc in retrieved_docs])
+        
+        # Get response from the model
+        messages = [
+            {"role": "user", "content": PROMPT.format(context=context, question=question)}
+        ]
+        
+        response = llm.invoke(messages).content
         
         # Extract source documents for reference
         sources = []
-        if response.get("source_documents"):
-            for doc in response["source_documents"]:
-                if doc.metadata.get("source"):
-                    sources.append(doc.metadata["source"])
+        for doc in retrieved_docs:
+            if doc.metadata.get("source"):
+                sources.append(doc.metadata["source"])
         
         # Format the response
-        answer = response.get("answer", "I apologize, but I couldn't generate a response.")
+        answer = response
         if sources:
             answer += "\n\nSources: " + ", ".join(set(sources))
             
@@ -170,19 +164,38 @@ def initialize_vector_stores(pdf_paths: List[str]) -> Tuple[Optional[FAISS], Opt
         st.error(f"Error initializing vector stores: {str(e)}")
         return None, None
 
+def check_faq_match(user_question: str, embeddings_model: GoogleGenerativeAIEmbeddings, 
+                   faq_vector_store: FAISS, threshold: float = 0.95) -> Optional[str]:
+    """
+    Check if user question matches any FAQ with high similarity.
+    """
+    try:
+        # Search for similar questions
+        docs_and_scores = faq_vector_store.similarity_search_with_score(user_question, k=1)
+        
+        if docs_and_scores:
+            doc, score = docs_and_scores[0]
+            # Convert score to similarity (FAISS returns distance)
+            similarity = 1 - score
+            
+            if similarity >= threshold:
+                return doc.metadata.get("answer")
+        
+        return None
+        
+    except Exception as e:
+        st.error(f"Error checking FAQ match: {str(e)}")
+        return None
+
 def main():
     # Title of the application
     st.title("Finance Chatbot")
 
-    # Initialize session state for vector stores and memory
+    # Initialize session state for vector stores
     if 'vector_stores_initialized' not in st.session_state:
         st.session_state.vector_stores_initialized = False
         st.session_state.main_vector_store = None
         st.session_state.faq_vector_store = None
-        st.session_state.memory = ConversationBufferMemory(
-            memory_key="chat_history",
-            return_messages=True
-        )
 
     # Load PDF paths
     pdf_paths = ['Low_risk_portfolio.pdf', 'Medium_risk_portfolio.pdf', 'High_risk_portfolio.pdf']
