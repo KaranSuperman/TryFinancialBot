@@ -164,8 +164,8 @@ def get_vector_store_faq(faq_chunks, batch_size=1):
 
         # Process text chunks in batches
         text_embeddings = []
-        for i in range(0, len(text_chunks), batch_size):
-            batch = text_chunks[i:i + batch_size]
+        for i in range(0, len(faq_chunks), batch_size):
+            batch = faq_chunks[i:i + batch_size]
             try:
                 batch_embeddings = embeddings.embed_documents(batch)
                 text_embeddings.extend([(text, emb) for text, emb in zip(batch, batch_embeddings)])
