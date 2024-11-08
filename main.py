@@ -110,29 +110,20 @@ def get_vector_store(text_chunks, batch_size=10):
 
     return None
 # --------------------------------------------------------------------------------
-def extract_questions_from_json(json_file_path):
-    """
-    Extract questions and answers from JSON file and prepare them for vector store
-    """
-    try:
-        with open(json_file_path, 'r') as file:
-            faq_data = json.load(file)
-        
-        documents = []
-        metadatas = []
-        
-        for item in faq_data:
-            # Create Document object with question as content and answer in metadata
-            doc = Document(
-                page_content=item['question'],
-                metadata={'answer': item['answer']}
-            )
-            documents.append(doc)
-        
-        return documents
+def extract_questions_from_json(json_path):
+    with open(json_path, "r") as f:
+        faq_data = json.load(f)
+    
+    questions = []
+    metadata = []
+    
+    for entry in faq_data:
+        questions.append(entry["question"])
+        metadata.append({"answer": entry["answer"]}) 
+    
+    return questions, metadata
 
-
-def get_vector_store_faq(faq_documents, batch_size=1):
+def get_vector_store_faq(faq_chunks, batch_size=1):
     try:
         # Load the GCP credentials from Streamlit secrets
         gcp_credentials = st.secrets["gcp_service_account"]
@@ -171,15 +162,27 @@ def get_vector_store_faq(faq_documents, batch_size=1):
             credentials=credentials
         )
 
-        # Create FAISS index directly from documents
-        vector_store_faq = FAISS.from_documents(
-            documents=faq_documents,
-            embedding=embeddings
-        )
-        
-        # Save the index
-        vector_store_faq.save_local("faiss_index_faq")
-        return vector_store_faq
+        # Process text chunks in batches
+        text_embeddings = []
+        for i in range(0, len(faq_chunks), batch_size):
+            batch = faq_chunks[i:i + batch_size]
+            try:
+                batch_embeddings = embeddings.embed_documents(batch)
+                text_embeddings.extend([(text, emb) for text, emb in zip(batch, batch_embeddings)])
+            except Exception as e:
+                st.error(f"Error processing batch {i//batch_size}: {str(e)}")
+                continue
+
+        # Create and save vector store
+        if text_embeddings:
+            vector_store_faq = FAISS.from_embeddings(
+                text_embeddings,
+                embedding=embeddings
+            )
+            vector_store_faq.save_local("faiss_index_faq")
+            return vector_store_faq
+        else:
+            raise ValueError("No embeddings were successfully created")
 
     except Exception as e:
         st.error(f"Error in get_vector_store: {str(e)}")
@@ -384,14 +387,12 @@ def user_input(user_question):
             # Get the FAQ with the highest similarity score
             best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
             
-            # Extract answer from metadata
+            # Extract the answer from metadata
             if hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
                 return {"output_text": best_faq.metadata['answer']}
             else:
-                # Fallback to using LLM if metadata is not available
-                prompt1 = user_question + " In the context of Finance"
-                response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-                return {"output_text": response.content} if response else {"output_text": "No response generated."}
+                # Fallback to using the FAQ content if metadata is not available
+                return {"output_text": best_faq.page_content}
         else:
             # Use PDF content with normal prompt template
             prompt_template = """ About the company: 
