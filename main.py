@@ -375,8 +375,8 @@ def user_input(user_question):
     max_similarity_faq = max(similarity_score_faq) if similarity_score_faq else 0
 
     if similarity_score_faq:
-    closest_faq = max(similarity_score_faq, key=lambda x: x[0])
-    closest_answer = closest_faq.metadata.get("answer")
+        closest_faq = max(similarity_score_faq, key=lambda x: x[0])
+        closest_answer = closest_faq.metadata.get("answer")
     # st.write(f"Maximum similarity score: {max_similarity}")
 
 # ---------------------------------------------------------------------------
