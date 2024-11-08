@@ -397,7 +397,7 @@ def user_input(user_question):
     # ---------------------------------------------------------------------------
     # Use the higher similarity score between PDF and FAQ for decision making
     max_similarity = max(max_similarity_pdf, max_similarity_faq)
-    
+
     # Fallback mechanism: use LLM directly if both similarities are below threshold
     if max_similarity < 0.65:
         prompt1 = user_question + " In the context of Finance"
@@ -414,33 +414,17 @@ def user_input(user_question):
         if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
             # Get the FAQ with the highest similarity score
             best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-            
+
             # Check if the FAQ question matches any in the JSON data
             if best_faq.page_content in faq_dict:
-                # Retrieve the answer from the dictionary
-                answer = faq_dict[best_faq.page_content]
-                
-                # Use the answer in a more comprehensive response
-                prompt_template = """
-                Question: {question}
-                
-                Answer: {answer}
-                
-                Additional context:
-                Paasa is a platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of their platform, from dollar-denominated accounts to tax-efficient tactics, helps users develop wealth while disguising complexity.
-                
-                Based on the provided answer, can you give a more detailed and comprehensive response to the original question?
-                """
-                prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer"])
-                chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                response = chain({"input_documents": docs, "question": user_question, "answer": answer}, return_only_outputs=True)
-                return response
+                # Return the corresponding answer from the dictionary
+                return {"output_text": faq_dict[best_faq.page_content]}
             elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
                 # If the question is not in the dictionary, use the metadata answer
                 return {"output_text": best_faq.metadata['answer']}
             else:
                 # Fallback to using the FAQ content if metadata is not available
-                return {"output_text": best_faq.page_content}      
+                return {"output_text": best_faq.page_content}
 
         else:
             # Use PDF content with normal prompt template
