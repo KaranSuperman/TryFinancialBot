@@ -1,8 +1,5 @@
 import streamlit as st
-from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, extract_questions_from_json, get_vector_store_faq, user_input
-
-#changes
-# ---------------------------------------------------------
+from main import  get_text_chunks, get_vector_store, extract_questions_from_json, get_vector_store_faq, user_input
 from supabase import create_client, Client
 
 # Initialize Supabase client
