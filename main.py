@@ -333,11 +333,11 @@ def user_input(user_question):
         st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
         return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
-    check, symbol = (is_stock_query(user_question)).split()
+    result = is_stock_query(user_question)
+    check, symbol = result.split() if len(result.split()) == 2 else (result, None)
     print(f"DEBUG: Ticker symbol extracted: {symbol}")  # Debugging line
 
-
-    if check == "True":
+    if check == "True" and symbol:
         try:
             stock_price = get_stock_price(symbol)
             if isinstance(stock_price, float):
@@ -346,7 +346,9 @@ def user_input(user_question):
                 return {"output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."}
         except Exception as e:
             return {"output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"}
-        
+    else:
+        return {"output_text": "No valid stock symbol provided."}
+            
     # Generate embedding for the user question
     question_embedding = embeddings_model.embed_query(user_question)
     
