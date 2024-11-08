@@ -133,7 +133,7 @@ def user_input(question: str) -> dict:
     except Exception as e:
         error_msg = f"Error processing your question: {str(e)}"
         st.error(error_msg)
-        return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}n
+        return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
 
 # Initialize Supabase client
 from supabase import create_client, Client
