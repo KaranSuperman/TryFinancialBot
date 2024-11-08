@@ -1,11 +1,12 @@
 import streamlit as st
-from langchain.chains import ConversationalRetrievalChain
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_community.vectorstores import FAISS
+from langchain_community.chains import ConversationalRetrievalChain
+from langchain_community.memory import ConversationBufferMemory
+from langchain_core.prompts import PromptTemplate
+from supabase import create_client, Client
 import json
 from typing import List, Tuple, Optional
-from langchain_community.vectorstores import FAISS
-from main import extract_text_from_pdfs, get_text_chunks, initialize_vector_stores, user_input
 import os
 
 def extract_text_from_pdfs(pdf_paths: List[str]) -> List[str]:
