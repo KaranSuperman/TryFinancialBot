@@ -284,8 +284,9 @@ def is_stock_query(user_question):
                 3. For Indian companies, add '.NS' for NSE listings or '.BO' for BSE listings.
                    For example if the question is What is the stock price of Tatasteel then
                    the response should just be: True TATASTEEL.NS.
-                4. For US companies, use the regular ticker.   
-                    For example if the question is What is the stock price of Apple then the response should just be: 
+                4. For other companies, use the regular ticker.   
+                    For example if the question is What is the stock price of Apple then the response should just be only like this don't
+                    add any currency sign in it: 
                     True APPLE.
                  Here is the question:''' + user_question
     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt3)]).content
