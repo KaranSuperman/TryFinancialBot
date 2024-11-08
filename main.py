@@ -411,7 +411,7 @@ def user_input(user_question):
         faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
         # Update the code that handles the FAQ response
-        if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.95:
+        if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
             # Get the FAQ with the highest similarity score
             best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
             
@@ -426,18 +426,6 @@ def user_input(user_question):
                 # Fallback to using the FAQ content if metadata is not available
                 return {"output_text": best_faq.page_content}       
 
-
-        # # If FAQ has higher similarity and above threshold, use FAQ answer
-        # if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
-        #     # Get the FAQ with the highest similarity score
-        #     best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-            
-        #     # Extract the answer from metadata
-        #     if hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
-        #         return {"output_text": best_faq.metadata['answer']}
-        #     else:
-        #         # Fallback to using the FAQ content if metadata is not available
-        #         return {"output_text": best_faq.page_content}
         else:
             # Use PDF content with normal prompt template
             prompt_template = """ About the company: 
