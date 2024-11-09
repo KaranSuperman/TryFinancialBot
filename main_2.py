@@ -296,4 +296,3 @@ def user_input(user_question):
         chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
         response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
         return response
-
