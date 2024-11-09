@@ -78,5 +78,37 @@
     {
         "question": "Does Paasa offer any features to help users monitor and track their international investments?",
         "answer": "Paasa provides real-time portfolio tracking, performance analytics, and reporting tools to help users stay informed about the status of their global investments."
+    },
+    {
+        "question": "What returns should I expect from Paasa?",
+        "answer": "Paasa is designed for long-term wealth creation. We focus on global, diversified portfolios that aim to grow your capital consistently over time. While market conditions will influence returns, our approach is to deliver strong, risk-adjusted performance by leveraging data-driven strategies, passive index investing, and tax optimization. The goal isn't short-term gains, but steady, compounding growth."
+    },
+    {
+        "question": "Is Paasa safe?",
+        "answer": "Security is non-negotiable at Paasa. Your investments are protected through top-tier encryption, secure custody, and compliance with all regulatory standards. While market volatility is a normal part of investing, you can rest assured that your data and assets are safeguarded by the same protocols used by the world’s largest financial institutions."
+    },
+    {
+        "question": "Are my investments insured?",
+        "answer": "Your investments are held with Interactive Brokers, a trusted global custodian. This means your assets are protected by SIPC insurance, covering up to $500,000, including $250,000 for cash claims. While this protects against broker-dealer failure, it’s important to note that it doesn’t insure against market losses—investing inherently carries risk, and Paasa’s role is to help you manage that risk intelligently."
+    },
+    {
+        "question": "Do you actively manage the portfolio?",
+        "answer": "No, Paasa focuses on optimized index investing - a semi-passive strategy. Here’s why: in the U.S., only about 5% of actively managed funds consistently beat the index over time. This is due to market efficiency, where all available information is quickly reflected in stock prices, making it incredibly hard for active managers to outperform consistently. We focus on low-cost index funds, automated rebalancing, and tax optimization. This way, we can deliver reliable growth without the high fees and unpredictability of active management."
+    },
+    {
+        "question": "What is Paasa's pricing?",
+        "answer": "We charge a management fee of less than 1%, which reduces as your investment corpus grows. Our pricing is transparent and straightforward—everything is clearly displayed in the app and in your statements, so you always know what you're paying for without any hidden fees or surprises."
+    },
+    {
+        "question": "Can I pick individual stocks?",
+        "answer": "Paasa is built around diversification and long-term growth, not speculative trading. While we don’t support picking individual stocks, our global portfolios are designed to give you exposure to a wide array of asset classes and markets, reducing risk and helping you capture sustainable returns across different sectors and regions."
+    },
+    {
+        "question": "Who's the team behind Paasa?",
+        "answer": "We're Nitish and Sparsh. We’re both ex-SoFi, where we helped build one of the most successful all-digital banks in the U.S. We saw firsthand how technology could transform finance, but we also realized something was missing—global access. So, we quit our jobs to solve that problem. Our goal with Paasa is simple: make global investing accessible to everyone, no matter where they’re from. We’re also fortunate to be backed by some of the most respected angels and VCs in finance, who deeply understand and resonate with our product principles. With deep experience in both finance and tech, we’re building a platform that’s not just secure, but designed for the future of wealth management."
+    },
+    {
+        "question": "As a financial advisor, can I give this to my clients?",
+        "answer": "Absolutely. Paasa is designed to work hand-in-hand with financial advisors, offering you a powerful platform that delivers data-driven investment solutions for your clients. Whether you're managing a few clients or scaling a practice, Paasa provides the tools and expertise to help you guide them towards smarter global investments."
     }
 ]
