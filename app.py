@@ -50,7 +50,7 @@ def store_answers(bot_response):
 st.title("Finance Chatbot")
 
 # Load PDF paths
-pdf_paths = ['Customer_pitch_2.pdf', 'Protect.pdf', 'tax.pdf','Low_risk_portfolio.pdf', 'Medium_risk_portfolio.pdf', 'High_risk_portfolio.pdf']  
+pdf_paths = ['Customer_pitch.pdf', 'Protect.pdf', 'tax.pdf','Low_risk_portfolio.pdf', 'Medium_risk_portfolio.pdf', 'High_risk_portfolio.pdf']  
 
 # ------------------------------------------------------
 # For PDF
