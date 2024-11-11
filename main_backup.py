@@ -210,8 +210,7 @@ def is_input_safe(user_input):
     return not pattern.search(user_input)
 
 
-# def is_relevant(question, embeddings_model, threshold=0.55):
-def is_relevant(question, embeddings_model, threshold=0.70):
+def is_relevant(question, embeddings_model, threshold=0.55):
 
     # Finance-related topics or sentences
     finance_topics = [
