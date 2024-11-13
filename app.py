@@ -93,3 +93,27 @@ if user_question:
     # store_chat_data(user_question, bot_response)
     # store_questions(user_question)
     # store_answers(bot_response)
+
+
+if user_question:
+    try:
+        # Get the response from the chatbot
+        response = user_input(user_question)
+        
+        # Ensure response is a dictionary
+        if not isinstance(response, dict):
+            response = {"output_text": str(response)}
+        
+        # Display the response
+        st.subheader("Response:")
+        bot_response = response.get("output_text", "No response generated.")
+        st.write(bot_response)
+        
+        #Store chat data in Supabase
+        # store_chat_data(user_question, bot_response)
+        # store_questions(user_question)
+        # store_answers(bot_response)
+        
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        print(f"DEBUG: Streamlit display error: {str(e)}")
