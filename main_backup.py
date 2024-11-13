@@ -39,9 +39,11 @@ def extract_text_from_pdfs(pdf_paths):
             text_contents.append(text)
     return text_contents
 
+
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=2500, chunk_overlap=500)
     return text_splitter.split_text(text)
+
 
 def get_vector_store(text_chunks, batch_size=10):
     try:
@@ -110,6 +112,7 @@ def get_vector_store(text_chunks, batch_size=10):
         raise
 
     return None
+
 # --------------------------------------------------------------------------------
 def extract_questions_from_json(json_path):
     with open(json_path, "r") as f:
@@ -299,15 +302,18 @@ def get_stock_price(symbol):
         # If the symbol is for an Indian company, check if it ends with '.NS' or '.BO'
         if symbol.endswith('.NS') or symbol.endswith('.BO'):
             stock = yf.Ticker(symbol)
+            currency_symbol = "₹"
         else:
             # For global companies, ensure the symbol is valid for global exchanges
             stock = yf.Ticker(symbol)
+            currency_symbol = "$"
         
         # Fetch the latest closing price
         stock_price = stock.history(period="1d")["Close"].iloc[-1]
-        return stock_price
+        return stock_price, currency_symbol
     except Exception as e:
         return f"Stock data not available for {symbol}. Error: {str(e)}"
+
 
 
 # def extract_stock_symbol(user_question):
@@ -345,16 +351,15 @@ def user_input(user_question):
     if check == "True" and symbol:
         try:
             st.info("Using Stocks response")
-            stock_price = get_stock_price(symbol)
-            if isinstance(stock_price, float):
-                return {"output_text": f"The current stock price of {symbol} is {stock_price:.2f}."}
+            stock_price, currency_symbol = get_stock_price(symbol)
+            if isinstance(stock_price, float): 
+                return {"output_text": f"The current stock price of {symbol} is {currency_symbol}{stock_price:.2f}."}
             else:
-                return {"output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."}
+                return {"output_text": f"Sorry, I was unable to retrieve the current stock price for {currency_symbol}{symbol}."}
         except Exception as e:
             return {"output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"}
 
 
-        
     # Generate embedding for the user question
     question_embedding = embeddings_model.embed_query(user_question)
     
@@ -407,7 +412,13 @@ def user_input(user_question):
     # Fallback mechanism: use LLM directly if both similarities are below threshold
     if max_similarity < 0.65:
         st.info("Using LLM response")
-        prompt1 = user_question + " In the context of Finance"
+        prompt1 = user_question + """ In the context of Finance       
+        (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+            for example, 
+            - which are the best stocks to invest 
+            - which stock is worst
+            - Suggest me best stocks )"""
+  
         response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
         return {"output_text": response.content} if response else {"output_text": "No response generated."}
     else:
@@ -464,11 +475,6 @@ def user_input(user_question):
             Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
             Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
             Answer the Question in brief and should be within 200 words.
-            (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS :
-            for example, 
-            - which are the best stocks to invest , please
-            - which stock is worst
-            - can i invest on mutual funds)
             Background:\n{context}?\n
             Question:\n{question}. + Explain in detail.\n
             Answer:
