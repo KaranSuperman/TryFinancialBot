@@ -283,18 +283,52 @@ def is_relevant(question, embeddings_model, threshold=0.55):
 
 
 def is_stock_query(user_question):
+    # Normalize the question to lowercase for consistent matching
+    question_lower = user_question.lower()
+    
+    # Create a more comprehensive prompt that's explicit about stock symbols
     prompt3 = '''Analyze the following question and respond with exactly two words, following these rules:
     1. First word must be either "True" or "False" indicating if the question asks for a stock price
-    2. Second word must be the stock ticker formatted as follows:
+    2. Second word must be the stock ticker symbol:
     - For Indian stocks on NSE: Add ".NS" (Example: RELIANCE.NS)
     - For Indian stocks on BSE: Add ".BO" (Example: RELIANCE.BO)
-    - For non-Indian stocks: Just the ticker without any prefix/suffix (Example: AAPL)
-    - Never include currency symbols ($ ^ etc.) in the ticker
+    - For US stocks: Use standard ticker (Example: AAPL, MSFT, GOOGL, TSLA)
+    - Never include currency symbols ($ ^ etc.)
     - No spaces or special characters except the dot in .NS/.BO suffix
-
+    
+    Common US stock tickers to know:
+    - Microsoft = MSFT
+    - Apple = AAPL
+    - Tesla = TSLA
+    - Google = GOOGL
+    - Amazon = AMZN
+    - Meta = META
+    
+    Example responses:
+    "what is microsoft stock price" → "True MSFT"
+    "tell me about tesla stock" → "True TSLA"
+    
     Question: ''' + user_question
+    
     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt3)]).content
-    return response
+    
+    # Add debugging output
+    print(f"DEBUG: LLM Response for stock query: {response}")
+    
+    # Validate response format
+    parts = response.strip().split()
+    if len(parts) != 2:
+        print(f"DEBUG: Invalid response format: {response}")
+        return "False NONE"
+        
+    decision, symbol = parts
+    
+    # Additional validation
+    if decision.lower() == "true" and symbol.upper() == "NONE":
+        print("DEBUG: Inconsistent response - True with NONE symbol")
+        return "False NONE"
+        
+    return f"{decision} {symbol.upper()}"
 
 
 def get_stock_price(symbol):
@@ -310,9 +344,19 @@ def get_stock_price(symbol):
         
         # Fetch the latest closing price
         stock_price = stock.history(period="1d")["Close"].iloc[-1]
-        return stock_price, currency_symbol
+        previous_day_stock_price = stock.history(period="5d")["Close"].iloc[-2]
+
+        price_change = stock_price - previous_day_stock_price
+        # Determine the direction of the price change
+        change_direction = "up" if price_change > 0 else "down"
+
+        percentage_change = (price_change / previous_day_stock_price) * 100
+
+
+        return stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change
     except Exception as e:
-        return f"Stock data not available for {symbol}. Error: {str(e)}"
+        print(f"DEBUG: Error in get_stock_price: {str(e)}")
+        return None, None
 
 
 
@@ -324,162 +368,171 @@ def get_stock_price(symbol):
 
 
 def user_input(user_question):
-    MAX_INPUT_LENGTH = 500
+    try:
+        MAX_INPUT_LENGTH = 500
 
-    # Check for input length
-    if len(user_question) > MAX_INPUT_LENGTH:
-        st.error(f"Input is too long. Please limit your question to {MAX_INPUT_LENGTH} characters.")
-        return {"output_text": f"Input exceeds the maximum length of {MAX_INPUT_LENGTH} characters."}
+        # Check for input length
+        if len(user_question) > MAX_INPUT_LENGTH:
+            st.error(f"Input is too long. Please limit your question to {MAX_INPUT_LENGTH} characters.")
+            return {"output_text": f"Input exceeds the maximum length of {MAX_INPUT_LENGTH} characters."}
 
-    # Sanitize user input
-    if not is_input_safe(user_question):
-        st.error("Your input contains disallowed content. Please modify your question.")
-        return {"output_text": "Input contains disallowed content."}
+        # Sanitize user input
+        if not is_input_safe(user_question):
+            st.error("Your input contains disallowed content. Please modify your question.")
+            return {"output_text": "Input contains disallowed content."}
 
-    # Initialize embeddings model
-    embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        # Initialize embeddings model
+        embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
-    # Check if question is relevant to finance
-    if not is_relevant(user_question, embeddings_model, threshold=0.5):
-        st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
-        return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
+        # Check if question is relevant to finance
+        if not is_relevant(user_question, embeddings_model, threshold=0.5):
+            st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
+            return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
-    result = is_stock_query(user_question)
-    check, symbol = result.split() if len(result.split()) == 2 else (result, None)
-    print(f"DEBUG: Ticker symbol extracted: {symbol}")  # Debugging line
+        # Check for stock query
+        result = is_stock_query(user_question)
+        check, symbol = result.split() if len(result.split()) == 2 else ("False", "NONE")
+        print(f"DEBUG: Processed query - Decision: {check}, Symbol: {symbol}")
+        
+        if check.lower() == "true" and symbol != "NONE":
+            try:
+                st.info("Using Stocks response")
+                stock_price, previous_day_stock_price, currency_symbol , price_change, change_direction, percentage_change = get_stock_price(symbol)
+                if stock_price is not None:
+                    return {
+                        "output_text":          
+                        f"📊 **Stock Update for {symbol}** 📊\n\n"
+                        f"🔹 **Current Price**: **{currency_symbol}{stock_price:.2f}** 🟢\n"
+                        f"\n🔸 **Yesterday's Close**: **{currency_symbol}{previous_day_stock_price:.2f}** 🔻\n\n"
+                        f"\n{'📈' if change_direction == 'up' else '📉'} **The share price is {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        f"({percentage_change:+.2f}%) since yesterday!**\n\n"
+                        f"\t \t \t✨ Stay tuned for more updates! ✨"
+                    }
+                else:
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
+            except Exception as e:
+                print(f"DEBUG: Stock price error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                }
 
-    if check == "True" and symbol:
+        # Generate embedding for the user question
+        question_embedding = embeddings_model.embed_query(user_question)
+        
+        # -----------------------------------------------------
+        # Retrieve documents from FAISS for PDF content
+        new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
+        mq_retriever = MultiQueryRetriever.from_llm(
+            retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
+            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+        )
+        
+        docs = mq_retriever.get_relevant_documents(query=user_question)
+        
+        # Compute similarity scores for PDF content
+        pdf_similarity_scores = []
+        for doc in docs:
+            doc_embedding = embeddings_model.embed_query(doc.page_content)
+            score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
+            pdf_similarity_scores.append(score)
+
+        max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
+        
+        # ----------------------------------------------------------
+        # Retrieve FAQs from FAISS
+        new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
+        mq_retriever_faq = MultiQueryRetriever.from_llm(
+            retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
+            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+        )
+        
+        faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
+        
+        # Compute similarity scores for FAQ content and store with their metadata
+        faq_similarity_scores = []
+        faq_with_scores = []
+        for faq in faqs:
+            faq_embedding = embeddings_model.embed_query(faq.page_content)
+            score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
+            faq_similarity_scores.append(score)
+            faq_with_scores.append((score, faq))
+
+        max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
+        
+        # ---------------------------------------------------------------------------
+        max_similarity = max(max_similarity_pdf, max_similarity_faq)
+
+        # Process based on similarity scores
+        if max_similarity < 0.65:
+            st.info("Using LLM response")
+            prompt1 = user_question + """ In the context of Finance       
+            (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+                for example, 
+                - which are the best stocks to invest 
+                - which stock is worst
+                - Suggest me best stocks )"""
+    
+            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+            return {"output_text": response.content} if response else {"output_text": "No response generated."}
+        
+        # Handle FAQ and PDF responses
         try:
-            st.info("Using Stocks response")
-            stock_price, currency_symbol = get_stock_price(symbol)
-            if isinstance(stock_price, float): 
-                return {"output_text": f"The current stock price of {symbol} is {currency_symbol}{stock_price:.2f}."}
-            else:
-                return {"output_text": f"Sorry, I was unable to retrieve the current stock price for {currency_symbol}{symbol}."}
-        except Exception as e:
-            return {"output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"}
+            with open('./faq.json', 'r') as f:
+                faq_data = json.load(f)
 
+            # Create a dictionary to map questions to answers
+            faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
-    # Generate embedding for the user question
-    question_embedding = embeddings_model.embed_query(user_question)
-    
-    # -----------------------------------------------------
-    # Retrieve documents from FAISS for PDF content
-    new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
-    mq_retriever = MultiQueryRetriever.from_llm(
-        retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
-        llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
-    )
-    
-    docs = mq_retriever.get_relevant_documents(query=user_question)
-    
-    # Compute similarity scores for PDF content
-    pdf_similarity_scores = []
-    for doc in docs:
-        doc_embedding = embeddings_model.embed_query(doc.page_content)
-        score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
-        pdf_similarity_scores.append(score)
-
-    max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
-    # st.write(f"Maximum similarity score for PDF: {max_similarity_pdf}")
-
-    # ----------------------------------------------------------
-    # Retrieve FAQs from FAISS
-    new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
-    mq_retriever_faq = MultiQueryRetriever.from_llm(
-        retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
-        llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
-    )
-    
-    faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
-    
-    # Compute similarity scores for FAQ content and store with their metadata
-    faq_similarity_scores = []
-    faq_with_scores = []
-    for faq in faqs:
-        faq_embedding = embeddings_model.embed_query(faq.page_content)
-        score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
-        faq_similarity_scores.append(score)
-        faq_with_scores.append((score, faq))
-
-    max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
-    # st.write(f"Maximum similarity score for FAQ: {max_similarity_faq}")
-
-    # ---------------------------------------------------------------------------
-    
-    max_similarity = max(max_similarity_pdf, max_similarity_faq)
-
-    # Fallback mechanism: use LLM directly if both similarities are below threshold
-    if max_similarity < 0.65:
-        st.info("Using LLM response")
-        prompt1 = user_question + """ In the context of Finance       
-        (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
-            for example, 
-            - which are the best stocks to invest 
-            - which stock is worst
-            - Suggest me best stocks )"""
-  
-        response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-        return {"output_text": response.content} if response else {"output_text": "No response generated."}
-    else:
-        with open('./faq.json', 'r') as f:
-            faq_data = json.load(f)
-
-        # Create a dictionary to map questions to answers
-        faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
-
-        # Update the code that handles the FAQ response
-        if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-            st.info("Using FAQ response")
-            # Get the FAQ with the highest similarity score
-            best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-            
-            # Check if the FAQ question matches any in the JSON data
-            if best_faq.page_content in faq_dict:
-                # Retrieve the answer from the dictionary
-                answer = faq_dict[best_faq.page_content]
+            if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
+                st.info("Using FAQ response")
+                best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                 
-                # Use the answer as a reference to generate a more comprehensive response
-                prompt_template = """
-                Question: {question}
+                if best_faq.page_content in faq_dict:
+                    answer = faq_dict[best_faq.page_content]
+                    prompt_template = """
+                    Question: {question}
 
-                The provided answer is:
-                {answer}
+                    The provided answer is:
+                    {answer}
 
-                Based on this information, let me expand on the response:
+                    Based on this information, let me expand on the response:
 
-                {context}
+                    {context}
 
-                Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
-                """
-                prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
-                chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
-                Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
-                """}, return_only_outputs=True)
-                return response
-            elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
-                # If the question is not in the dictionary, use the metadata answer
-                return {"output_text": best_faq.metadata['answer']}
-
+                    Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
+                    """
+                    prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
+                    chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+                    response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
+                    Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
+                    """}, return_only_outputs=True)
+                    return response
+                elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+                    return {"output_text": best_faq.metadata['answer']}
+                else:
+                    return {"output_text": best_faq.page_content}
             else:
-                # Fallback to using the FAQ content if metadata is not available
-                return {"output_text": best_faq.page_content}
+                st.info("Using PDF response")
+                prompt_template = """ About the company: 
+                Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
+                Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
+                Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
+                Answer the Question in brief and should be within 200 words.
+                Background:\n{context}?\n
+                Question:\n{question}. + Explain in detail.\n
+                Answer:
+                """
+                prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+                chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+                response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+                return response
 
+        except Exception as e:
+            print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
+            return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
 
-        else:
-            st.info("Using PDF response")
-            # Use PDF content with normal prompt template
-            prompt_template = """ About the company: 
-            Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
-            Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
-            Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
-            Answer the Question in brief and should be within 200 words.
-            Background:\n{context}?\n
-            Question:\n{question}. + Explain in detail.\n
-            Answer:
-            """
-            prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-            chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-            response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
-            return response
+    except Exception as e:
+        print(f"DEBUG: Error in user_input: {str(e)}")
+        return {"output_text": "An error occurred while processing your request. Please try again."}
