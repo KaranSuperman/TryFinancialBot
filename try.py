@@ -1,6 +1,5 @@
 import yfinance as yf
 from datetime import datetime, timedelta
-import pandas as pd
 
 def get_stock_info(symbol):
     """
@@ -10,20 +9,22 @@ def get_stock_info(symbol):
         # Get stock info
         stock = yf.Ticker(symbol)
         
-        # Get today's data and yesterday's data
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=2)
-        hist = stock.history(start=start_date, end=end_date)
-        
-        if hist.empty:
-            return None, "No data available for this stock"
-
-        
-        # Get company news
+        # Get news
         news = stock.news
+        if not news:
+            return None, "No news available for this stock"
+
+        # Filter news from the past 24 hours
+        now = datetime.now()
+        one_day_ago = now - timedelta(days=1)
+        recent_news = [
+            item for item in news 
+            if 'providerPublishTime' in item and 
+            datetime.fromtimestamp(item['providerPublishTime']) >= one_day_ago
+        ]
         
         return {
-            'news': news
+            'news': recent_news
         }, None
     except Exception as e:
         return None, f"Error fetching stock data: {str(e)}"
@@ -40,8 +41,10 @@ def generate_stock_response(symbol, data):
     # Add recent news if available
     if data['news']:
         response += "Recent relevant news:\n"
-        for i, news_item in enumerate(data['news'][:8], 1):  # Show top 10 news items
+        for i, news_item in enumerate(data['news'], 1):
             response += f"{i}. {news_item['title']}\n"
+    else:
+        response += "No news found in the last 24 hours."
     
     return response
 
@@ -56,9 +59,7 @@ def analyze_stock_movement(symbol):
         
     return generate_stock_response(symbol, data)
 
-
-
 # Example usage
-symbol = "AAPL"  # Tesla's stock symbol
+symbol = "AAPL"
 response = analyze_stock_movement(symbol)
 print(response)
