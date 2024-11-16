@@ -1,65 +1,31 @@
 import yfinance as yf
 from datetime import datetime, timedelta
 
-def get_stock_info(symbol):
-    """
-    Get current and historical stock information
-    """
+def get_stock_rsn(symbol):
     try:
-        # Get stock info
         stock = yf.Ticker(symbol)
-        
-        # Get news
-        news = stock.news
-        if not news:
-            return None, "No news available for this stock"
-
-        # Filter news from the past 24 hours
-        now = datetime.now()
-        one_day_ago = now - timedelta(days=1)
-        recent_news = [
-            item for item in news 
-            if 'providerPublishTime' in item and 
-            datetime.fromtimestamp(item['providerPublishTime']) >= one_day_ago
-        ]
-        
-        return {
-            'news': recent_news
-        }, None
+        news = [item for item in stock.news if 'providerPublishTime' in item and 
+                datetime.fromtimestamp(item['providerPublishTime']) >= datetime.now() - timedelta(days=1)]
+        return {'news': news} if news else None, None
     except Exception as e:
-        return None, f"Error fetching stock data: {str(e)}"
+        return None, f"Error fetching stock data: {e}"
 
-def generate_stock_response(symbol, data):
-    """
-    Generate a human-readable response about stock price changes
-    """
+def generate_stock_response_rsn(symbol, data):
     if not data:
         return "Sorry, I couldn't fetch the stock data at the moment."
     
     response = f"Analysis for {symbol}:\n\n"
-    
-    # Add recent news if available
     if data['news']:
-        response += "Recent relevant news:\n"
-        for i, news_item in enumerate(data['news'], 1):
-            response += f"{i}. {news_item['title']}\n"
+        response += "Recent relevant news:\n" + "\n".join([f"{i+1}. {news_item['title']}" for i, news_item in enumerate(data['news'])])
     else:
         response += "No news found in the last 24 hours."
     
     return response
 
-def analyze_stock_movement(symbol):
-    """
-    Main function to analyze stock movement and generate response
-    """
-    data, error = get_stock_info(symbol)
-    
-    if error:
-        return error
-        
-    return generate_stock_response(symbol, data)
+def analyze_stock_movement_rsn(symbol):
+    data, error = get_stock_rsn(symbol)
+    return error if error else generate_stock_response_rsn(symbol, data)
 
 # Example usage
 symbol = "AAPL"
-response = analyze_stock_movement(symbol)
-print(response)
+print(analyze_stock_movement_rsn(symbol))
