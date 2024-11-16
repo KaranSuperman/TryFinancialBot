@@ -110,5 +110,10 @@
     {
         "question": "As a financial advisor, can I give this to my clients?",
         "answer": "Absolutely. Paasa is designed to work hand-in-hand with financial advisors, offering you a powerful platform that delivers data-driven investment solutions for your clients. Whether you're managing a few clients or scaling a practice, Paasa provides the tools and expertise to help you guide them towards smarter global investments."
+    },
+    {
+        "question": "Is Paasa is YC funded company?",
+        "answer": "Yes, paasa is YC funded company"
+
     }
 ]
