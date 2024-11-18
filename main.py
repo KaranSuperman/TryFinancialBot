@@ -24,11 +24,7 @@ import os
 import json
 import yfinance as yf
 import warnings
-from typing import Tuple
-from langchain_exa import ExaSearchRetriever
-from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
-from langchain_openai import ChatOpenAI
+
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -364,176 +360,6 @@ def get_stock_price(symbol):
         print(f"DEBUG: Error in get_stock_price: {str(e)}")
         return None, None
 
-def is_finance_query(user_question: str) -> Tuple[str, str]:
-    """
-    Determine if the query is related to stocks or financial research.
-    
-    Returns a tuple with:
-    - First element: "True" or "False" indicating if it's a finance query
-    - Second element: Extracted stock symbol or "NONE"
-    """
-    # Normalize the question to lowercase
-    question_lower = user_question.lower()
-    
-    # Comprehensive prompt for finance query detection
-    prompt = '''Analyze the following question to determine if it's a finance-related research query
-    Respond with exactly two words following these rules:
-    1. First word must be "True" or "False" 
-    2. Second word must be:
-    - Stock ticker symbol (AAPL, GOOGL, etc.) if stock-specific
-    - "MARKET" for general market queries
-    - "CRYPTO" for cryptocurrency queries
-    - "NONE" for non-finance queries
-    
-    Recognize queries about:
-    - Stock prices
-    - Company performance
-    - Market trends
-    - Financial news
-    - Investment analysis
-    
-    Examples:
-    "What's Apple's recent performance?" → "True AAPL"
-    "Tell me about tech stocks" → "True MARKET"
-    "How is Bitcoin doing?" → "True CRYPTO"
-    "Weather forecast" → "False NONE"
-    
-    Question: ''' + user_question
-    
-    # Use an LLM to classify the query (placeholder - replace with actual LLM call)
-    try:
-        response = ChatOpenAI(model="gpt-3.5-turbo").invoke(prompt).content.strip()
-    except Exception as e:
-        print(f"Error in query classification: {e}")
-        return "False NONE"
-    
-    # Validate response format
-    parts = response.split()
-    if len(parts) != 2:
-        print(f"Invalid response format: {response}")
-        return "False NONE"
-    
-    decision, category = parts
-    return f"{decision} {category.upper()}"
-
-def create_finance_research_chain(exa_api_key: str, openai_api_key: str):
-    """
-    Create a comprehensive finance research chain using Exa and OpenAI.
-    
-    Args:
-        exa_api_key (str): API key for Exa search
-        openai_api_key (str): API key for OpenAI
-    
-    Returns:
-        A runnable chain for finance research
-    """
-    # Initialize the search retriever with enhanced parameters
-    retriever = ExaSearchRetriever(
-        api_key=exa_api_key,
-        k=5,  # Increase number of retrieved documents
-        search_depth="domainRanked",  # More comprehensive search
-        highlights=True,
-        use_autoprompt=True  # Use Exa's smart query expansion
-    )
-    
-    # Detailed document formatting template
-    document_template = """
-    <source>
-        <url>{url}</url>
-        <title>{title}</title>
-        <highlights>{highlights}</highlights>
-        <published_date>{published_date}</published_date>
-    </source>
-    """
-    document_prompt = PromptTemplate.from_template(document_template)
-    
-    # Enhanced document processing chain
-    document_chain = (
-        RunnablePassthrough() | 
-        RunnableLambda(lambda doc: {
-            "highlights": doc.metadata.get("highlights", "No highlights available"),
-            "url": doc.metadata.get("url", "No URL"),
-            "title": doc.metadata.get("title", "Untitled"),
-            "published_date": doc.metadata.get("published_date", "Date unknown")
-        }) | document_prompt
-    )
-    
-    # Comprehensive retrieval chain
-    retrieval_chain = (
-        retriever | 
-        document_chain.map() | 
-        RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
-    )
-    
-    # Advanced generation prompt with clear instructions
-    generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a sophisticated financial research assistant. 
-        Provide comprehensive, nuanced insights based on the latest available information. 
-        Ensure your response is:
-        - Factual and data-driven
-        - Contextually rich
-        - Clearly structured
-        - Includes key metrics and trends
-        - Cites sources for credibility"""),
-        ("human", """Analyze the following finance-related query using the provided context:
-
-Query: {query}
----
-Context Sources:
-{context}
-
-Provide a detailed, analytical response that:
-1. Directly addresses the query
-2. Offers insights beyond surface-level information
-3. Highlights key trends or implications
-4. References specific data points from the context
-5. Maintains a balanced, objective perspective""")
-    ])
-    
-    # Initialize high-quality LLM
-    llm = ChatOpenAI(
-        api_key=openai_api_key, 
-        model="gpt-4-turbo",  # Use most capable model
-        temperature=0.3  # Balanced creativity and factuality
-    )
-    
-    # Combine the chains
-    return (
-        RunnableParallel({
-            "query": RunnablePassthrough(),  
-            "context": retrieval_chain,  
-        }) 
-        | generation_prompt 
-        | llm
-    )
-
-def finance_research(query: str, exa_api_key: str, openai_api_key: str):
-    """
-    Unified function to handle finance research queries
-    
-    Args:
-        query (str): User's finance-related query
-        exa_api_key (str): Exa API key
-        openai_api_key (str): OpenAI API key
-    
-    Returns:
-        str: Comprehensive research response
-    """
-    # First, classify the query
-    query_classification = is_finance_query(query)
-    print(f"Query Classification: {query_classification}")
-    
-    # If not a finance query, return early
-    if not query_classification.startswith("True"):
-        return "This query does not appear to be finance-related. Please ask a question about stocks, markets, or financial trends."
-    
-    # Create and invoke the research chain
-    try:
-        chain = create_finance_research_chain(exa_api_key, openai_api_key)
-        response = chain.invoke(query)
-        return response.content
-    except Exception as e:
-        return f"An error occurred during research: {e}"
 
 
 def user_input(user_question):
@@ -558,67 +384,33 @@ def user_input(user_question):
             st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
             return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
-        # Check for finance query classification
-        finance_query_result = is_finance_query(user_question)
-        query_type, query_category = finance_query_result.split()
-        print(f"DEBUG: Finance Query Classification - Type: {query_type}, Category: {query_category}")
-
-        # Handle different types of finance queries
-        if query_type.lower() == "true":
-            # Stock-specific query
-            if query_category != "NONE":
-                try:
-                    # If it's a specific stock symbol
-                    if len(query_category) <= 5:  # Typical stock symbol length
-                        st.info("Using Stocks response")
-                        stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(query_category)
-                        if stock_price is not None:
-                            return {
-                                "output_text":          
-                                f"**Stock Update for {query_category}** \n\n"
-                                f"- Current Price: {currency_symbol}{stock_price:.2f}\n"
-                                f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                                f"\n{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                                f"({percentage_change:+.2f}%) compared to the previous close!\n\n"
-                            }
-                        else:
-                            return {
-                                "output_text": f"Sorry, I was unable to retrieve the current stock price for {query_category}."
-                            }
-                    
-                    # General market or broader finance queries
-                    else:
-                        st.info("Using Finance Research")
-                        # Use the new finance research function
-                        research_result = finance_research(
-                            user_question, 
-                            exa_api_key=st.secrets["EXA_API_KEY"],  # Assuming Streamlit secrets
-                            openai_api_key=st.secrets["OPENAI_API_KEY"]
-                        )
-                        return {"output_text": research_result}
-
-                except Exception as e:
-                    print(f"DEBUG: Finance query error: {str(e)}")
+        # Check for stock query
+        result = is_stock_query(user_question)
+        check, symbol = result.split() if len(result.split()) == 2 else ("False", "NONE")
+        print(f"DEBUG: Processed query - Decision: {check}, Symbol: {symbol}")
+        
+        if check.lower() == "true" and symbol != "NONE":
+            try:
+                st.info("Using Stocks response")
+                stock_price, previous_day_stock_price, currency_symbol , price_change, change_direction, percentage_change = get_stock_price(symbol)
+                if stock_price is not None:
                     return {
-                        "output_text": f"An error occurred while processing your finance query: {str(e)}"
+                        "output_text":          
+                        f"**Stock Update for {symbol}** \n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        f"\n{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        f"({percentage_change:+.2f}%) compared to the previous close!\n\n"
                     }
-            
-            # Broader market or finance research query
-            else:
-                st.info("Using Finance Research")
-                try:
-                    research_result = finance_research(
-                        user_question, 
-                        exa_api_key=st.secrets["EXA_API_KEY"],  
-                        openai_api_key=st.secrets["OPENAI_API_KEY"]
-                    )
-                    return {"output_text": research_result}
-                except Exception as e:
-                    return {"output_text": f"An error occurred during research: {str(e)}"}
-
-        # Fallback for non-finance queries
-        return {"output_text": "I can only help with finance-related questions."}
-
+                else:
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
+            except Exception as e:
+                print(f"DEBUG: Stock price error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                }
 
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
