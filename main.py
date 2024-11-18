@@ -24,14 +24,6 @@ import os
 import json
 import yfinance as yf
 import warnings
-import requests
-from langchain_exa import ExaSearchRetriever
-from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
-from langchain_openai import ChatOpenAI
-
-EXA_API_KEY = st.secrets["EXA_API_KEY"]
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -57,7 +49,7 @@ def get_vector_store(text_chunks, batch_size=10):
     try:
         # Load the GCP credentials from Streamlit secrets
         gcp_credentials = st.secrets["gcp_service_account"]
-
+        
         # Convert credentials to dictionary if needed
         if not isinstance(gcp_credentials, dict):
             gcp_credentials_dict = json.loads(gcp_credentials) if isinstance(gcp_credentials, str) else dict(gcp_credentials)
@@ -74,7 +66,7 @@ def get_vector_store(text_chunks, batch_size=10):
 
         # Initialize credentials
         credentials = service_account.Credentials.from_service_account_file(credentials_path)
-
+        
         # Initialize AI Platform
         aiplatform.init(
             project=gcp_credentials_dict["project_id"],
@@ -125,21 +117,21 @@ def get_vector_store(text_chunks, batch_size=10):
 def extract_questions_from_json(json_path):
     with open(json_path, "r") as f:
         faq_data = json.load(f)
-
+    
     questions = []
     metadata = []
-
+    
     for entry in faq_data:
         questions.append(entry["question"])
         metadata.append({"answer": entry["answer"]}) 
-
+    
     return questions, metadata
 
 def get_vector_store_faq(faq_chunks, batch_size=1):
     try:
         # Load the GCP credentials from Streamlit secrets
         gcp_credentials = st.secrets["gcp_service_account"]
-
+        
         # Convert credentials to dictionary if needed
         if not isinstance(gcp_credentials, dict):
             gcp_credentials_dict = json.loads(gcp_credentials) if isinstance(gcp_credentials, str) else dict(gcp_credentials)
@@ -156,7 +148,7 @@ def get_vector_store_faq(faq_chunks, batch_size=1):
 
         # Initialize credentials
         credentials = service_account.Credentials.from_service_account_file(credentials_path)
-
+        
         # Initialize AI Platform
         aiplatform.init(
             project=gcp_credentials_dict["project_id"],
@@ -215,7 +207,7 @@ def is_input_safe(user_input):
     "act as",
     "simulate",
     "roleplay",]
-
+    
     # Combine all disallowed phrases into a single regex pattern
     pattern = re.compile('|'.join(map(re.escape, disallowed_phrases)), re.IGNORECASE)
     return not pattern.search(user_input)
@@ -293,7 +285,7 @@ def is_relevant(question, embeddings_model, threshold=0.55):
 def is_stock_query(user_question):
     # Normalize the question to lowercase for consistent matching
     question_lower = user_question.lower()
-
+    
     # Create a more comprehensive prompt that's explicit about stock symbols
     prompt3 = '''Analyze the following question and respond with exactly two words, following these rules:
     1. First word must be either "True" or "False" indicating if the question asks for a stock price
@@ -317,25 +309,25 @@ def is_stock_query(user_question):
     "tell me about tesla stock" → "True TSLA"
     
     Question: ''' + user_question
-
+    
     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt3)]).content
-
+    
     # Add debugging output
     print(f"DEBUG: LLM Response for stock query: {response}")
-
+    
     # Validate response format
     parts = response.strip().split()
     if len(parts) != 2:
         print(f"DEBUG: Invalid response format: {response}")
         return "False NONE"
-
+        
     decision, symbol = parts
-
+    
     # Additional validation
     if decision.lower() == "true" and symbol.upper() == "NONE":
         print("DEBUG: Inconsistent response - True with NONE symbol")
         return "False NONE"
-
+        
     return f"{decision} {symbol.upper()}"
 
 
@@ -349,71 +341,30 @@ def get_stock_price(symbol):
             # For global companies, ensure the symbol is valid for global exchanges
             stock = yf.Ticker(symbol)
             currency_symbol = "$"
-
+        
         # Fetch the latest closing price
         stock_price = stock.history(period="1d")["Close"].iloc[-1]
         previous_day_stock_price = stock.history(period="5d")["Close"].iloc[-2]
-        price_change = stock_price - previous_day_stock_price
 
+        price_change = stock_price - previous_day_stock_price
         # Determine the direction of the price change
         change_direction = "up" if price_change > 0 else "down"
+
         percentage_change = (price_change / previous_day_stock_price) * 100
 
-        return stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change
 
+        return stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change
     except Exception as e:
         print(f"DEBUG: Error in get_stock_price: {str(e)}")
-        # Return six values to avoid unpacking errors
-        return None, None, currency_symbol, None, "unknown", 0.0
+        return None, None
 
 
-def create_research_chain(exa_api_key: str, openai_api_key: str):
-    retriever = ExaSearchRetriever(api_key=exa_api_key, k=3, highlights=True)
-    
-    document_template = """
-    <source>
-        <url>{url}</url>
-        <highlights>{highlights}</highlights>
-    </source>
-    """
-    document_prompt = PromptTemplate.from_template(document_template)
-    
-    document_chain = (
-        RunnablePassthrough() | 
-        RunnableLambda(lambda doc: {
-            "highlights": doc.metadata.get("highlights", "No highlights available."),
-            "url": doc.metadata.get("url", "No URL available.")
-        }) | document_prompt
-    )
-    
-    retrieval_chain = (
-        retriever | 
-        document_chain.map() | 
-        RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
-    )
-    
-    generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a highly knowledgeable finance and stocks assistant."),
-        ("human", """
-        Please respond to the following query using the provided context.
-        Query: {query}
-        ---
-        <context>
-        {context}
-        </context>
-        """)
-    ])
-    
-    llm = ChatOpenAI(api_key=openai_api_key)
-    
-    return (
-        RunnableParallel({
-            "query": RunnablePassthrough(),  
-            "context": retrieval_chain,  
-        }) 
-        | generation_prompt 
-        | llm
-    )
+
+# def extract_stock_symbol(user_question):
+#     # Look for a stock symbol with a pattern: 1-5 uppercase letters
+#     # Adjust this if you want a more specific format for symbols
+#     match = re.search(r'\b[A-Z]{1,5}\b', user_question)
+#     return match.group(0) if match else None
 
 
 def user_input(user_question):
@@ -441,21 +392,20 @@ def user_input(user_question):
         # Check for stock query
         result = is_stock_query(user_question)
         check, symbol = result.split() if len(result.split()) == 2 else ("False", "NONE")
-
+        print(f"DEBUG: Processed query - Decision: {check}, Symbol: {symbol}")
+        
         if check.lower() == "true" and symbol != "NONE":
             try:
-                # Fetch stock price details
-                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-
+                st.info("Using Stocks response")
+                stock_price, previous_day_stock_price, currency_symbol , price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
                     return {
-                        "output_text": (
-                            f"Stock Update for {symbol} \n\n"
-                            f"Current Price: {currency_symbol}{stock_price:.2f}\n"
-                            f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n"
-                            f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                            f"({percentage_change:+.2f}%) compared to the previous close!\n"
-                        )
+                        "output_text":          
+                        f"**Stock Update for {symbol}** \n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        f"\n{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        f"({percentage_change:+.2f}%) compared to the previous close!\n\n"
                     }
                 else:
                     return {
@@ -469,7 +419,7 @@ def user_input(user_question):
 
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
-
+        
         # -----------------------------------------------------
         # Retrieve documents from FAISS for PDF content
         new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
@@ -477,9 +427,9 @@ def user_input(user_question):
             retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
-
+        
         docs = mq_retriever.get_relevant_documents(query=user_question)
-
+        
         # Compute similarity scores for PDF content
         pdf_similarity_scores = []
         for doc in docs:
@@ -488,7 +438,7 @@ def user_input(user_question):
             pdf_similarity_scores.append(score)
 
         max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
-
+        
         # ----------------------------------------------------------
         # Retrieve FAQs from FAISS
         new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
@@ -496,9 +446,9 @@ def user_input(user_question):
             retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
-
+        
         faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
-
+        
         # Compute similarity scores for FAQ content and store with their metadata
         faq_similarity_scores = []
         faq_with_scores = []
@@ -509,23 +459,23 @@ def user_input(user_question):
             faq_with_scores.append((score, faq))
 
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
-
+        
         # ---------------------------------------------------------------------------
         max_similarity = max(max_similarity_pdf, max_similarity_faq)
 
         # Process based on similarity scores
         if max_similarity < 0.65:
-            # st.info("Using LLM response")
+            st.info("Using LLM response")
             prompt1 = user_question + """ In the context of Finance       
             (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
                 for example, 
                 - which are the best stocks to invest 
                 - which stock is worst
                 - Suggest me best stocks )"""
-
+    
             response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
             return {"output_text": response.content} if response else {"output_text": "No response generated."}
-
+        
         # Handle FAQ and PDF responses
         try:
             with open('./faq.json', 'r') as f:
@@ -535,17 +485,21 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                # st.info("Using FAQ response")
+                st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-
+                
                 if best_faq.page_content in faq_dict:
                     answer = faq_dict[best_faq.page_content]
                     prompt_template = """
                     Question: {question}
+
                     The provided answer is:
                     {answer}
+
                     Based on this information, let me expand on the response:
+
                     {context}
+
                     Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
                     """
                     prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
@@ -559,7 +513,7 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                # st.info("Using PDF response")
+                st.info("Using PDF response")
                 prompt_template = """ About the company: 
                 Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
                 Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
@@ -580,3 +534,4 @@ def user_input(user_question):
 
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
+        return {"output_text": "An error occurred while processing your request. Please try again."}

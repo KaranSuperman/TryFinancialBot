@@ -227,4 +227,3 @@ widgetsnbextension==4.0.13
 yarl==1.16.0
 yfinance==0.2.48
 supabase==2.9.1
-exa-py==1.6.0
