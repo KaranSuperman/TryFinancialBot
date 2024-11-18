@@ -233,4 +233,4 @@ google-generativeai==0.8.3
 langchain==0.3.4
 exa-py==1.6.0 
 langchain-exa==0.2.1
-langchain-core==0.3.14
+langchain-core
