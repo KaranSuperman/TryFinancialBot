@@ -227,3 +227,8 @@ widgetsnbextension==4.0.13
 yarl==1.16.0
 yfinance==0.2.48
 supabase==2.9.1
+
+openai==1.10.0
+google-generativeai==0.3.1
+langchain==0.1.0
+exa-py==0.1.4 
