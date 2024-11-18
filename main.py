@@ -353,18 +353,19 @@ def get_stock_price(symbol):
         # Fetch the latest closing price
         stock_price = stock.history(period="1d")["Close"].iloc[-1]
         previous_day_stock_price = stock.history(period="5d")["Close"].iloc[-2]
-
         price_change = stock_price - previous_day_stock_price
+
         # Determine the direction of the price change
         change_direction = "up" if price_change > 0 else "down"
-
         percentage_change = (price_change / previous_day_stock_price) * 100
 
-
         return stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change
+
     except Exception as e:
         print(f"DEBUG: Error in get_stock_price: {str(e)}")
-        return None, None
+        # Return six values to avoid unpacking errors
+        return None, None, currency_symbol, None, "unknown", 0.0
+
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
     retriever = ExaSearchRetriever(api_key=exa_api_key, k=3, highlights=True)
@@ -442,24 +443,29 @@ def user_input(user_question):
         check, symbol = result.split() if len(result.split()) == 2 else ("False", "NONE")
 
         if check.lower() == "true" and symbol != "NONE":
-            # Fetch stock price details using yfinance
-            stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-            
-            if stock_price is not None:
+            try:
+                # Fetch stock price details
+                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
+
+                if stock_price is not None:
+                    return {
+                        "output_text": (
+                            f"Stock Update for {symbol} \n\n"
+                            f"Current Price: {currency_symbol}{stock_price:.2f}\n"
+                            f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n"
+                            f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                            f"({percentage_change:+.2f}%) compared to the previous close!\n"
+                        )
+                    }
+                else:
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
+            except Exception as e:
+                print(f"DEBUG: Stock price error: {str(e)}")
                 return {
-                    "output_text": (
-                        f"Stock Update for {symbol} \n\n"
-                        f"Current Price: {currency_symbol}{stock_price:.2f}\n"
-                        f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n"
-                        f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                        f"({percentage_change:+.2f}%) compared to the previous close!\n"
-                    )
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
                 }
-            
-        # If not a stock query, use EXA API for insights
-        chain = create_research_chain(EXA_API_KEY, OPENAI_API_KEY)
-        response = chain.invoke(user_question)  # Pass the user's question directly
-        content = response.content
 
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
