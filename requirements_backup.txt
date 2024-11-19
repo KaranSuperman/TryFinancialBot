@@ -104,9 +104,9 @@ jupyterlab_server==2.27.3
 jupyterlab_widgets==3.0.13
 kiwisolver==1.4.7
 lab==8.3
-# langchain==0.3.4
-# langchain-community==0.3.3
-# langchain-core==0.3.13
+langchain==0.3.4
+langchain-community==0.3.3
+langchain-core==0.3.13
 langchain-google-genai==2.0.1
 langchain-text-splitters==0.3.0
 langid==1.1.6
@@ -227,10 +227,3 @@ widgetsnbextension==4.0.13
 yarl==1.16.0
 yfinance==0.2.48
 supabase==2.9.1
-langchain-exa==0.2.1
-
-langchain-core>=0.3.12,<0.4
-langchain>=0.3,<1
-langchain-community>=0.3,<1
-langchain-openai==0.2.8
-openai
