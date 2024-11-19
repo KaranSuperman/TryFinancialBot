@@ -294,40 +294,41 @@ def is_stock_query(user_question):
     # Normalize the question to lowercase for consistent matching
     question_lower = user_question.lower()
     
-    prompt = f'''Analyze the following question based on these rules:
+    prompt = f"""
+    Analyze the following question according to these rules:
 
-    IF the question is asking about CURRENT STOCK PRICE in any way:
-    - Respond with exactly two words: "True" and the stock symbol
+    1. **If the question asks about the CURRENT STOCK PRICE:**
+    - Respond with exactly two words: "True" and the stock symbol.
     - Examples:
-      "what is microsoft stock price" → "True MSFT"
-      "tell me about tesla stock" → "True TSLA"
-      "how much is apple trading for" → "True AAPL"
-    
-    IF the question is about any OTHER financial news or stock-related news topic or company-related news topic :
-    - Start response with "News"
-    - Follow with a clear, concise rephrasing of the question
-    - Examples:
-      "why is apple stock falling today" → "News Why has Apple's stock price decreased today?"
-      "what was tesla's revenue last quarter" → "News What was Tesla's revenue performance in the previous quarter?"
-      "explain the impact of interest rates on bank stocks" → "News How do interest rates affect banking sector stocks?"
-    
-    Stock symbol guide:
-    - US stocks: Standard ticker (AAPL, MSFT, GOOGL, TSLA)
-    - Indian NSE: Add .NS (RELIANCE.NS)
-    - Indian BSE: Add .BO (RELIANCE.BO)
-    
-    Common tickers:
-    Microsoft = MSFT
-    Apple = AAPL
-    Tesla = TSLA
-    Google = GOOGL
-    Amazon = AMZN
-    Meta = META
-    Infosys = INFY	
-    Tata = TCS
+        - "What is Microsoft's stock price?" → "True MSFT"
+        - "Tell me about Tesla stock." → "True TSLA"
+        - "How much is Apple trading for?" → "True AAPL"
 
-    
-    Question: {user_question}'''
+    2. **If the question pertains to OTHER FINANCIAL NEWS, STOCK-RELATED TOPICS, or COMPANY NEWS:**
+    - Start the response with "News."
+    - Follow with a clear and concise rephrasing of the question.
+    - Examples:
+        - "Why is Apple stock falling today?" → "News. Why is Apple stock price decreasing today?"
+        - "What was Tesla's revenue last quarter?" → "News. What was Tesla's revenue for the last quarter?"
+        - "Explain the impact of interest rates on bank stocks." → "News. How do interest rates affect banking sector stocks?"
+
+    3. **Stock Symbol Guide:**
+    - **US Stocks:** Use standard tickers (e.g., AAPL, MSFT, GOOGL, TSLA).
+    - **Indian NSE Stocks:** Add ".NS" to the ticker (e.g., RELIANCE.NS).
+    - **Indian BSE Stocks:** Add ".BO" to the ticker (e.g., RELIANCE.BO).
+
+    4. **Common Tickers:**
+    - Microsoft = MSFT
+    - Apple = AAPL
+    - Tesla = TSLA
+    - Google = GOOGL
+    - Amazon = AMZN
+    - Meta = META
+    - Infosys = INFY
+    - Tata = TCS
+
+    Question: {user_question}
+    """
 
     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt)]).content
 
