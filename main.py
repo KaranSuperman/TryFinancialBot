@@ -25,7 +25,7 @@ import json
 import yfinance as yf
 import warnings
 
-
+ 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
 
@@ -517,7 +517,7 @@ def user_input(user_question):
                 Background:\n{context}?\n
                 Question:\n{question}. + Explain in detail.\n
                 Answer:
-                """
+                """ 
                 prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
                 response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
