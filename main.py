@@ -528,6 +528,8 @@ def user_input(user_question):
         
         # Handle news/research queries
         elif result.startswith("News"):
+            print(f"DEBUG: Processing news query: {rephrased_question}")
+            print(f"DEBUG: API Keys present: Exa={bool(st.secrets['general']['EXA_API_KEY'])}, OpenAI={bool(st.secrets['general']['OPENAI_API_KEY'])}")
             _, rephrased_question = result.split(" ", 1)
             try:
                 # Create the research chain
