@@ -374,52 +374,112 @@ def get_stock_price(symbol):
         return None, None
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
-    retriever = ExaSearchRetriever(api_key=exa_api_key, k=3, highlights=True)
-    
-    document_template = """
-    <source>
-        <url>{url}</url>
-        <highlights>{highlights}</highlights>
-    </source>
+    try:
+        # Initialize the Exa retriever with error handling
+        retriever = ExaSearchRetriever(
+            api_key=exa_api_key,
+            k=3,
+            highlights=True,
+            search_params={
+                "use_autoprompt": True,
+                "min_relevance": 0.7  # Ensure higher quality results
+            }
+        )
+        
+        # Improved document template with better structure
+        document_template = """
+        <article>
+            <title>{title}</title>
+            <source>{url}</source>
+            <excerpt>{highlights}</excerpt>
+            <published>{published_date}</published>
+        </article>
+        """
+        
+        # Format individual documents
+        def format_document(doc: Document) -> str:
+            return document_template.format(
+                title=doc.metadata.get('title', 'Untitled'),
+                url=doc.metadata.get('url', 'No URL available'),
+                highlights=doc.metadata.get('highlights', 'No highlights available'),
+                published_date=doc.metadata.get('published_date', 'Date not available')
+            )
+        
+        # Process retrieved documents
+        def process_documents(docs: List[Document]) -> str:
+            if not docs:
+                return "No relevant information found."
+            
+            formatted_docs = [format_document(doc) for doc in docs]
+            return "\n\n".join(formatted_docs)
+        
+        # Enhanced retrieval chain with error handling
+        def safe_retrieval(query: str) -> str:
+            try:
+                docs = retriever.get_relevant_documents(query)
+                return process_documents(docs)
+            except Exception as e:
+                print(f"Retrieval error: {str(e)}")
+                return "Unable to retrieve information at this time."
+        
+        # Improved prompt template with better context handling
+        generation_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a financial analysis expert. Your role is to:
+                1. Analyze the provided market news and data
+                2. Provide clear, concise, and accurate information
+                3. Include relevant facts and figures from the sources
+                4. Cite sources when making specific claims
+                5. Maintain objectivity in your analysis"""),
+            ("human", """
+            Please provide a detailed analysis for the following query:
+            Question: {query}
+            
+            Based on these sources:
+            {context}
+            
+            Please structure your response with:
+            1. Direct answer to the question
+            2. Key supporting evidence
+            3. Additional context if relevant
+            """)
+        ])
+        
+        # Initialize OpenAI with appropriate settings
+        llm = ChatOpenAI(
+            api_key=openai_api_key,
+            temperature=0.2,  # Lower temperature for more focused responses
+            model="gpt-4-turbo-preview"  # Using a more capable model
+        )
+        
+        # Combine chains with better error handling
+        chain = (
+            RunnableParallel({
+                "query": RunnablePassthrough(),
+                "context": RunnableLambda(safe_retrieval)
+            })
+            | generation_prompt 
+            | llm
+        )
+        
+        return chain
+        
+    except Exception as e:
+        print(f"Error creating research chain: {str(e)}")
+        raise
+
+def execute_research_query(chain, question: str):
     """
-    document_prompt = PromptTemplate.from_template(document_template)
-    
-    document_chain = (
-        RunnablePassthrough() | 
-        RunnableLambda(lambda doc: {
-            "highlights": doc.metadata.get("highlights", "No highlights available."),
-            "url": doc.metadata.get("url", "No URL available.")
-        }) | document_prompt
-    )
-    
-    retrieval_chain = (
-        retriever | 
-        document_chain.map() | 
-        RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
-    )
-    
-    generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a highly knowledgeable finance and stocks assistant."),
-        ("human", """
-        Please respond to the following query using the provided context.
-        Query: {query}
-        ---
-        <context>
-        {context}
-        </context>
-        """)
-    ])
-    
-    llm = ChatOpenAI(api_key=openai_api_key)
-    
-    return (
-        RunnableParallel({
-            "query": RunnablePassthrough(),  
-            "context": retrieval_chain,  
-        }) 
-        | generation_prompt 
-        | llm
-    )
+    Execute a research query with proper error handling
+    """
+    try:
+        response = chain.invoke(question)
+        if response and hasattr(response, 'content'):
+            return {"output_text": response.content}
+        else:
+            return {"output_text": "Unable to generate a response. Please try again."}
+    except Exception as e:
+        print(f"Error executing research query: {str(e)}")
+        return {"output_text": "An error occurred while processing your request. Please try again later."}
 
 
 def user_input(user_question):
@@ -457,8 +517,8 @@ def user_input(user_question):
                 return {
                     "output_text": (
                         f"Stock Update for {symbol} \n\n"
-                        f"Current Price: {currency_symbol}{stock_price:.2f}\n"
-                        f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n"
+                        f"Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                        f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
                         f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
                         f"({percentage_change:+.2f}%) compared to the previous close!\n"
                     )
@@ -469,17 +529,24 @@ def user_input(user_question):
         # Handle news/research queries
         elif result.startswith("News"):
             _, rephrased_question = result.split(" ", 1)
-            # Access API keys from Streamlit secrets
-            chain = create_research_chain(
-                exa_api_key=st.secrets["general"]["EXA_API_KEY"],
-                openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
-            )
-            response = chain.invoke(rephrased_question)
-            return {"output_text": response.content}
+            try:
+                # Create the research chain
+                chain = create_research_chain(
+                    exa_api_key=st.secrets["general"]["EXA_API_KEY"],
+                    openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
+                )
+                
+                # Execute the research query with error handling
+                return execute_research_query(chain, rephrased_question)
+                
+            except Exception as e:
+                print(f"Error in research chain: {str(e)}")
+                return {"output_text": "Sorry, I couldn't process your research request. Please try again later."}
         
         # Handle invalid queries
         else:
             return {"output_text": "Unable to process your question. Please try rephrasing it."}
+
 
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
