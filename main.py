@@ -345,7 +345,7 @@ def is_stock_query(user_question):
     # Default fallback
     return "False NONE"
 
-
+ 
 def get_stock_price(symbol):
     try:
         # If the symbol is for an Indian company, check if it ends with '.NS' or '.BO'
