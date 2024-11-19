@@ -438,34 +438,68 @@ def user_input(user_question):
             st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
             return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
-        # Check for stock query
-        result = is_stock_query(user_question)
-        check, symbol = result.split() if len(result.split()) == 2 else ("False", "NONE")
+        # Check for finance query classification
+        finance_query_result = is_finance_query(user_question)
+        query_type, query_category = finance_query_result.split()
+        print(f"DEBUG: Finance Query Classification - Type: {query_type}, Category: {query_category}")
 
-        if check.lower() == "true" and symbol != "NONE":
-            try:
-                # Fetch stock price details
-                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-
-                if stock_price is not None:
-                    return {
-                        "output_text": (
-                            f"Stock Update for {symbol} \n\n"
-                            f"Current Price: {currency_symbol}{stock_price:.2f}\n"
-                            f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n"
-                            f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                            f"({percentage_change:+.2f}%) compared to the previous close!\n"
+        # Handle different types of finance queries
+        if query_type.lower() == "true":
+            # Stock-specific query
+            if query_category != "NONE":
+                try:
+                    # If it's a specific stock symbol
+                    if len(query_category) <= 5:  # Typical stock symbol length
+                        st.info("Using Stocks response")
+                        stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(query_category)
+                        if stock_price is not None:
+                            return {
+                                "output_text":          
+                                f"**Stock Update for {query_category}** \n\n"
+                                f"- Current Price: {currency_symbol}{stock_price:.2f}\n"
+                                f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                                f"\n{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                                f"({percentage_change:+.2f}%) compared to the previous close!\n\n"
+                            }
+                        else:
+                            return {
+                                "output_text": f"Sorry, I was unable to retrieve the current stock price for {query_category}."
+                            }
+                    
+                    # General market or broader finance queries
+                    else:
+                        st.info("Using Finance Research")
+                        # Use the new finance research function
+                        research_result = finance_research(
+                            user_question, 
+                            exa_api_key=st.secrets["EXA_API_KEY"],  # Assuming Streamlit secrets
+                            openai_api_key=st.secrets["OPENAI_API_KEY"]
                         )
-                    }
-                else:
+                        return {"output_text": research_result}
+
+                except Exception as e:
+                    print(f"DEBUG: Finance query error: {str(e)}")
                     return {
-                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                        "output_text": f"An error occurred while processing your finance query: {str(e)}"
                     }
-            except Exception as e:
-                print(f"DEBUG: Stock price error: {str(e)}")
-                return {
-                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
-                }
+            
+            # Broader market or finance research query
+            else:
+                st.info("Using Finance Research")
+                try:
+                    research_result = finance_research(
+                        user_question, 
+                        exa_api_key=st.secrets["general"]["EXA_API_KEY"],  
+                        openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
+                    )
+                    return {"output_text": research_result}
+                except Exception as e:
+                    return {"output_text": f"An error occurred during research: {str(e)}"}
+
+        # Fallback for non-finance queries
+        return {"output_text": "I can only help with finance-related questions."}
+
+
 
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
