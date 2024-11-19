@@ -509,6 +509,7 @@ def user_input(user_question):
         
         # Handle stock price queries
         if result.startswith("True"):
+            st.info("stock price queries")
             _, symbol = result.split()
             # Use your existing get_stock_price function
             stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
@@ -528,6 +529,7 @@ def user_input(user_question):
         
         # Handle news/research queries
         elif result.startswith("News"):
+            st.info("news/research queries")
             print(f"DEBUG: Processing news query: {rephrased_question}")
             print(f"DEBUG: API Keys present: Exa={bool(st.secrets['general']['EXA_API_KEY'])}, OpenAI={bool(st.secrets['general']['OPENAI_API_KEY'])}")
             _, rephrased_question = result.split(" ", 1)
@@ -598,7 +600,7 @@ def user_input(user_question):
 
         # Process based on similarity scores
         if max_similarity < 0.65:
-            # st.info("Using LLM response")
+            st.info("Using LLM response")
             prompt1 = user_question + """ In the context of Finance       
             (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
                 for example, 
@@ -618,7 +620,7 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                # st.info("Using FAQ response")
+                st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
 
                 if best_faq.page_content in faq_dict:
@@ -642,7 +644,7 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                # st.info("Using PDF response")
+                st.info("Using PDF response")
                 prompt_template = """ About the company: 
                 Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
                 Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
