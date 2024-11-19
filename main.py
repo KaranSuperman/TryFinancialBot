@@ -30,8 +30,8 @@ from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
 from langchain_openai import ChatOpenAI
 
-EXA_API_KEY = st.secrets["EXA_API_KEY"]
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+EXA_API_KEY = st.secrets["general"]["EXA_API_KEY"]
+OPENAI_API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
