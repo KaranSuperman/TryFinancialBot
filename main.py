@@ -29,11 +29,6 @@ from langchain_exa import ExaSearchRetriever
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
 from langchain_openai import ChatOpenAI
-from typing import List
-import logging
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 
 EXA_API_KEY = st.secrets["general"]["EXA_API_KEY"]
 OPENAI_API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
@@ -379,9 +374,6 @@ def get_stock_price(symbol):
         return None, None
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
-    if not exa_api_key or not openai_api_key:
-        raise ValueError("API keys must not be empty.")
-
     try:
         # Initialize the Exa retriever with error handling
         retriever = ExaSearchRetriever(
@@ -427,7 +419,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
                 docs = retriever.get_relevant_documents(query)
                 return process_documents(docs)
             except Exception as e:
-                logging.error(f"Retrieval error: {str(e)}")
+                print(f"Retrieval error: {str(e)}")
                 return "Unable to retrieve information at this time."
         
         # Improved prompt template with better context handling
@@ -472,7 +464,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         return chain
         
     except Exception as e:
-        logging.error(f"Error creating research chain: {str(e)}")
+        print(f"Error creating research chain: {str(e)}")
         raise
 
 def execute_research_query(chain, question: str):
