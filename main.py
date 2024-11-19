@@ -287,50 +287,59 @@ def is_stock_query(user_question):
     # Normalize the question to lowercase for consistent matching
     question_lower = user_question.lower()
     
-    # Create a more comprehensive prompt that's explicit about stock symbols
-    prompt3 = '''Analyze the following question if the question try to find the current price of any stock
-     and respond with exactly two words, following these rules:
-    1. First word must be either "True" or "False" indicating if the question asks for a stock price
-    2. Second word must be the stock ticker symbol:
-    - For Indian stocks on NSE: Add ".NS" (Example: RELIANCE.NS)
-    - For Indian stocks on BSE: Add ".BO" (Example: RELIANCE.BO)
-    - For US stocks: Use standard ticker (Example: AAPL, MSFT, GOOGL, TSLA)
-    - Never include currency symbols ($ ^ etc.)
-    - No spaces or special characters except the dot in .NS/.BO suffix
+    prompt = f'''Analyze the following question based on these rules:
+
+    IF the question is asking about CURRENT STOCK PRICE in any way:
+    - Respond with exactly two words: "True" and the stock symbol
+    - Examples:
+      "what is microsoft stock price" → "True MSFT"
+      "tell me about tesla stock" → "True TSLA"
+      "how much is apple trading for" → "True AAPL"
     
-    Common US stock tickers to know:
-    - Microsoft = MSFT
-    - Apple = AAPL
-    - Tesla = TSLA
-    - Google = GOOGL
-    - Amazon = AMZN
-    - Meta = META
+    IF the question is about any OTHER financial news or stock-related news topic or company-related news topic :
+    - Start response with "News"
+    - Follow with a clear, concise rephrasing of the question
+    - Examples:
+      "why is apple stock falling today" → "News Why has Apple's stock price decreased today?"
+      "what was tesla's revenue last quarter" → "News What was Tesla's revenue performance in the previous quarter?"
+      "explain the impact of interest rates on bank stocks" → "News How do interest rates affect banking sector stocks?"
     
-    Example responses:
-    "what is microsoft stock price" → "True MSFT"
-    "tell me about tesla stock" → "True TSLA"
+    Stock symbol guide:
+    - US stocks: Standard ticker (AAPL, MSFT, GOOGL, TSLA)
+    - Indian NSE: Add .NS (RELIANCE.NS)
+    - Indian BSE: Add .BO (RELIANCE.BO)
     
-    Question: ''' + user_question
+    Common tickers:
+    Microsoft = MSFT
+    Apple = AAPL
+    Tesla = TSLA
+    Google = GOOGL
+    Amazon = AMZN
+    Meta = META
+    Infosys = INFY	
+    Tata = TCS
+
     
-    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt3)]).content
-    
+    Question: {user_question}'''
+
+    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt)]).content
+
     # Add debugging output
-    print(f"DEBUG: LLM Response for stock query: {response}")
-    
-    # Validate response format
-    parts = response.strip().split()
-    if len(parts) != 2:
-        print(f"DEBUG: Invalid response format: {response}")
+    print(f"DEBUG: LLM Response: {response}")
+
+    # Check if it's a stock price query (starts with "True")
+    if response.startswith("True "):
+        parts = response.strip().split(maxsplit=1)
+        if len(parts) == 2:
+            return f"True {parts[1].upper()}"
         return "False NONE"
-        
-    decision, symbol = parts
     
-    # Additional validation
-    if decision.lower() == "true" and symbol.upper() == "NONE":
-        print("DEBUG: Inconsistent response - True with NONE symbol")
-        return "False NONE"
-        
-    return f"{decision} {symbol.upper()}"
+    # Check if it's a news/analysis query (starts with "News")
+    if response.startswith("News "):
+        return response.strip()  # Return the entire rephrased question with "News" prefix
+    
+    # Default fallback
+    return "False NONE"
 
 
 def get_stock_price(symbol):
