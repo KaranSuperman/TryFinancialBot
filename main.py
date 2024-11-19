@@ -531,21 +531,21 @@ def user_input(user_question):
         elif result.startswith("News"):
             st.info("news/research queries")
             _, rephrased_question = result.split(" ", 1)
-            print(f"Rephrased question: {rephrased_question}")
+            return (f"Rephrased question: {rephrased_question}")
 
-            try:
-                # Create the research chain
-                chain = create_research_chain(
-                    exa_api_key=st.secrets["general"]["EXA_API_KEY"],
-                    openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
-                )
+            # try:
+            #     # Create the research chain
+            #     chain = create_research_chain(
+            #         exa_api_key=st.secrets["general"]["EXA_API_KEY"],
+            #         openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
+            #     )
                 
-                # Execute the research query with error handling
-                return execute_research_query(chain, rephrased_question)
+            #     # Execute the research query with error handling
+            #     return execute_research_query(chain, rephrased_question)
                 
-            except Exception as e:
-                print(f"Error in research chain: {str(e)}")
-                return {"output_text": "Sorry, I couldn't process your research request. Please try again later."}
+            # except Exception as e:
+            #     print(f"Error in research chain: {str(e)}")
+            #     return {"output_text": "Sorry, I couldn't process your research request. Please try again later."}
         
         # Handle invalid queries
         else:
