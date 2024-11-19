@@ -29,6 +29,7 @@ from langchain_exa import ExaSearchRetriever
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
 from langchain_openai import ChatOpenAI
+from langchain.docstore.document import Document
 
 EXA_API_KEY = st.secrets["general"]["EXA_API_KEY"]
 OPENAI_API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
