@@ -378,87 +378,6 @@ def get_stock_price(symbol):
 
 
 
-def create_research_chain(exa_api_key: str, openai_api_key: str):
-    try:
-        # Initialize the search retriever
-        retriever = ExaSearchRetriever(
-            api_key=exa_api_key,
-            k=3,  # Number of documents to retrieve
-            highlights=True
-        )
-        
-        # Create document formatting template
-        document_template = """
-        <source>
-            <url>{url}</url>
-            <highlights>{highlights}</highlights>
-        </source>
-        """
-        document_prompt = PromptTemplate.from_template(document_template)
-        
-        # Create document processing chain
-        document_chain = (
-            RunnablePassthrough() | 
-            RunnableLambda(lambda doc: {
-                "highlights": doc.metadata.get("highlights", "No highlights available."),
-                "url": doc.metadata.get("url", "No URL available.")
-            }) | document_prompt
-        )
-        
-        # Create retrieval chain
-        retrieval_chain = (
-            retriever | 
-            document_chain.map() | 
-            RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))  # Convert docs to strings
-        )
-        
-        # Create generation prompt
-        generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a highly knowledgeable finance and stocks assistant. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
-            ("human", """
-            Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
-
-            Query: {query}
-            ---
-            <context>
-            {context}
-            </context>
-            """)
-            ])
-        
-        # Initialize LLM
-        llm = ChatOpenAI(api_key=openai_api_key)
-        
-        # Combine the chains
-        chain =  (
-            RunnableParallel({
-                "query": RunnablePassthrough(),  
-                "context": retrieval_chain,  
-            }) 
-            | generation_prompt 
-            | llm
-        )
-        return chain
-
-    except Exception as e:
-        print(f"Error creating research chain: {str(e)}")
-        raise
-
-def execute_research_query(chain, question: str):
-    """
-    Execute a research query with proper error handling
-    """
-    try:
-        response = chain.invoke(question)
-        if response and hasattr(response, 'content'):
-            return {"output_text": response.content}
-        else:
-            return {"output_text": "Unable to generate a response. Please try again."}
-    except Exception as e:
-        print(f"Error executing research query: {str(e)}")
-        return {"output_text": "An error occurred while processing your request. Please try again later."}
-
-
 def user_input(user_question):
     try:
         MAX_INPUT_LENGTH = 500
@@ -481,6 +400,33 @@ def user_input(user_question):
             st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
             return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
+        # Check for stock query
+        result = is_stock_query(user_question)
+        check, symbol = result.split() if len(result.split()) == 2 else ("False", "NONE")
+        print(f"DEBUG: Processed query - Decision: {check}, Symbol: {symbol}")
+        
+        if check.lower() == "true" and symbol != "NONE":
+            try:
+                st.info("Using Stocks response")
+                stock_price, previous_day_stock_price, currency_symbol , price_change, change_direction, percentage_change = get_stock_price(symbol)
+                if stock_price is not None:
+                    return {
+                        "output_text":          
+                        f"**Stock Update for {symbol}** \n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        f"\n{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        f"({percentage_change:+.2f}%) compared to the previous close!\n\n"
+                    }
+                else:
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
+            except Exception as e:
+                print(f"DEBUG: Stock price error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                }
 
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
@@ -597,53 +543,6 @@ def user_input(user_question):
             print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
             return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
 
-
-               # Check for stock query
-        result = is_stock_query(user_question)
-        
-        if result.startswith("True"):
-            st.info("stock price queries")
-            _, symbol = result.split()
-            # Use your existing get_stock_price function
-            stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-            
-            if stock_price is not None:
-                return {
-                    "output_text": (
-                        f"Stock Update for {symbol} \n\n"
-                        f"Current Price: {currency_symbol}{stock_price:.2f}\n\n"
-                        f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                        f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                        f"({percentage_change:+.2f}%) compared to the previous close!\n"
-                    )
-                }
-            else:
-                return {"output_text": f"Unable to fetch stock price for {symbol}"}
-        
-        # Handle news/research queries
-        elif result.startswith("News"):
-            st.info("news/research queries")
-            _, rephrased_question = result.split(" ", 1)
-            # return (f"Rephrased question: {rephrased_question}")
-
-            try:
-                # Create the research chain
-                chain = create_research_chain(
-                    exa_api_key=st.secrets["general"]["EXA_API_KEY"],
-                    openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
-                )
-                
-                # Execute the research query with error handling
-                return execute_research_query(chain, rephrased_question)
-                
-            except Exception as e:
-                print(f"Error in research chain: {str(e)}")
-                return {"output_text": "Sorry, I couldn't process your research request. Please try again later."}
-        
-        # Handle invalid queries
-        else:
-            return {"output_text": "Unable to process your question. Please try rephrasing it."}
-            
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
         return {"output_text": "An error occurred while processing your request. Please try again."}
