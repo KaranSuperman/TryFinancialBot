@@ -30,8 +30,8 @@ from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
 from langchain_openai import ChatOpenAI
 
-EXA_API_KEY = st.secrets["EXA_API_KEY"]
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+EXA_API_KEY = st.secrets["general"]["EXA_API_KEY"]
+OPENAI_API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -472,8 +472,8 @@ def user_input(user_question):
                         # Use the new finance research function
                         research_result = finance_research(
                             user_question, 
-                            exa_api_key=st.secrets["EXA_API_KEY"],  # Assuming Streamlit secrets
-                            openai_api_key=st.secrets["OPENAI_API_KEY"]
+                            exa_api_key=st.secrets["general"]["EXA_API_KEY"],  # Assuming Streamlit secrets
+                            openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
                         )
                         return {"output_text": research_result}
 
