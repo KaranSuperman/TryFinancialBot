@@ -481,52 +481,6 @@ def user_input(user_question):
             st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
             return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
-        # Check for stock query
-        result = is_stock_query(user_question)
-        
-        if result.startswith("True"):
-            st.info("stock price queries")
-            _, symbol = result.split()
-            # Use your existing get_stock_price function
-            stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-            
-            if stock_price is not None:
-                return {
-                    "output_text": (
-                        f"Stock Update for {symbol} \n\n"
-                        f"Current Price: {currency_symbol}{stock_price:.2f}\n\n"
-                        f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                        f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                        f"({percentage_change:+.2f}%) compared to the previous close!\n"
-                    )
-                }
-            else:
-                return {"output_text": f"Unable to fetch stock price for {symbol}"}
-        
-        # Handle news/research queries
-        elif result.startswith("News"):
-            st.info("news/research queries")
-            _, rephrased_question = result.split(" ", 1)
-            # return (f"Rephrased question: {rephrased_question}")
-
-            try:
-                # Create the research chain
-                chain = create_research_chain(
-                    exa_api_key=st.secrets["general"]["EXA_API_KEY"],
-                    openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
-                )
-                
-                # Execute the research query with error handling
-                return execute_research_query(chain, rephrased_question)
-                
-            except Exception as e:
-                print(f"Error in research chain: {str(e)}")
-                return {"output_text": "Sorry, I couldn't process your research request. Please try again later."}
-        
-        # Handle invalid queries
-        else:
-            return {"output_text": "Unable to process your question. Please try rephrasing it."}
-
 
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
@@ -643,6 +597,53 @@ def user_input(user_question):
             print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
             return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
 
+
+               # Check for stock query
+        result = is_stock_query(user_question)
+        
+        if result.startswith("True"):
+            st.info("stock price queries")
+            _, symbol = result.split()
+            # Use your existing get_stock_price function
+            stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
+            
+            if stock_price is not None:
+                return {
+                    "output_text": (
+                        f"Stock Update for {symbol} \n\n"
+                        f"Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                        f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        f"({percentage_change:+.2f}%) compared to the previous close!\n"
+                    )
+                }
+            else:
+                return {"output_text": f"Unable to fetch stock price for {symbol}"}
+        
+        # Handle news/research queries
+        elif result.startswith("News"):
+            st.info("news/research queries")
+            _, rephrased_question = result.split(" ", 1)
+            # return (f"Rephrased question: {rephrased_question}")
+
+            try:
+                # Create the research chain
+                chain = create_research_chain(
+                    exa_api_key=st.secrets["general"]["EXA_API_KEY"],
+                    openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
+                )
+                
+                # Execute the research query with error handling
+                return execute_research_query(chain, rephrased_question)
+                
+            except Exception as e:
+                print(f"Error in research chain: {str(e)}")
+                return {"output_text": "Sorry, I couldn't process your research request. Please try again later."}
+        
+        # Handle invalid queries
+        else:
+            return {"output_text": "Unable to process your question. Please try rephrasing it."}
+            
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
         return {"output_text": "An error occurred while processing your request. Please try again."}
