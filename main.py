@@ -442,30 +442,30 @@ def user_input(user_question):
         result = is_stock_query(user_question)
         check, symbol = result.split() if len(result.split()) == 2 else ("False", "NONE")
 
-if check.lower() == "true" and symbol != "NONE":
-    try:
-        # Fetch stock price details
-        stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
+        if check.lower() == "true" and symbol != "NONE":
+            try:
+                # Fetch stock price details
+                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
 
-        if stock_price is not None:
-            return {
-                "output_text": (
-                    f"Stock Update for {symbol} \n\n"
-                    f"Current Price: {currency_symbol}{stock_price:.2f}\n"
-                    f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n"
-                    f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                    f"({percentage_change:+.2f}%) compared to the previous close!\n"
-                )
-            }
-        else:
-            return {
-                "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
-            }
-    except Exception as e:
-        print(f"DEBUG: Stock price error: {str(e)}")
-        return {
-            "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
-        }
+                if stock_price is not None:
+                    return {
+                        "output_text": (
+                            f"Stock Update for {symbol} \n\n"
+                            f"Current Price: {currency_symbol}{stock_price:.2f}\n"
+                            f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n"
+                            f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                            f"({percentage_change:+.2f}%) compared to the previous close!\n"
+                        )
+                    }
+                else:
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
+            except Exception as e:
+                print(f"DEBUG: Stock price error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                }
 
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
