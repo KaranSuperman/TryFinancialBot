@@ -30,8 +30,8 @@ from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
 from langchain_openai import ChatOpenAI
 
-EXA_API_KEY = st.secrets["general"]["EXA_API_KEY"]
-OPENAI_API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
+EXA_API_KEY = st.secrets["EXA_API_KEY"]
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -293,50 +293,57 @@ def is_relevant(question, embeddings_model, threshold=0.55):
 def is_stock_query(user_question):
     # Normalize the question to lowercase for consistent matching
     question_lower = user_question.lower()
+    
+    prompt = f'''Analyze the following question based on these rules:
 
-    # Create a more comprehensive prompt that's explicit about stock symbols
-    prompt3 = '''Analyze the following question and respond with exactly two words, following these rules:
-    1. First word must be either "True" or "False" indicating if the question asks for a stock price
-    2. Second word must be the stock ticker symbol:
-    - For Indian stocks on NSE: Add ".NS" (Example: RELIANCE.NS)
-    - For Indian stocks on BSE: Add ".BO" (Example: RELIANCE.BO)
-    - For US stocks: Use standard ticker (Example: AAPL, MSFT, GOOGL, TSLA)
-    - Never include currency symbols ($ ^ etc.)
-    - No spaces or special characters except the dot in .NS/.BO suffix
+    IF the question is asking about CURRENT STOCK PRICE in any way:
+    - Respond with exactly two words: "True" and the stock symbol
+    - Examples:
+      "what is microsoft stock price" → "True MSFT"
+      "tell me about tesla stock" → "True TSLA"
+      "how much is apple trading for" → "True AAPL"
     
-    Common US stock tickers to know:
-    - Microsoft = MSFT
-    - Apple = AAPL
-    - Tesla = TSLA
-    - Google = GOOGL
-    - Amazon = AMZN
-    - Meta = META
+    IF the question is about any OTHER financial or stock-related topic:
+    - Start response with "News"
+    - Follow with a clear, concise rephrasing of the question
+    - Examples:
+      "why is apple stock falling today" → "News Why has Apple's stock price decreased today?"
+      "what was tesla's revenue last quarter" → "News What was Tesla's revenue performance in the previous quarter?"
+      "explain the impact of interest rates on bank stocks" → "News How do interest rates affect banking sector stocks?"
     
-    Example responses:
-    "what is microsoft stock price" → "True MSFT"
-    "tell me about tesla stock" → "True TSLA"
+    Stock symbol guide:
+    - US stocks: Standard ticker (AAPL, MSFT, GOOGL, TSLA)
+    - Indian NSE: Add .NS (RELIANCE.NS)
+    - Indian BSE: Add .BO (RELIANCE.BO)
     
-    Question: ''' + user_question
+    Common tickers:
+    Microsoft = MSFT
+    Apple = AAPL
+    Tesla = TSLA
+    Google = GOOGL
+    Amazon = AMZN
+    Meta = META
+    
+    Question: {user_question}'''
 
-    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt3)]).content
+    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt)]).content
 
     # Add debugging output
-    print(f"DEBUG: LLM Response for stock query: {response}")
+    print(f"DEBUG: LLM Response: {response}")
 
-    # Validate response format
-    parts = response.strip().split()
-    if len(parts) != 2:
-        print(f"DEBUG: Invalid response format: {response}")
+    # Check if it's a stock price query (starts with "True")
+    if response.startswith("True "):
+        parts = response.strip().split(maxsplit=1)
+        if len(parts) == 2:
+            return f"True {parts[1].upper()}"
         return "False NONE"
-
-    decision, symbol = parts
-
-    # Additional validation
-    if decision.lower() == "true" and symbol.upper() == "NONE":
-        print("DEBUG: Inconsistent response - True with NONE symbol")
-        return "False NONE"
-
-    return f"{decision} {symbol.upper()}"
+    
+    # Check if it's a news/analysis query (starts with "News")
+    if response.startswith("News "):
+        return response.strip()  # Return the entire rephrased question with "News" prefix
+    
+    # Default fallback
+    return "False NONE"
 
 
 def get_stock_price(symbol):
@@ -353,19 +360,18 @@ def get_stock_price(symbol):
         # Fetch the latest closing price
         stock_price = stock.history(period="1d")["Close"].iloc[-1]
         previous_day_stock_price = stock.history(period="5d")["Close"].iloc[-2]
-        price_change = stock_price - previous_day_stock_price
 
+        price_change = stock_price - previous_day_stock_price
         # Determine the direction of the price change
         change_direction = "up" if price_change > 0 else "down"
+
         percentage_change = (price_change / previous_day_stock_price) * 100
 
-        return stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change
 
+        return stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change
     except Exception as e:
         print(f"DEBUG: Error in get_stock_price: {str(e)}")
-        # Return six values to avoid unpacking errors
-        return None, None, currency_symbol, None, "unknown", 0.0
-
+        return None, None
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
     retriever = ExaSearchRetriever(api_key=exa_api_key, k=3, highlights=True)
@@ -438,68 +444,42 @@ def user_input(user_question):
             st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
             return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
-        # Check for finance query classification
-        finance_query_result = is_finance_query(user_question)
-        query_type, query_category = finance_query_result.split()
-        print(f"DEBUG: Finance Query Classification - Type: {query_type}, Category: {query_category}")
-
-        # Handle different types of finance queries
-        if query_type.lower() == "true":
-            # Stock-specific query
-            if query_category != "NONE":
-                try:
-                    # If it's a specific stock symbol
-                    if len(query_category) <= 5:  # Typical stock symbol length
-                        st.info("Using Stocks response")
-                        stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(query_category)
-                        if stock_price is not None:
-                            return {
-                                "output_text":          
-                                f"**Stock Update for {query_category}** \n\n"
-                                f"- Current Price: {currency_symbol}{stock_price:.2f}\n"
-                                f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                                f"\n{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                                f"({percentage_change:+.2f}%) compared to the previous close!\n\n"
-                            }
-                        else:
-                            return {
-                                "output_text": f"Sorry, I was unable to retrieve the current stock price for {query_category}."
-                            }
-                    
-                    # General market or broader finance queries
-                    else:
-                        st.info("Using Finance Research")
-                        # Use the new finance research function
-                        research_result = finance_research(
-                            user_question, 
-                            exa_api_key=st.secrets["general"]["EXA_API_KEY"],  # Assuming Streamlit secrets
-                            openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
-                        )
-                        return {"output_text": research_result}
-
-                except Exception as e:
-                    print(f"DEBUG: Finance query error: {str(e)}")
-                    return {
-                        "output_text": f"An error occurred while processing your finance query: {str(e)}"
-                    }
+        # Check for stock query
+        result = is_stock_query(user_question)
+        
+        # Handle stock price queries
+        if result.startswith("True"):
+            _, symbol = result.split()
+            # Use your existing get_stock_price function
+            stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
             
-            # Broader market or finance research query
-            else:
-                st.info("Using Finance Research")
-                try:
-                    research_result = finance_research(
-                        user_question, 
-                        exa_api_key=st.secrets["general"]["EXA_API_KEY"],  
-                        openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
+            if stock_price is not None:
+                return {
+                    "output_text": (
+                        f"Stock Update for {symbol} \n\n"
+                        f"Current Price: {currency_symbol}{stock_price:.2f}\n"
+                        f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n"
+                        f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        f"({percentage_change:+.2f}%) compared to the previous close!\n"
                     )
-                    return {"output_text": research_result}
-                except Exception as e:
-                    return {"output_text": f"An error occurred during research: {str(e)}"}
-
-        # Fallback for non-finance queries
-        return {"output_text": "I can only help with finance-related questions."}
-
-
+                }
+            else:
+                return {"output_text": f"Unable to fetch stock price for {symbol}"}
+        
+        # Handle news/research queries
+        elif result.startswith("News"):
+            _, rephrased_question = result.split(" ", 1)
+            # Access API keys from Streamlit secrets
+            chain = create_research_chain(
+                exa_api_key=st.secrets["general"]["EXA_API_KEY"],
+                openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
+            )
+            response = chain.invoke(rephrased_question)
+            return {"output_text": response.content}
+        
+        # Handle invalid queries
+        else:
+            return {"output_text": "Unable to process your question. Please try rephrasing it."}
 
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
