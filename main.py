@@ -473,7 +473,6 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         
     except Exception as e:
         logging.error(f"Error creating research chain: {str(e)}")
-        raiseating research chain: {str(e)}")
         raise
 
 def execute_research_query(chain, question: str):
