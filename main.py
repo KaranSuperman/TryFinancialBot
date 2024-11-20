@@ -460,8 +460,8 @@ def execute_research_query(chain, question: str):
         print(f"DEBUG: Executing research query for: {question}")
         # Attempt to invoke the chain
         try:
-            input_schema = chain.input_schema
-            st.info(f"{input_schema}")
+            chain_steps = chain.steps
+            st.info(f"{chain_steps}")
             response = chain.invoke({"input": question})  # Try dictionary input
 
         except Exception as e:
