@@ -460,17 +460,14 @@ def execute_research_query(chain, question: str):
         print(f"DEBUG: Executing research query for: {question}")
         # Attempt to invoke the chain
         try:
-            type_chain = type(chain)
-            st.info(f"{type_chain}")
-            print("Chain details:", chain)
-            st.info(f"{question}")
-            print("Question details:", question)
-            response = chain.invoke(question)
+            chain_methods = dir(chain)
+            st.info(f"{chain_methods}")
+            response = chain.invoke({"input": question})  # Try dictionary input
 
-        except Exception as invoke_error:
-            type_invoke_error = type(invoke_error)
-            print(f"Invoke error: {invoke_error}")
-            st.info(f"{type_invoke_error}")
+        except Exception as e:
+            type_e = type(e)
+            print(f"error: {e}")
+            st.info(f"{type_e}")
 
 
         # Now we can safely check if response is None
