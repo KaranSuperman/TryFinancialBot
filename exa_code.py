@@ -73,6 +73,6 @@ if __name__ == "__main__":
     
     chain = create_research_chain(exa_api_key=exa_api_key, openai_api_key=openai_api_key)
     # Pass the query as a simple string
-    response = chain.invoke("how much did AAPL go up last week")
+    response = chain.invoke()
     content = response.content
     print(content)
