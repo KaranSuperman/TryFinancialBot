@@ -433,12 +433,12 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
 def execute_research_query(chain, question: str):
     try:
-        print("EXA API Key Length:", len(st.secrets["EXA_API_KEY"]))
-        print("OpenAI API Key Length:", len(st.secrets["OPENAI_API_KEY"]))
-        
+        print("EXA API Key Length:", len(st.secrets["news"]["EXA_API_KEY"]))
+        print("OpenAI API Key Length:", len(st.secrets["news"]["OPENAI_API_KEY"]))
+
         # Retrieve API keys from Streamlit secrets
-        exa_api_key = st.secrets["EXA_API_KEY"]
-        openai_api_key = st.secrets["OPENAI_API_KEY"]
+        exa_api_key = st.secrets["news"]["EXA_API_KEY"]
+        openai_api_key = st.secrets[["news"]"OPENAI_API_KEY"]
         
         # Set environment variables or configure the chain with these keys
         # The exact method depends on how your specific chain is set up
