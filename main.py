@@ -438,7 +438,7 @@ def execute_research_query(chain, question: str):
 
         # Retrieve API keys from Streamlit secrets
         exa_api_key = st.secrets["news"]["EXA_API_KEY"]
-        openai_api_key = st.secrets[["news"]"OPENAI_API_KEY"]
+        openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
         
         # Set environment variables or configure the chain with these keys
         # The exact method depends on how your specific chain is set up
