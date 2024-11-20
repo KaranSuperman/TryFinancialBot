@@ -455,7 +455,7 @@ def execute_research_query(chain, question: str):
             raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
 
         # Debug print with masked keys for security
-        print(f"Exa API Key (masked): {exa_api_key[:4]}{'*' * (len(exa_api_key) - 4)}")
+        st.info(f"Exa API Key (masked): {exa_api_key[:4]}{'*' * (len(exa_api_key) - 4)}")
         print(f"OpenAI API Key (masked): {openai_api_key[:4]}{'*' * (len(openai_api_key) - 4)}")
         
         print(f"DEBUG: Executing research query for: {question}")
@@ -547,7 +547,7 @@ def user_input(user_question):
                 exa_api_key = st.secrets["news"]["EXA_API_KEY"]
                 openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
                 research_chain = create_research_chain(exa_api_key, openai_api_key)
-                st.info(f"{research_chain}")
+                # st.info(f"{research_chain}")
                 # Execute the research query
                 research_result = execute_research_query(research_chain, research_query)
                 
