@@ -460,8 +460,8 @@ def execute_research_query(chain, question: str):
         print(f"DEBUG: Executing research query for: {question}")
         # Attempt to invoke the chain
         try:
-            chain_steps = chain.steps
-            st.info(f"{chain_steps}")
+            retriever_result = chain.steps[0]['context'].invoke(question)
+            st.info(f"retriever_result")
             response = chain.invoke({"query": question, "context": ""})
 
         except Exception as e:
