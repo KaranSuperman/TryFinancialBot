@@ -458,12 +458,20 @@ def execute_research_query(chain, question: str):
             raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
 
         print(f"DEBUG: Executing research query for: {question}")
-        st.info(f"{chain}")
         # Attempt to invoke the chain
         try:
+            type_chain = type(chain)
+            st.info(f"{type_chain}")
+            print("Chain details:", chain)
+            st.info(f"{question}")
+            print("Question details:", question)
             response = chain.invoke(question)
+
         except Exception as invoke_error:
+            type_invoke_error = type(invoke_error)
             print(f"Invoke error: {invoke_error}")
+            st.info(f"{type_invoke_error}")
+
 
         # Now we can safely check if response is None
         if response is None:
