@@ -542,6 +542,7 @@ def user_input(user_question):
             try:
                 # Remove "News " prefix to get the original research query
                 research_query = result[5:]
+                st.info(f"{research_query}")
                 
                 # Directly use Exa research for news-type queries
                 # st.info("Using Exa Research response")
