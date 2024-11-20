@@ -24,7 +24,15 @@ import os
 import json
 import yfinance as yf
 import warnings
+from langchain_exa import ExaSearchRetriever
+from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
+from langchain_openai import ChatOpenAI
+import os
 
+EXA_API_KEY = st.secrets["general"]["EXA_API_KEY"]
+OPENAI_API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
+ 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
 
@@ -330,7 +338,6 @@ def is_stock_query(user_question):
         
     return f"{decision} {symbol.upper()}"
 
-
 def get_stock_price(symbol):
     try:
         # If the symbol is for an Indian company, check if it ends with '.NS' or '.BO'
@@ -358,13 +365,6 @@ def get_stock_price(symbol):
         print(f"DEBUG: Error in get_stock_price: {str(e)}")
         return None, None
 
-
-
-# def extract_stock_symbol(user_question):
-#     # Look for a stock symbol with a pattern: 1-5 uppercase letters
-#     # Adjust this if you want a more specific format for symbols
-#     match = re.search(r'\b[A-Z]{1,5}\b', user_question)
-#     return match.group(0) if match else None
 
 
 def user_input(user_question):
@@ -518,11 +518,11 @@ def user_input(user_question):
                 Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
                 Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
                 Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
-                Answer the Question in brief and should be within 200 words.
+                Answer the Question in brief and should be within 100 words only.
                 Background:\n{context}?\n
                 Question:\n{question}. + Explain in detail.\n
                 Answer:
-                """
+                """ 
                 prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
                 response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
