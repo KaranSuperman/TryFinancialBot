@@ -434,14 +434,6 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
 def execute_research_query(chain, question: str):
     try:
-
-        print(f"Exa API Key Length: {len(exa_api_key)}")
-        print(f"OpenAI API Key Length: {len(openai_api_key)}")
-    
-    #    Validate keys before creating retriever
-        if not exa_api_key or not openai_api_key:
-            raise ValueError("API keys cannot be empty")
-
         print("EXA API Key Length:", len(st.secrets["news"]["EXA_API_KEY"]))
         print("OpenAI API Key Length:", len(st.secrets["news"]["OPENAI_API_KEY"]))
 
