@@ -543,7 +543,7 @@ def user_input(user_question):
             try:
                 # Remove "News " prefix to get the original research query
                 # research_query = result[5:]
-                research_query = "how much did aapl go up last week?
+                research_query = "how much did aapl go up last week?"
                 
                 # Directly use Exa research for news-type queries
                 # st.info("Using Exa Research response")
