@@ -289,61 +289,58 @@ def is_relevant(question, embeddings_model, threshold=0.55):
     else:
         return False
 
-
 def is_stock_query(user_question):
-    # Normalize the question to lowercase for consistent matching
-    question_lower = user_question.lower()
-    
-    prompt = f'''Analyze the following question based on these rules:
+    prompt = f'''Analyze the following question precisely. Determine if it's a stock-related query:
 
-    IF the question is asking about CURRENT STOCK PRICE in any way:
-    - Respond with exactly two words: "True" and the stock symbol
-    - Examples:
-      "what is microsoft stock price" → "True MSFT"
-      "tell me about tesla stock" → "True TSLA"
-      "how much is apple trading for" → "True AAPL"
-    
-    IF the question is about any OTHER financial or stock-related topic:
-    - Start response with "News"
-    - Follow with a clear, concise rephrasing of the question
-    - Examples:
-      "why is apple stock falling today" → "News Why has Apple's stock price decreased today?"
-      "what was tesla's revenue last quarter" → "News What was Tesla's revenue performance in the previous quarter?"
-      "explain the impact of interest rates on bank stocks" → "News How do interest rates affect banking sector stocks?"
-    
-    Stock symbol guide:
-    - US stocks: Standard ticker (AAPL, MSFT, GOOGL, TSLA)
-    - Indian NSE: Add .NS (RELIANCE.NS)
-    - Indian BSE: Add .BO (RELIANCE.BO)
-    
-    Common tickers:
-    Microsoft = MSFT
-    Apple = AAPL
-    Tesla = TSLA
-    Google = GOOGL
-    Amazon = AMZN
-    Meta = META
-    
+    RULES:
+    1. IF the question is about CURRENT STOCK PRICE, respond: "True [STOCK_SYMBOL]"
+       - Examples:
+         "What is Microsoft's current stock price?" → "True MSFT"
+         "How much is Tesla trading for?" → "True TSLA"
+
+    2. IF the question is about STOCK NEWS/ANALYSIS, respond: "News [REPHRASED_QUERY]"
+       - Examples:
+         "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
+         "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
+
+    3. For NON-STOCK queries, respond: "False NONE"
+
+    Important Stock Symbols:
+    - Microsoft = MSFT
+    - Apple = AAPL
+    - Tesla = TSLA
+    - Google = GOOGL
+    - Amazon = AMZN
+    - Meta = META
+    - Indian stocks can use .NS or .BO suffixes
+
     Question: {user_question}'''
 
-    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt)]).content
+    try:
+        # Use Gemini for intelligent classification
+        response = ChatGoogleGenerativeAI(
+            model="gemini-pro", 
+            temperature=0
+        )([HumanMessage(content=prompt)]).content
 
-    # Add debugging output
-    print(f"DEBUG: LLM Response: {response}")
+        # Add detailed debugging output
+        print(f"DEBUG: LLM Stock Query Classification - Raw Response: {response}")
 
-    # Check if it's a stock price query (starts with "True")
-    if response.startswith("True "):
-        parts = response.strip().split(maxsplit=1)
-        if len(parts) == 2:
-            return f"True {parts[1].upper()}"
+        # Validate and process LLM response
+        if response.startswith("True "):
+            parts = response.strip().split(maxsplit=1)
+            if len(parts) == 2:
+                return f"True {parts[1].upper()}"
+            return "False NONE"
+        
+        if response.startswith("News "):
+            return response.strip()
+        
         return "False NONE"
-    
-    # Check if it's a news/analysis query (starts with "News")
-    if response.startswith("News "):
-        return response.strip()  # Return the entire rephrased question with "News" prefix
-    
-    # Default fallback
-    return "False NONE"
+
+    except Exception as e:
+        print(f"DEBUG: Error in is_stock_query LLM processing: {str(e)}")
+        return "False NONE"
 
 def get_stock_price(symbol):
     try:
@@ -506,7 +503,8 @@ def user_input(user_question):
                 # Remove "News " prefix to get the original research query
                 research_query = result[5:]
                 
-                # Assuming you've already set up the research chain with API keys
+                # Directly use Exa research for news-type queries
+                st.info("Using Exa Research response")
                 exa_api_key = st.secrets["EXA_API_KEY"]
                 openai_api_key = st.secrets["OPENAI_API_KEY"]
                 research_chain = create_research_chain(exa_api_key, openai_api_key)
@@ -521,20 +519,22 @@ def user_input(user_question):
                     "output_text": f"An error occurred while researching your query: {str(e)}"
                 }
         
-        # Fallback for unhandled queries
+        # Remove the existing LLM fallback logic for similarity scores
+        # Instead, use a more direct approach
         else:
-            return {
-                "output_text": "I'm unable to process your query. Please rephrase or ask a specific finance-related question."
-            }
+            st.info("Using LLM response")
+            prompt1 = user_question + """ In the context of Finance       
+            (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+                for example, 
+                - which are the best stocks to invest 
+                - which stock is worst
+                - Suggest me best stocks )"""
+    
+            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+            return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
-    except Exception as e:
-        print(f"DEBUG: Unexpected error in user_input: {str(e)}")
-        return {
-            "output_text": f"An unexpected error occurred: {str(e)}"
-        }
 
         
-
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
         
@@ -582,17 +582,17 @@ def user_input(user_question):
         max_similarity = max(max_similarity_pdf, max_similarity_faq)
 
         # Process based on similarity scores
-        if max_similarity < 0.65:
-            st.info("Using LLM response")
-            prompt1 = user_question + """ In the context of Finance       
-            (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
-                for example, 
-                - which are the best stocks to invest 
-                - which stock is worst
-                - Suggest me best stocks )"""
+        # if max_similarity < 0.65:
+        #     st.info("Using LLM response")
+        #     prompt1 = user_question + """ In the context of Finance       
+        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+        #         for example, 
+        #         - which are the best stocks to invest 
+        #         - which stock is worst
+        #         - Suggest me best stocks )"""
     
-            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-            return {"output_text": response.content} if response else {"output_text": "No response generated."}
+        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
         
         # Handle FAQ and PDF responses
         try:
