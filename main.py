@@ -504,9 +504,9 @@ def user_input(user_question):
         embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
         # Check if question is relevant to finance
-        if not is_relevant(user_question, embeddings_model, threshold=0.5):
-            st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
-            return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
+        # if not is_relevant(user_question, embeddings_model, threshold=0.5):
+        #     st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
+        #     return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
         # Check for stock query
         result = is_stock_query(user_question)
