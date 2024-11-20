@@ -464,7 +464,6 @@ def execute_research_query(chain, question: str):
             response = chain.invoke(question)
         except Exception as invoke_error:
             print(f"Invoke error: {invoke_error}")
-            traceback.print_exc()
 
         # Now we can safely check if response is None
         if response is None:
@@ -481,10 +480,9 @@ def execute_research_query(chain, question: str):
 
     except Exception as e:
         print(f"CRITICAL ERROR in execute_research_query: {str(e)}")
-        traceback.print_exc()
         return {"output_text": f"An unexpected error occurred: {str(e)}. Please check your API key configuration."}
 
-        
+
 
 
 
