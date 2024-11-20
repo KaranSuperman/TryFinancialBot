@@ -24,15 +24,7 @@ import os
 import json
 import yfinance as yf
 import warnings
-from langchain_exa import ExaSearchRetriever
-from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
-from langchain_openai import ChatOpenAI
-import os
 
-EXA_API_KEY = st.secrets["general"]["EXA_API_KEY"]
-OPENAI_API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
- 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
 
@@ -294,60 +286,49 @@ def is_stock_query(user_question):
     # Normalize the question to lowercase for consistent matching
     question_lower = user_question.lower()
     
-    prompt = f"""
-    Analyze the following question according to these rules:
-
-    1. **If the question asks about the CURRENT STOCK PRICE:**
-    - Respond with exactly two words: "True" and the stock symbol.
-    - Examples:
-        - "What is Microsoft's stock price?" → "True MSFT"
-        - "Tell me about Tesla stock." → "True TSLA"
-        - "How much is Apple trading for?" → "True AAPL"
-
-    2. **If the question pertains to OTHER FINANCIAL NEWS, STOCK-RELATED TOPICS, or COMPANY NEWS:**
-    - Start the response with "News."
-    - Follow with a clear and concise rephrasing of the question.
-    - Examples:
-        - "Why is Apple stock falling today?" → "News. Why is Apple stock price decreasing today?"
-        - "What was Tesla's revenue last quarter?" → "News. What was Tesla's revenue for the last quarter?"
-        - "Explain the impact of interest rates on bank stocks." → "News. How do interest rates affect banking sector stocks?"
-
-    3. **Stock Symbol Guide:**
-    - **US Stocks:** Use standard tickers (e.g., AAPL, MSFT, GOOGL, TSLA).
-    - **Indian NSE Stocks:** Add ".NS" to the ticker (e.g., RELIANCE.NS).
-    - **Indian BSE Stocks:** Add ".BO" to the ticker (e.g., RELIANCE.BO).
-
-    4. **Common Tickers:**
+    # Create a more comprehensive prompt that's explicit about stock symbols
+    prompt3 = '''Analyze the following question and respond with exactly two words, following these rules:
+    1. First word must be either "True" or "False" indicating if the question asks for a stock price
+    2. Second word must be the stock ticker symbol:
+    - For Indian stocks on NSE: Add ".NS" (Example: RELIANCE.NS)
+    - For Indian stocks on BSE: Add ".BO" (Example: RELIANCE.BO)
+    - For US stocks: Use standard ticker (Example: AAPL, MSFT, GOOGL, TSLA)
+    - Never include currency symbols ($ ^ etc.)
+    - No spaces or special characters except the dot in .NS/.BO suffix
+    
+    Common US stock tickers to know:
     - Microsoft = MSFT
     - Apple = AAPL
     - Tesla = TSLA
     - Google = GOOGL
     - Amazon = AMZN
     - Meta = META
-    - Infosys = INFY
-    - Tata = TCS
-
-    Question: {user_question}
-    """
-
-    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt)]).content
-
+    
+    Example responses:
+    "what is microsoft stock price" → "True MSFT"
+    "tell me about tesla stock" → "True TSLA"
+    
+    Question: ''' + user_question
+    
+    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt3)]).content
+    
     # Add debugging output
-    print(f"DEBUG: LLM Response: {response}")
-
-    # Check if it's a stock price query (starts with "True")
-    if response.startswith("True "):
-        parts = response.strip().split(maxsplit=1)
-        if len(parts) == 2:
-            return f"True {parts[1].upper()}"
+    print(f"DEBUG: LLM Response for stock query: {response}")
+    
+    # Validate response format
+    parts = response.strip().split()
+    if len(parts) != 2:
+        print(f"DEBUG: Invalid response format: {response}")
         return "False NONE"
+        
+    decision, symbol = parts
     
-    # Check if it's a news/analysis query (starts with "News")
-    if response.startswith("News "):
-        return response.strip()  # Return the entire rephrased question with "News" prefix
-    
-    # Default fallback
-    return "False NONE"
+    # Additional validation
+    if decision.lower() == "true" and symbol.upper() == "NONE":
+        print("DEBUG: Inconsistent response - True with NONE symbol")
+        return "False NONE"
+        
+    return f"{decision} {symbol.upper()}"
 
 
 def get_stock_price(symbol):
@@ -377,6 +358,13 @@ def get_stock_price(symbol):
         print(f"DEBUG: Error in get_stock_price: {str(e)}")
         return None, None
 
+
+
+# def extract_stock_symbol(user_question):
+#     # Look for a stock symbol with a pattern: 1-5 uppercase letters
+#     # Adjust this if you want a more specific format for symbols
+#     match = re.search(r'\b[A-Z]{1,5}\b', user_question)
+#     return match.group(0) if match else None
 
 
 def user_input(user_question):
@@ -530,11 +518,11 @@ def user_input(user_question):
                 Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
                 Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
                 Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
-                Answer the Question in brief and should be within 100 words only.
+                Answer the Question in brief and should be within 200 words.
                 Background:\n{context}?\n
                 Question:\n{question}. + Explain in detail.\n
                 Answer:
-                """ 
+                """
                 prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
                 response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
