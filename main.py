@@ -505,8 +505,8 @@ def user_input(user_question):
                 
                 # Directly use Exa research for news-type queries
                 st.info("Using Exa Research response")
-                exa_api_key = st.secrets["EXA_API_KEY"]
-                openai_api_key = st.secrets["OPENAI_API_KEY"]
+                exa_api_key = st.secrets["general"]["EXA_API_KEY"]
+                openai_api_key = st.secrets["general"]["OPENAI_API_KEY"]
                 research_chain = create_research_chain(exa_api_key, openai_api_key)
                 
                 # Execute the research query
