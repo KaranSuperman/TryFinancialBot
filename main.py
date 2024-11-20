@@ -532,7 +532,7 @@ def user_input(user_question):
                 exa_api_key = st.secrets["news"]["EXA_API_KEY"]
                 openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
                 research_chain = create_research_chain(exa_api_key, openai_api_key)
-                st.info("research_chain running")
+                st.info(f"{research_chain}")
                 # Execute the research query
                 research_result = execute_research_query(research_chain, research_query)
                 
