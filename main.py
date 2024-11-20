@@ -462,7 +462,7 @@ def execute_research_query(chain, question: str):
         try:
             chain_steps = chain.steps
             st.info(f"{chain_steps}")
-            response = chain.invoke({"input": question})  # Try dictionary input
+            response = chain.invoke({"query": question, "context": ""})
 
         except Exception as e:
             type_e = type(e)
