@@ -458,8 +458,7 @@ def execute_research_query(chain, question: str):
             raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
 
         print(f"DEBUG: Executing research query for: {question}")
-        st.info(f"{question}")
-
+        st.info(f"{chain}")
         # Attempt to invoke the chain
         try:
             response = chain.invoke(question)
@@ -542,8 +541,7 @@ def user_input(user_question):
         elif result.startswith("News "):
             try:
                 # Remove "News " prefix to get the original research query
-                # research_query = result[5:]
-                research_query = "how much did aapl go up last week?"
+                research_query = result[5:]
                 
                 # Directly use Exa research for news-type queries
                 # st.info("Using Exa Research response")
