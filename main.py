@@ -438,7 +438,10 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
 
 def execute_research_query(chain, question: str):
-    try:        
+    try:
+        # Initialize response to None
+        response = None
+        
         # Retrieve API keys from Streamlit secrets with multiple fallback methods
         try:
             exa_api_key = st.secrets.get("news", {}).get("EXA_API_KEY", "")
