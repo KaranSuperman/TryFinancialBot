@@ -455,11 +455,19 @@ def execute_research_query(chain, question: str):
             raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
 
         # Debug print with masked keys for security
-        st.info(f"Exa API Key (masked): {exa_api_key[:4]}{'*' * (len(exa_api_key) - 4)}")
-        print(f"OpenAI API Key (masked): {openai_api_key[:4]}{'*' * (len(openai_api_key) - 4)}")
+        # st.info(f"Exa API Key (masked): {exa_api_key[:4]}{'*' * (len(exa_api_key) - 4)}")
+        st.info(f"OpenAI API Key (masked): {openai_api_key[:4]}{'*' * (len(openai_api_key) - 4)}")
         
         print(f"DEBUG: Executing research query for: {question}")
-        response = chain.invoke(question)
+
+        import traceback
+        try:
+            response = chain.invoke(question)
+        except Exception as invoke_error:
+            print(f"Invoke error: {invoke_error}")
+            traceback.print_exc()
+            
+        # response = chain.invoke(question)
 
         # Rest of your existing error handling
         if response is None:
