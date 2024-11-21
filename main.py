@@ -378,13 +378,23 @@ def get_stock_price(symbol):
 
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
-    # Initialize the search retriever
+    # Your implementation looks solid
+    # Consider these potential enhancements:
+
+    # 1. Explicit type hints for retriever
+    from langchain_exa import ExaSearchRetriever  
+    from langchain_core.runnables import (
+        RunnablePassthrough, 
+        RunnableLambda, 
+        RunnableParallel
+    )
+
     retriever = ExaSearchRetriever(
         api_key=exa_api_key,
-        k=3,  # Number of documents to retrieve
+        k=3,  
         highlights=True
     )
-    
+
     # Create document formatting template
     document_template = """
     <source>
@@ -435,6 +445,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         | generation_prompt 
         | llm
     )
+    st.info("Chain constructed successfully")
 
     return chain
 
