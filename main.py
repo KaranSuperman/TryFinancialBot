@@ -465,13 +465,10 @@ def execute_research_query(chain, question: str):
         # st.info(f"question:{question}")
 # ---------------------------------------------------------------
 
-        input_query = "What are the latest trends in finance?"
 
-        # Invoke the chain
-        response = chain.invoke({"query": input_query})
-
+        response_1 = chain.invoke("What are the latest trends in finance?")
         # Output the response
-        st.info(f"{response}")
+        st.info(f"{response_1}")
 
 # ------------------------------------------------------------------
         # Attempt to invoke the chain
