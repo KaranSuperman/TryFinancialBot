@@ -393,6 +393,10 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         except Exception as retriever_error:
             print(f"Error initializing retriever: {retriever_error}")
             raise
+    
+    except Exception as e:
+        print(f"Error :{e}")
+        raise
 
     # Create document formatting template
     document_template = """
