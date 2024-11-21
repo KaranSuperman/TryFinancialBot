@@ -461,10 +461,26 @@ def execute_research_query(chain, question: str):
         # Attempt to invoke the chain
 
         try:
-            # Extract the ExaSearchRetriever from the first step's context
-            retriever = chain.first['context']
+            # Print out the entire chain structure
+            print("Chain first:", chain.first)
+            cf = chain.first
+            st.info(f"{cf}")
+
+            tcf = type(chain.first)
+            st.info(f"{tcf}")
+
+            # Try to extract the retriever differently
+            if hasattr(chain.first, 'steps'):
+                retriever = chain.first.steps.get('context')
+            elif isinstance(chain.first, dict):
+                retriever = chain.first.get('context')
             
-            # Invoke the retriever to get search results
+            if retriever is None:
+                raise ValueError("Could not extract retriever from the chain")
+
+            print("Retriever type:", type(retriever))
+
+            # Invoke the retriever
             retriever_result = retriever.invoke(question)
             
             # Process the retriever results
