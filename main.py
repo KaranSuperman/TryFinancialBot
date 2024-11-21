@@ -452,6 +452,12 @@ def execute_research_query(chain, question: str):
             print(f"Streamlit secrets error: {secrets_error}")
             exa_api_key = os.getenv("EXA_API_KEY", "")
             openai_api_key = os.getenv("OPENAI_API_KEY", "")
+
+        retriever = ExaSearchRetriever(
+        api_key=exa_api_key,
+        k=3,  
+        highlights=True
+    )
         
         # Validate API keys
         if not exa_api_key:
