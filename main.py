@@ -475,7 +475,8 @@ def execute_research_query(chain, question: str):
             response = chain.invoke(question)
             st.info(f"response: {response}")
         except Exception as invoke_error:
-            print(f"Invoke error: {invoke_error}")
+            # print(f"Invoke error: {invoke_error}")
+            st.info(f"Invoke error: {invoke_error}")
 
         # Now we can safely check if response is None
         if response is None:
