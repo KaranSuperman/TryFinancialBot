@@ -472,8 +472,8 @@ def execute_research_query(chain, question: str):
 
         # Attempt to invoke the chain
         try:
-            response = chain.invoke(f""" '{question}' """)
-            print("response", response)
+            response = chain.invoke(question)
+            st.info(f"response: {response}")
         except Exception as invoke_error:
             print(f"Invoke error: {invoke_error}")
 
