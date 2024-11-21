@@ -31,7 +31,6 @@ from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
 from exa_py import Exa
-from langchain import LangChain
 
 
 
@@ -465,7 +464,6 @@ def execute_research_query(chain, question: str):
         # st.info(f"chain_steps:{chain.steps}")
         # st.info(f"question:{question}")
 # ---------------------------------------------------------------
-        from langchain import LangChain
 
         input_query = "What are the latest trends in finance?"
 
