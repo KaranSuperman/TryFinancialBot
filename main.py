@@ -33,6 +33,7 @@ from dotenv import load_dotenv
 from exa_py import Exa
 
 
+
 load_dotenv() 
 
 
@@ -462,7 +463,10 @@ def execute_research_query(chain, question: str):
 
         # Attempt to invoke the chain
         try:
+            st.info(f"{chain}")
+            st.info(f"{question}")
             response = chain.invoke(question)
+            st.info(f"response:",response)
             print("response", response)
         except Exception as invoke_error:
             print(f"Invoke error: {invoke_error}")
@@ -553,7 +557,7 @@ def user_input(user_question):
                 # Execute the research query
                 research_result = execute_research_query(research_chain, research_query)
                 st.info(f"reseach_result: {research_result}")
-                print(research_result)
+                return research_result
 
             except KeyError as e:
                 print(f"Missing secret key: {e}")
