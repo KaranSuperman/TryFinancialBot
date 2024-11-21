@@ -461,28 +461,32 @@ def execute_research_query(chain, question: str):
         # Attempt to invoke the chain
 
         try:
-            # Print out the full chain structure
-            # print("Full chain:", chain)
-            c_s = chain.steps
-            st.info(f"{c_s}")
-            # print("Chain steps:", chain.steps)
-
-            # Try to access the retriever differently
-            for step in chain.steps:
-                print("Step type:", type(step))
-                if hasattr(step, 'context'):
-                    print("Context step:", step.context)
-
-            # Alternative retrieval method
-            retriever_result = chain.steps[0].invoke(question)
-            print("Retriever result:", retriever_result)
+            # Extract the ExaSearchRetriever from the first step's context
+            retriever = chain.first['context']
+            
+            # Invoke the retriever to get search results
+            retriever_result = retriever.invoke(question)
+            
+            # Process the retriever results
+            processed_context = '\n'.join([
+                f"<source>\n<url>{doc.metadata.get('url', 'No URL')}</url>\n<highlights>{doc.metadata.get('highlights', 'No highlights')}</highlights>\n</source>"
+                for doc in retriever_result
+            ])
+            
+            # Invoke the full chain with processed context
+            response = chain.invoke({
+                "query": question,
+                "context": processed_context
+            })
+            
+            print("Response:", response)
+            return response
 
         except Exception as e:
             print(f"Error type: {type(e)}")
             print(f"Full error: {e}")
             import traceback
             traceback.print_exc()
-
 
         # Now we can safely check if response is None
         if response is None:
