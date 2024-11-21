@@ -460,10 +460,6 @@ def execute_research_query(chain, question: str):
             raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
 
 
-        chain.set_api_keys(exa_api_key, openai_api_key)
-        chain_set_api = chain.set_api_keys(exa_api_key, openai_api_key)
-        st.info(f"{chain_set_api}")
-
         print(f"DEBUG: Executing research query for: {question}")
 
         st.info(f"{type(question)}")
