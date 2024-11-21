@@ -459,18 +459,18 @@ def execute_research_query(chain, question: str):
         if not openai_api_key:
             raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
 
+
+        chain.set_api_keys(exa_api_key, openai_api_key)
+        chain_set_api = chain.set_api_keys(exa_api_key, openai_api_key)
+        st.info(f"{chain_set_api}")
+
         print(f"DEBUG: Executing research query for: {question}")
+
+        st.info(f"{type(question)}")
         # st.info(f"chain:{chain}")
         # st.info(f"chain_steps:{chain.steps}")
         # st.info(f"question:{question}")
-# ---------------------------------------------------------------
 
-
-        response_1 = chain.invoke("What are the latest trends in finance?")
-        # Output the response
-        st.info(f"{response_1}")
-
-# ------------------------------------------------------------------
         # Attempt to invoke the chain
         try:
             response = chain.invoke(question)
