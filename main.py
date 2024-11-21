@@ -567,7 +567,7 @@ def user_input(user_question):
                     "output_text": f"An error occurred while researching your query: {str(e)}"
                 }
         
-        Instead, use a more direct approach
+        # Instead, use a more direct approach
         else:
             st.info("Using LLM response")
             prompt1 = user_question + """ In the context of Finance       
