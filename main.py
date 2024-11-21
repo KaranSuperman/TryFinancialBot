@@ -465,6 +465,8 @@ def execute_research_query(chain, question: str):
         if chain is None or not hasattr(chain, 'invoke'):
             raise ValueError("The research chain is not properly initialized or does not have an invoke method.")
 
+        st.info(f"chain:{chain}")
+        
         # Prepare input data for the invoke method
         input_data = {
             "input_documents": [],  # Populate this if you have documents to include
