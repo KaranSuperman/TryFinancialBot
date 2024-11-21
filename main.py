@@ -474,8 +474,7 @@ def execute_research_query(chain, question: str):
         # st.info(f"chain_steps:{chain.steps}")
         # st.info(f"question:{question}")
 
-        context = chain.steps[0].context.invoke(question)  # Example of invoking just the context step
-        st.info(f"Context retrieved: {context}")
+        st.info(f"Current context: {chain.steps[0].context if hasattr(chain.steps[0], 'context') else 'No context available'}")
         # Attempt to invoke the chain
         try:
             response = chain.invoke(question)
