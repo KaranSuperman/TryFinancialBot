@@ -378,27 +378,45 @@ def get_stock_price(symbol):
 
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
-    # Validate API keys
-    if not exa_api_key:
-        raise ValueError("Exa API key cannot be empty")
-    if not openai_api_key:
-        raise ValueError("OpenAI API key cannot be empty")
+    # Comprehensive API key validation
+    def validate_api_key(key: str, service: str) -> str:
+        # Check if key is None or empty string
+        if not key:
+            raise ValueError(f"{service} API key cannot be empty")
+        
+        # Trim any whitespace
+        key = key.strip()
+        
+        # Additional checks can be added here
+        if len(key) < 10:  # Basic length check
+            raise ValueError(f"Suspicious {service} API key")
+        
+        return key
 
-    # Directly create Exa client with the API key
+    # Validate and clean API keys
     try:
-        exa_client = exa_py.Exa(api_key=exa_api_key)
+        cleaned_exa_api_key = validate_api_key(exa_api_key, "Exa")
+        cleaned_openai_api_key = validate_api_key(openai_api_key, "OpenAI")
+    except ValueError as val_error:
+        print(f"API Key Validation Error: {val_error}")
+        raise
+
+    # Directly create Exa client with the validated API key
+    try:
+        # Explicitly pass the API key when creating the Exa client
+        exa_client = exa_py.Exa(api_key=cleaned_exa_api_key)
     except Exception as client_error:
         print(f"Error creating Exa client: {client_error}")
         raise
 
-    # Create retriever with the direct Exa client
+    # Create retriever with explicit API key
     retriever = ExaSearchRetriever(
-        client=exa_client,  # Use the directly created client
+        api_key=cleaned_exa_api_key,  # Explicitly pass the API key
         k=3,  
         highlights=True
     )
 
-    # Create document formatting template
+    # Rest of the chain creation remains the same as in previous example
     document_template = """
     <source>
         <url>{url}</url>
@@ -407,7 +425,6 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
     """
     document_prompt = PromptTemplate.from_template(document_template)
     
-    # Create document processing chain
     document_chain = (
         RunnablePassthrough() | 
         RunnableLambda(lambda doc: {
@@ -416,14 +433,12 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         }) | document_prompt
     )
     
-    # Create retrieval chain
     retrieval_chain = (
         retriever | 
         document_chain.map() | 
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs)) 
     )
     
-    # Create generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
         ("system", "You are a highly knowledgeable finance and stocks assistant. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
         ("human", """
@@ -437,10 +452,9 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         """)
     ])
     
-    # Initialize LLM
-    llm = ChatOpenAI(api_key=openai_api_key)
+    # Initialize LLM with explicit API key
+    llm = ChatOpenAI(api_key=cleaned_openai_api_key)
     
-    # Modify the chain to explicitly handle the input
     chain = (
         RunnableParallel({
             "context": retrieval_chain,
@@ -453,17 +467,18 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
     return chain
 
 
-
 def execute_research_query(chain, question: str):
     try:
-        # print(f"DEBUG: Executing research query for: {question}")
-        st.info(f"DEBUG: Executing research query for: {question}")
-        # print(f"DEBUG: Chain type: {type(chain)}")
-        st.info(f"DEBUG: Chain type: {type(chain)}")
+        print(f"DEBUG: Executing research query for: {question}")
+        print(f"DEBUG: Chain type: {type(chain)}")
 
+        # Extensive input validation
+        if not question or not isinstance(question, str):
+            raise ValueError("Invalid query: Must be a non-empty string")
 
-        st.info(f"DEBUG: Question type: {type(question)}")
-        st.info(f"DEBUG: Question content: {question}")
+        # Add additional debug printing
+        print(f"DEBUG: Question type: {type(question)}")
+        print(f"DEBUG: Question content: {question}")
 
         # Directly pass the question string
         response = chain.invoke(question)
