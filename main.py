@@ -435,8 +435,6 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         | generation_prompt 
         | llm
     )
-    st.info(f"In chain Current context: {chain.steps[0].context if hasattr(chain.steps[0], 'context') else 'No context available'}")
-
 
     return chain
 
@@ -462,17 +460,18 @@ def execute_research_query(chain, question: str):
             raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
 
         print(f"DEBUG: Executing research query for: {question}")
-        # st.info(f"chain:{chain}")
-        # st.info(f"chain_steps:{chain.steps}")
-        # st.info(f"question:{question}")
 
-        st.info(f"Current context: {chain.steps[0].context if hasattr(chain.steps[0], 'context') else 'No context available'}")
+        # Check if chain is initialized and has invoke method
+        if chain is None or not hasattr(chain, 'invoke'):
+            raise ValueError("The research chain is not properly initialized or does not have an invoke method.")
+
         # Attempt to invoke the chain
         try:
             response = chain.invoke(question)
-            print("response", response)
+            print("DEBUG: Response received:", response)
         except Exception as invoke_error:
             print(f"Invoke error: {invoke_error}")
+            return {"output_text": "An error occurred while invoking the research chain."}
 
         # Now we can safely check if response is None
         if response is None:
@@ -490,6 +489,7 @@ def execute_research_query(chain, question: str):
     except Exception as e:
         print(f"CRITICAL ERROR in execute_research_query: {str(e)}")
         return {"output_text": f"An unexpected error occurred: {str(e)}. Please check your API key configuration."}
+
 
 
 def user_input(user_question):
