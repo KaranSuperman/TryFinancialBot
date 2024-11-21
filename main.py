@@ -459,55 +459,13 @@ def execute_research_query(chain, question: str):
             raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
 
         print(f"DEBUG: Executing research query for: {question}")
+
         # Attempt to invoke the chain
-
         try:
-            # Try to get Exa API key from Streamlit secrets
-            try:
-                exa_api_key = st.secrets.get("news", {}).get("EXA_API_KEY", "")
-            except Exception:
-                exa_api_key = ""
-
-            # Fallback to environment variable if not in Streamlit secrets
-            if not exa_api_key:
-                exa_api_key = os.getenv("EXA_API_KEY", "")
-
-            # Validate API key
-            if not exa_api_key:
-                raise ValueError("Exa API key is missing. Please set it in Streamlit secrets or environment variables.")
-
-            # Get the retriever from the chain
-            retriever = chain.first.steps__['context']
-            
-            print("Retriever type:", type(retriever))
-            print("Retriever details:", retriever)
-
-            # Directly invoke the retriever
-            retriever_result = retriever.invoke(question)
-            
-            print("Retriever result type:", type(retriever_result))
-            print("Number of retrieved documents:", len(retriever_result))
-
-            # Process the retriever results
-            processed_context = '\n'.join([
-                f"<source>\n<url>{doc.metadata.get('url', 'No URL')}</url>\n<highlights>{doc.metadata.get('highlights', 'No highlights')}</highlights>\n</source>"
-                for doc in retriever_result
-            ])
-            
-            # Invoke the full chain with processed context
-            response = chain.invoke({
-                "query": question,
-                "context": processed_context
-            })
-            
-            print("Response:", response)
-            return response
-
-        except Exception as e:
-            print(f"Error type: {type(e)}")
-            print(f"Full error: {e}")
-            import traceback
-            traceback.print_exc()
+            response = chain.invoke(question)
+            print("response", response)
+        except Exception as invoke_error:
+            print(f"Invoke error: {invoke_error}")
 
         # Now we can safely check if response is None
         if response is None:
@@ -525,7 +483,6 @@ def execute_research_query(chain, question: str):
     except Exception as e:
         print(f"CRITICAL ERROR in execute_research_query: {str(e)}")
         return {"output_text": f"An unexpected error occurred: {str(e)}. Please check your API key configuration."}
-
 
 
 
@@ -591,14 +548,12 @@ def user_input(user_question):
                 # st.info("Using Exa Research response")
                 exa_api_key = st.secrets["news"]["EXA_API_KEY"]
                 openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
-                st.info(f"EXA API Key: {exa_api_key[:5]}...")  # Only print first 5 chars
-                st.info(f"OpenAI API Key: {openai_api_key[:5]}...")
+     
                 research_chain = create_research_chain(exa_api_key, openai_api_key)
-                st.info(f"research_chain :{research_chain}")
                 # Execute the research query
                 research_result = execute_research_query(research_chain, research_query)
-                
-                return research_result
+                st.info(f"reseach_result: {research_result}")
+                print(research_result)
 
             except KeyError as e:
                 print(f"Missing secret key: {e}")
