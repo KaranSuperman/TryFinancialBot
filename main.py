@@ -476,19 +476,13 @@ def execute_research_query(chain, question: str):
             if not exa_api_key:
                 raise ValueError("Exa API key is missing. Please set it in Streamlit secrets or environment variables.")
 
-            # Create Exa client with the API key
-            exa_client = Exa(api_key=exa_api_key)
-
-            # Recreate the retriever with the explicit client
-            retriever = ExaSearchRetriever(
-                client=exa_client,
-                k=3,
-                highlights=True
-            )
+            # Get the retriever from the chain
+            retriever = chain.first.steps__['context']
             
             print("Retriever type:", type(retriever))
+            print("Retriever details:", retriever)
 
-            # Invoke the retriever
+            # Directly invoke the retriever
             retriever_result = retriever.invoke(question)
             
             print("Retriever result type:", type(retriever_result))
@@ -500,29 +494,6 @@ def execute_research_query(chain, question: str):
                 for doc in retriever_result
             ])
             
-            # Recreate the chain with the new retriever
-            from langchain_core.runnables import RunnableParallel, RunnablePassthrough
-            from langchain_openai import ChatOpenAI
-            from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate, PromptTemplate
-
-            # Recreate the chain components
-            llm = ChatOpenAI()
-            
-            prompt = ChatPromptTemplate.from_messages([
-                SystemMessagePromptTemplate.from_template(
-                    "You are a highly knowledgeable finance and stocks assistant. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."
-                ),
-                HumanMessagePromptTemplate.from_template(
-                    "\n Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.\n\n Query: {query}\n ---\n <context>\n {context}\n </context>\n "
-                )
-            ])
-
-            # Recreate the chain
-            chain = RunnableParallel(
-                query=RunnablePassthrough(),
-                context=retriever | RunnablePassthrough()
-            ) | prompt | llm
-
             # Invoke the full chain with processed context
             response = chain.invoke({
                 "query": question,
@@ -620,12 +591,20 @@ def user_input(user_question):
                 # st.info("Using Exa Research response")
                 exa_api_key = st.secrets["news"]["EXA_API_KEY"]
                 openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
+                st.info(f"EXA API Key: {exa_api_key[:5]}...")  # Only print first 5 chars
+                st.info(f"OpenAI API Key: {openai_api_key[:5]}...")
                 research_chain = create_research_chain(exa_api_key, openai_api_key)
                 # st.info(f"{research_chain}")
                 # Execute the research query
                 research_result = execute_research_query(research_chain, research_query)
                 
                 return research_result
+
+            except KeyError as e:
+                print(f"Missing secret key: {e}")
+                return {
+                    "output_text": f"Configuration error: {e}. Please check your Streamlit secrets."
+                }
             except Exception as e:
                 print(f"DEBUG: Research query error: {str(e)}")
                 return {
