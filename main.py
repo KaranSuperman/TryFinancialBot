@@ -378,12 +378,21 @@ def get_stock_price(symbol):
 
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
+    try:
+        # Validation of API keys
+        if not exa_api_key or not openai_api_key:
+            raise ValueError("API keys are required")
 
-    retriever = ExaSearchRetriever(
-        api_key=exa_api_key,
-        k=3,  
-        highlights=True
-    )
+        # Retriever setup with error handling
+        try:
+            retriever = ExaSearchRetriever(
+                api_key=exa_api_key,
+                k=3,  
+                highlights=True
+            )
+        except Exception as retriever_error:
+            print(f"Error initializing retriever: {retriever_error}")
+            raise
 
     # Create document formatting template
     document_template = """
@@ -403,16 +412,17 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         }) | document_prompt
     )
     
-    # Create retrieval chain
+    # Create retrieval chain with error logging
     retrieval_chain = (
         retriever | 
+        RunnableLambda(lambda docs: print(f"Retrieved {len(docs)} documents") or docs) |  # Debug logging
         document_chain.map() | 
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs)) 
     )
     
     # Create generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a highly knowledgeable finance and stocks assistant. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
+        ("system", "You are a highly knowledgeable finance and stocks assistant. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
         ("human", """
         Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
 
@@ -422,11 +432,16 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         {context}
         </context>
         """)
-        ])
+    ])
     
-    # Initialize LLM
-    llm = ChatOpenAI(api_key=openai_api_key)
-    
+    # Initialize LLM with error handling
+    try:
+        llm = ChatOpenAI(api_key=openai_api_key)
+    except Exception as llm_error:
+        print(f"Error initializing LLM: {llm_error}")
+        raise
+
+    # Final chain construction
     chain = (
         RunnableParallel({
             "query": RunnablePassthrough(),  
@@ -439,57 +454,54 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
     return chain
 
 
+
 def execute_research_query(chain, question: str):
     try:
-        # Initialize response to None
-        response = None
-        
-        # Retrieve API keys from Streamlit secrets with multiple fallback methods
+        # print(f"DEBUG: Executing research query for: {question}")
+        st.info(f"DEBUG: Executing research query for: {question}")
+        # print(f"DEBUG: Chain type: {type(chain)}")
+        st.info(f"DEBUG: Chain type: {type(chain)}")
+
+
+        # Validate inputs
+        if not question or not isinstance(question, str):
+            raise ValueError("Invalid query: Must be a non-empty string")
+
         try:
-            exa_api_key = st.secrets.get("news", {}).get("EXA_API_KEY", "")
-            openai_api_key = st.secrets.get("news", {}).get("OPENAI_API_KEY", "")
-        except Exception as secrets_error:
-            print(f"Streamlit secrets error: {secrets_error}")
-            exa_api_key = os.getenv("EXA_API_KEY", "")
-            openai_api_key = os.getenv("OPENAI_API_KEY", "")
-        
-        # Validate API keys
-        if not exa_api_key:
-            raise ValueError("Exa API key is missing. Check Streamlit secrets or environment variables.")
-        if not openai_api_key:
-            raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
+            # Invoke chain with dictionary input
+            response = chain.invoke({
+                "query": question
+            })
+            
+            # Debug print
+            print("DEBUG: Response received")
+            st.info(f"Response type:{type(response)}")
+            
+            # Extract content safely
+            if hasattr(response, 'content'):
+                content = response.content
+            elif isinstance(response, str):
+                content = response
+            else:
+                content = str(response)
 
+            # Validate response
+            if not content or len(content.strip()) < 10:
+                return {"output_text": "Unable to generate a meaningful response. Please try a different query."}
 
-        print(f"DEBUG: Executing research query for: {question}")
+            return {"output_text": content}
 
-        st.info(f"{type(question)}")
-        # st.info(f"chain:{chain}")
-        # st.info(f"chain_steps:{chain.steps}")
-        # st.info(f"question:{question}")
-
-        # Attempt to invoke the chain
-        try:
-            response = chain.invoke(question)
-            print("response", response)
         except Exception as invoke_error:
-            print(f"Invoke error: {invoke_error}")
-
-        # Now we can safely check if response is None
-        if response is None:
-            print("DEBUG: No response generated by the research chain")
-            return {"output_text": "No research findings available for this query."}
-
-        content = response.content if hasattr(response, 'content') else str(response)
-
-        if not content or len(content.strip()) < 10:
-            print("DEBUG: Generated response is too short")
-            return {"output_text": "Unable to generate a meaningful response. Please try a different query."}
-
-        return {"output_text": content}
+            print(f"Detailed Invoke error: {invoke_error}")
+            import traceback
+            traceback.print_exc()
+            return {"output_text": f"Error invoking research chain: {str(invoke_error)}"}
 
     except Exception as e:
         print(f"CRITICAL ERROR in execute_research_query: {str(e)}")
-        return {"output_text": f"An unexpected error occurred: {str(e)}. Please check your API key configuration."}
+        return {"output_text": f"An unexpected error occurred: {str(e)}"}
+
+
 
 def user_input(user_question):
     try:
