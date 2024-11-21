@@ -470,9 +470,9 @@ def execute_research_query(chain, question: str):
             raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
 
         print(f"DEBUG: Executing research query for: {question}")
-        st.info(f"chain:",chain)
-        st.info(f"chain_steps:",chain.steps)
-        st.info(f"question:",question)
+        st.info(f"chain:{chain}")
+        st.info(f"chain_steps:{chain.steps}")
+        st.info(f"question:{question}")
         # Attempt to invoke the chain
         try:
             response = chain.invoke(question)
