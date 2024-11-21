@@ -457,7 +457,7 @@ def execute_research_query(chain, question: str):
         api_key=exa_api_key,
         k=3,  
         highlights=True
-    )
+        )
         
         # Validate API keys
         if not exa_api_key:
