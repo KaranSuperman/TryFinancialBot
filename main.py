@@ -463,7 +463,18 @@ def execute_research_query(chain, question: str):
         st.info(f"chain:{chain}")
         st.info(f"chain_steps:{chain.steps}")
         st.info(f"question:{question}")
+# ---------------------------------------------------------------
+        from langchain import LangChain
 
+        input_query = "What are the latest trends in finance?"
+
+        # Invoke the chain
+        response = chain.invoke({"query": input_query})
+
+        # Output the response
+        st.info(f"{response}")
+
+# ------------------------------------------------------------------
         # Attempt to invoke the chain
         try:
             response = chain.invoke(question)
