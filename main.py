@@ -30,6 +30,7 @@ from langchain_core.runnables import RunnablePassthrough, RunnableParallel, Runn
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
+from exa_py import Exa
 
 
 load_dotenv() 
@@ -461,8 +462,25 @@ def execute_research_query(chain, question: str):
         # Attempt to invoke the chain
 
         try:
-            # Extract the retriever from steps
-            retriever = chain.first.steps__['context']
+    # Try to get Exa API key from Streamlit secrets
+            try:
+                exa_api_key = st.secrets.get("news", {}).get("EXA_API_KEY", "")
+            except Exception:
+                exa_api_key = ""
+
+            # Fallback to environment variable if not in Streamlit secrets
+            if not exa_api_key:
+                exa_api_key = os.getenv("EXA_API_KEY", "")
+
+            # Validate API key
+            if not exa_api_key:
+                raise ValueError("Exa API key is missing. Please set it in Streamlit secrets or environment variables.")
+
+            # Create Exa client with the API key
+            exa_client = Exa(api_key=exa_api_key)
+
+            # Modify the retriever to use the explicit client
+            retriever = chain.first.steps__['context'].client(exa_client)
             
             print("Retriever type:", type(retriever))
 
