@@ -461,28 +461,17 @@ def execute_research_query(chain, question: str):
         # Attempt to invoke the chain
 
         try:
-            # Print out the entire chain structure
-            print("Chain first:", chain.first)
-            cf = chain.first
-            st.info(f"{cf}")
-
-            tcf = type(chain.first)
-            st.info(f"{tcf}")
-
-            # Try to extract the retriever differently
-            if hasattr(chain.first, 'steps'):
-                retriever = chain.first.steps.get('context')
-            elif isinstance(chain.first, dict):
-                retriever = chain.first.get('context')
+            # Extract the retriever from steps
+            retriever = chain.first.steps__['context']
             
-            if retriever is None:
-                raise ValueError("Could not extract retriever from the chain")
-
             print("Retriever type:", type(retriever))
 
             # Invoke the retriever
             retriever_result = retriever.invoke(question)
             
+            print("Retriever result type:", type(retriever_result))
+            print("Number of retrieved documents:", len(retriever_result))
+
             # Process the retriever results
             processed_context = '\n'.join([
                 f"<source>\n<url>{doc.metadata.get('url', 'No URL')}</url>\n<highlights>{doc.metadata.get('highlights', 'No highlights')}</highlights>\n</source>"
