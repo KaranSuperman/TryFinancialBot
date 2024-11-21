@@ -378,25 +378,11 @@ def get_stock_price(symbol):
 
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
-    try:
-        # Validation of API keys
-        if not exa_api_key or not openai_api_key:
-            raise ValueError("API keys are required")
-
-        # Retriever setup with error handling
-        try:
-            retriever = ExaSearchRetriever(
-                api_key=exa_api_key,
-                k=3,  
-                highlights=True
-            )
-        except Exception as retriever_error:
-            print(f"Error initializing retriever: {retriever_error}")
-            raise
-    
-    except Exception as e:
-        print(f"Error :{e}")
-        raise
+    retriever = ExaSearchRetriever(
+        api_key=exa_api_key,
+        k=3,  
+        highlights=True
+    )
 
     # Create document formatting template
     document_template = """
@@ -416,17 +402,16 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         }) | document_prompt
     )
     
-    # Create retrieval chain with error logging
+    # Create retrieval chain
     retrieval_chain = (
         retriever | 
-        RunnableLambda(lambda docs: print(f"Retrieved {len(docs)} documents") or docs) |  # Debug logging
         document_chain.map() | 
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs)) 
     )
     
     # Create generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a highly knowledgeable finance and stocks assistant. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
+        ("system", "You are a highly knowledgeable finance and stocks assistant particularly of India. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
         ("human", """
         Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
 
@@ -438,18 +423,14 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         """)
     ])
     
-    # Initialize LLM with error handling
-    try:
-        llm = ChatOpenAI(api_key=openai_api_key)
-    except Exception as llm_error:
-        print(f"Error initializing LLM: {llm_error}")
-        raise
-
-    # Final chain construction
+    # Initialize LLM
+    llm = ChatOpenAI(api_key=openai_api_key)
+    
+    # Modify the chain to explicitly handle the input
     chain = (
         RunnableParallel({
-            "query": RunnablePassthrough(),  
-            "context": retrieval_chain,  
+            "context": retrieval_chain,
+            "query": RunnablePassthrough()
         }) 
         | generation_prompt 
         | llm
@@ -461,51 +442,27 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
 def execute_research_query(chain, question: str):
     try:
-        # print(f"DEBUG: Executing research query for: {question}")
-        st.info(f"DEBUG: Executing research query for: {question}")
-        # print(f"DEBUG: Chain type: {type(chain)}")
-        st.info(f"DEBUG: Chain type: {type(chain)}")
+        print(f"DEBUG: Executing research query for: {question}")
+        print(f"DEBUG: Chain type: {type(chain)}")
 
+        # Directly pass the question string
+        response = chain.invoke(question)
+        
+        # Extract content
+        content = response.content if hasattr(response, 'content') else str(response)
 
-        # Validate inputs
-        if not question or not isinstance(question, str):
-            raise ValueError("Invalid query: Must be a non-empty string")
+        if not content or len(content.strip()) < 10:
+            return {"output_text": "Unable to generate a meaningful response. Please try a different query."}
 
-        try:
-            # Invoke chain with dictionary input
-            response = chain.invoke({
-                "query": question
-            })
-            
-            # Debug print
-            print("DEBUG: Response received")
-            st.info(f"Response type:{type(response)}")
-            
-            # Extract content safely
-            if hasattr(response, 'content'):
-                content = response.content
-            elif isinstance(response, str):
-                content = response
-            else:
-                content = str(response)
-
-            # Validate response
-            if not content or len(content.strip()) < 10:
-                return {"output_text": "Unable to generate a meaningful response. Please try a different query."}
-
-            return {"output_text": content}
-
-        except Exception as invoke_error:
-            print(f"Detailed Invoke error: {invoke_error}")
-            import traceback
-            traceback.print_exc()
-            return {"output_text": f"Error invoking research chain: {str(invoke_error)}"}
+        return {"output_text": content}
 
     except Exception as e:
         print(f"CRITICAL ERROR in execute_research_query: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
 
-
+        
 
 def user_input(user_question):
     try:
