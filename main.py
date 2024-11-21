@@ -463,8 +463,9 @@ def execute_research_query(chain, question: str):
         try:
             # Print out the full chain structure
             # print("Full chain:", chain)
-            st.info(f"{chain}")
-            print("Chain steps:", chain.steps)
+            c_s = chain.steps
+            st.info(f"{c_s}")
+            # print("Chain steps:", chain.steps)
 
             # Try to access the retriever differently
             for step in chain.steps:
