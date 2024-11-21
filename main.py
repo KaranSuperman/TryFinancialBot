@@ -462,7 +462,7 @@ def execute_research_query(chain, question: str):
         # Attempt to invoke the chain
 
         try:
-    # Try to get Exa API key from Streamlit secrets
+            # Try to get Exa API key from Streamlit secrets
             try:
                 exa_api_key = st.secrets.get("news", {}).get("EXA_API_KEY", "")
             except Exception:
@@ -476,15 +476,13 @@ def execute_research_query(chain, question: str):
             if not exa_api_key:
                 raise ValueError("Exa API key is missing. Please set it in Streamlit secrets or environment variables.")
 
-            # Create Exa client with the API key
-            exa_client = Exa(api_key=exa_api_key)
-
-            # Modify the retriever to use the explicit client
-            retriever = chain.first.steps__['context'].client(exa_client)
+            # Get the retriever from the chain
+            retriever = chain.first.steps__['context']
             
             print("Retriever type:", type(retriever))
+            print("Retriever details:", retriever)
 
-            # Invoke the retriever
+            # Directly invoke the retriever
             retriever_result = retriever.invoke(question)
             
             print("Retriever result type:", type(retriever_result))
