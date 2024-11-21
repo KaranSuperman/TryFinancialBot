@@ -37,8 +37,8 @@ import exa_py
 load_dotenv() 
 
 
-exa_api_key = st.secrets["news"]["EXA_API_KEY"]
-openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
+exa_api_key = st.secrets["exa"]["api_key"]
+openai_api_key = st.secrets["openai"]["api_key"]
  
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -377,46 +377,16 @@ def get_stock_price(symbol):
         return None, None
 
 
+
 def create_research_chain(exa_api_key: str, openai_api_key: str):
-    # Comprehensive API key validation
-    def validate_api_key(key: str, service: str) -> str:
-        # Check if key is None or empty string
-        if not key:
-            raise ValueError(f"{service} API key cannot be empty")
-        
-        # Trim any whitespace
-        key = key.strip()
-        
-        # Additional checks can be added here
-        if len(key) < 10:  # Basic length check
-            raise ValueError(f"Suspicious {service} API key")
-        
-        return key
 
-    # Validate and clean API keys
-    try:
-        cleaned_exa_api_key = validate_api_key(exa_api_key, "Exa")
-        cleaned_openai_api_key = validate_api_key(openai_api_key, "OpenAI")
-    except ValueError as val_error:
-        print(f"API Key Validation Error: {val_error}")
-        raise
-
-    # Directly create Exa client with the validated API key
-    try:
-        # Explicitly pass the API key when creating the Exa client
-        exa_client = exa_py.Exa(api_key=cleaned_exa_api_key)
-    except Exception as client_error:
-        print(f"Error creating Exa client: {client_error}")
-        raise
-
-    # Create retriever with explicit API key
     retriever = ExaSearchRetriever(
-        api_key=cleaned_exa_api_key,  # Explicitly pass the API key
+        api_key=exa_api_key,
         k=3,  
         highlights=True
     )
 
-    # Rest of the chain creation remains the same as in previous example
+    # Create document formatting template
     document_template = """
     <source>
         <url>{url}</url>
@@ -424,7 +394,8 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
     </source>
     """
     document_prompt = PromptTemplate.from_template(document_template)
-    
+
+    # Create document processing chain
     document_chain = (
         RunnablePassthrough() | 
         RunnableLambda(lambda doc: {
@@ -432,15 +403,17 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
             "url": doc.metadata.get("url", "No URL available.")
         }) | document_prompt
     )
-    
+
+    # Create retrieval chain
     retrieval_chain = (
         retriever | 
         document_chain.map() | 
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs)) 
     )
-    
+
+    # Create generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a highly knowledgeable finance and stocks assistant. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
+    ("system", "You are a highly knowledgeable finance and stocks assistant. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
         ("human", """
         Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
 
@@ -450,15 +423,15 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         {context}
         </context>
         """)
-    ])
-    
-    # Initialize LLM with explicit API key
-    llm = ChatOpenAI(api_key=cleaned_openai_api_key)
-    
+        ])
+
+    # Initialize LLM
+    llm = ChatOpenAI(api_key=openai_api_key)
+
     chain = (
         RunnableParallel({
-            "context": retrieval_chain,
-            "query": RunnablePassthrough()
+            "query": RunnablePassthrough(),  
+            "context": retrieval_chain,  
         }) 
         | generation_prompt 
         | llm
@@ -469,34 +442,59 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
 def execute_research_query(chain, question: str):
     try:
-        print(f"DEBUG: Executing research query for: {question}")
-        print(f"DEBUG: Chain type: {type(chain)}")
+        # Initialize response to None
+        response = None
 
-        # Extensive input validation
-        if not question or not isinstance(question, str):
-            raise ValueError("Invalid query: Must be a non-empty string")
-
-        # Add additional debug printing
-        print(f"DEBUG: Question type: {type(question)}")
-        print(f"DEBUG: Question content: {question}")
-
-        # Directly pass the question string
-        response = chain.invoke(question)
+        # Retrieve API keys from Streamlit secrets with multiple fallback methods
+        try:
+            exa_api_key = st.secrets.get("exa", {}).get("api_key", "")
+            openai_api_key = st.secrets.get("openai", {}).get("api_key", "")
+        except Exception as secrets_error:
+            print(f"Streamlit secrets error: {secrets_error}")
+            exa_api_key = os.getenv("EXA_API_KEY", "")
+            openai_api_key = os.getenv("OPENAI_API_KEY", "")
         
-        # Extract content
+        st.info(f"{exa_api_key[:2]}")
+        st.info(f"{openai_api_key[:2]}")
+
+        # Validate API keys
+        if not exa_api_key:
+            raise ValueError("Exa API key is missing. Check Streamlit secrets or environment variables.")
+        if not openai_api_key:
+            raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
+
+        print(f"DEBUG: Executing research query for: {question}")
+
+        st.info(f"{type(question)}")
+        # st.info(f"chain:{chain}")
+        # st.info(f"chain_steps:{chain.steps}")
+        # st.info(f"question:{question}")
+
+        # Attempt to invoke the chain
+        try:
+            response = chain.invoke(question)
+            print("response", response)
+        except Exception as invoke_error:
+            print(f"Invoke error: {invoke_error}")
+
+        # Now we can safely check if response is None
+        if response is None:
+            print("DEBUG: No response generated by the research chain")
+            return {"output_text": "No research findings available for this query."}
+
         content = response.content if hasattr(response, 'content') else str(response)
 
         if not content or len(content.strip()) < 10:
+            print("DEBUG: Generated response is too short")
             return {"output_text": "Unable to generate a meaningful response. Please try a different query."}
 
         return {"output_text": content}
 
     except Exception as e:
         print(f"CRITICAL ERROR in execute_research_query: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return {"output_text": f"An unexpected error occurred: {str(e)}"}
+        return {"output_text": f"An unexpected error occurred: {str(e)}. Please check your API key configuration."}
 
+# ----------------------------------------------------------------------------------------------------------
 
 def user_input(user_question):
     try:
@@ -561,8 +559,13 @@ def user_input(user_question):
                 # exa_api_key = st.secrets["news"]["EXA_API_KEY"]
                 # openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
 
-                exa_api_key = st.secrets.get("news", {}).get("EXA_API_KEY", os.getenv("EXA_API_KEY"))
-                openai_api_key = st.secrets.get("news", {}).get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+                # exa_api_key = st.secrets["exa"]["api_key"]
+                # openai_api_key = st.secrets["openai"]["api_key"]
+
+
+                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+                openai_api_key = st.secrets.get("openai", {}).get("api_key", os.getenv("OPENAI_API_KEY"))
+
                 if not exa_api_key or not openai_api_key:
                     raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
 
