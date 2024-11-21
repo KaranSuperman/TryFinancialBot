@@ -31,6 +31,7 @@ from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
 from exa_py import Exa
+from langchain import LangChain
 
 
 
@@ -460,9 +461,9 @@ def execute_research_query(chain, question: str):
             raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
 
         print(f"DEBUG: Executing research query for: {question}")
-        st.info(f"chain:{chain}")
-        st.info(f"chain_steps:{chain.steps}")
-        st.info(f"question:{question}")
+        # st.info(f"chain:{chain}")
+        # st.info(f"chain_steps:{chain.steps}")
+        # st.info(f"question:{question}")
 # ---------------------------------------------------------------
         from langchain import LangChain
 
