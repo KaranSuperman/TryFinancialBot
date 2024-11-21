@@ -378,33 +378,18 @@ def get_stock_price(symbol):
 
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
-    # Your implementation looks solid
-    # Consider these potential enhancements:
+    
+    retriever = ExaSearchRetriever(api_key=exa_api_key, k=3, highlights=True)
 
-    # 1. Explicit type hints for retriever
-    from langchain_exa import ExaSearchRetriever  
-    from langchain_core.runnables import (
-        RunnablePassthrough, 
-        RunnableLambda, 
-        RunnableParallel
-    )
-
-    retriever = ExaSearchRetriever(
-        api_key=exa_api_key,
-        k=3,  
-        highlights=True
-    )
-
-    # Create document formatting template
     document_template = """
     <source>
         <url>{url}</url>
         <highlights>{highlights}</highlights>
     </source>
     """
+    
     document_prompt = PromptTemplate.from_template(document_template)
     
-    # Create document processing chain
     document_chain = (
         RunnablePassthrough() | 
         RunnableLambda(lambda doc: {
@@ -413,34 +398,30 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         }) | document_prompt
     )
     
-    # Create retrieval chain
     retrieval_chain = (
         retriever | 
         document_chain.map() | 
-        RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))  # Convert docs to strings
+        RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
     
-    # Create generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a highly knowledgeable finance and stocks assistant. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
+        ("system", "You are a highly knowledgeable finance and stocks assistant..."),
         ("human", """
-        Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
-
-        Query: {query}
-        ---
-        <context>
-        {context}
-        </context>
+            Please respond to the following query using the provided context...
+            Query: {query}
+            ---
+            <context>
+            {context}
+            </context>
         """)
-        ])
+    ])
     
-    # Initialize LLM
     llm = ChatOpenAI(api_key=openai_api_key)
     
     chain = (
         RunnableParallel({
             "query": RunnablePassthrough(),  
-            "context": retrieval_chain,  
+            "context": retrieval_chain,
         }) 
         | generation_prompt 
         | llm
