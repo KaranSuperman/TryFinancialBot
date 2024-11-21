@@ -459,15 +459,34 @@ def execute_research_query(chain, question: str):
 
         print(f"DEBUG: Executing research query for: {question}")
         # Attempt to invoke the chain
+        
         try:
+            # First, explicitly print the type of the retriever
+            print("Retriever type:", type(chain.steps[0]['context']))
+            
+            # Try invoking the retriever with different input formats
             retriever_result = chain.steps[0]['context'].invoke(question)
-            st.info(f"retriever_result")
-            response = chain.invoke({"query": question, "context": ""})
+            print("Retriever result type:", type(retriever_result))
+            print("Retriever result:", retriever_result)
+
+            # If retriever works, try to extract context
+            if retriever_result:
+                # Assuming retriever returns a list of documents
+                context = '\n'.join([doc.page_content for doc in retriever_result])
+                
+                # Now invoke the chain with explicit context
+                response = chain.invoke({
+                    "query": question, 
+                    "context": context
+                })
+                print("Response:", response)
 
         except Exception as e:
-            type_e = type(e)
-            print(f"error: {e}")
-            st.info(f"{type_e}")
+            print(f"Error type: {type(e)}")
+            print(f"Full error: {e}")
+            # Print any additional error details
+            import traceback
+            traceback.print_exc()
 
 
         # Now we can safely check if response is None
