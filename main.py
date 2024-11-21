@@ -460,13 +460,12 @@ def execute_research_query(chain, question: str):
             raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
 
         print(f"DEBUG: Executing research query for: {question}")
+        chain = first | middle | last
+        st.info("Chain structure:", first, middle, last)
 
         # Attempt to invoke the chain
         try:
-            st.info(f"{chain}")
-            st.info(f"{question}")
             response = chain.invoke(question)
-            st.info(f"response:",response)
             print("response", response)
         except Exception as invoke_error:
             print(f"Invoke error: {invoke_error}")
