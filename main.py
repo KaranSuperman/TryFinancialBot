@@ -594,7 +594,7 @@ def user_input(user_question):
                 st.info(f"EXA API Key: {exa_api_key[:5]}...")  # Only print first 5 chars
                 st.info(f"OpenAI API Key: {openai_api_key[:5]}...")
                 research_chain = create_research_chain(exa_api_key, openai_api_key)
-                # st.info(f"{research_chain}")
+                st.info(f"research_chain :{research_chain}")
                 # Execute the research query
                 research_result = execute_research_query(research_chain, research_query)
                 
