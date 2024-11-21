@@ -454,8 +454,8 @@ def execute_research_query(chain, question: str):
             openai_api_key = os.getenv("OPENAI_API_KEY", "")
 
         # Debug: Print API keys (temporarily)
-        print(f"DEBUG: Exa API Key: {'[HIDDEN]' if exa_api_key else 'Missing'}")
-        print(f"DEBUG: OpenAI API Key: {'[HIDDEN]' if openai_api_key else 'Missing'}")
+        st.info(f"DEBUG: Exa API Key: {'[HIDDEN]' if exa_api_key else 'Missing'}")
+        st.info(f"DEBUG: OpenAI API Key: {'[HIDDEN]' if openai_api_key else 'Missing'}")
 
         # Validate API keys
         if not exa_api_key:
@@ -475,6 +475,7 @@ def execute_research_query(chain, question: str):
 
         # Prepare input data for the invoke method
         retrieved_documents = retriever.get_relevant_documents(question)  # Fetch relevant docs
+        st.info(f"\n retrieved_documents: {retrieved_documents}")
         if not retrieved_documents:
             print("DEBUG: No documents retrieved")
             return {"output_text": "No relevant documents found for the query."}
