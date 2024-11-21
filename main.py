@@ -466,10 +466,11 @@ def execute_research_query(chain, question: str):
             raise ValueError("The research chain is not properly initialized or does not have an invoke method.")
 
         st.info(f"chain:{chain}")
-        
+
         # Prepare input data for the invoke method
+        retrieved_documents = retriever.get_relevant_documents(question)  # Fetch relevant docs
         input_data = {
-            "input_documents": [],  # Populate this if you have documents to include
+            "input_documents": retrieved_documents,
             "question": question,
         }
 
