@@ -448,25 +448,10 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         ("system", ''' You are a highly knowledgeable finance and stocks assistant of India. Your role is to provide the latest news, trends, and insights related to finance and stock markets.
         
                     STRICT FORMATTING RULES:
-                    1. Always use proper spacing:
-                    - Between numbers and words (e.g., "18.12 billion" not "18.12billion")
-                    - After commas and periods
-                    - Around mathematical operators
-
-                    2. Never join phrases with no spaces:
-                    - INCORRECT: "revenuewas", "whileNVIDIA", "forsales"
-                    - CORRECT: "revenue was", "while NVIDIA", "for sales"
-
-                    3. Format financial numbers consistently:
-                    - Use spaces between numbers and units: "5.8 billion" not "5.8billion"
-                    - Keep currency symbols separated: "$18.12 billion" not "$18.12billion"
-                    - Use proper spacing in comparisons: "up from" not "upfrom"
-
-                    4. Format text phrases properly:
-                    - Use spaces between words: "On the other hand" not "Ontheotherhand"
-                    - Separate company names with spaces: "while NVIDIA" not "whileNVIDIA"
-                    - Use proper sentence spacing after periods
-
+                    1. Always use proper spacing.
+                    2. Never join phrases with no spaces.
+                    3. Format financial numbers consistently.
+                    4. Format text phrases properly.
                     5. Never use italics or special formatting in the middle of sentences.
  '''),
         ("human", """
