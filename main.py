@@ -602,9 +602,10 @@ def user_input(user_question):
                 if not exa_api_key or not openai_api_key:
                     raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
 
-                research_chain = create_research_chain(exa_api_key, openai_api_key)
+                # research_chain = create_research_chain(exa_api_key, openai_api_key)
                 # Execute the research query
-                research_result = execute_research_query(research_chain, research_query)
+                # research_result = execute_research_query(research_chain, research_query)
+                research_result = execute_research_query(research_query)
                 return research_result
 
             except Exception as e:
