@@ -377,34 +377,35 @@ def get_stock_price(symbol):
 
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
-    print(f"Debug - Exa API Key received: {exa_api_key[:5]}...")
+    # Validate API keys first
+    if not exa_api_key or not isinstance(exa_api_key, str) or len(exa_api_key.strip()) == 0:
+        raise ValueError("Valid Exa API key is required")
+    if not openai_api_key or not isinstance(openai_api_key, str) or len(openai_api_key.strip()) == 0:
+        raise ValueError("Valid OpenAI API key is required")
     
-    if not exa_api_key:
-        raise ValueError("Exa API key is empty in create_research_chain")
+    # Clean the API keys by removing any whitespace
+    exa_api_key = exa_api_key.strip()
+    openai_api_key = openai_api_key.strip()
     
-    # Create a custom headers dictionary
+    # Create headers with proper formatting
     headers = {
         "x-api-key": exa_api_key,
         "Content-Type": "application/json"
     }
     
-    # Initialize ExaSearchRetriever with custom configuration
+    # Initialize ExaSearchRetriever with updated configuration
     retriever = ExaSearchRetriever(
         api_key=exa_api_key,
         k=3,
         highlights=True,
-        headers=headers,  # Try with direct headers
-        extra_request_options={  # Add extra request options
-            'headers': headers
-        }
+        # Remove the redundant headers in extra_request_options
+        headers=headers
     )
     
-    # Verify the headers are set
-    if hasattr(retriever, 'client'):
-        if hasattr(retriever.client, 'headers'):
-            print(f"Debug - Retriever headers set: {list(retriever.client.headers.keys())}")
+    # Add debug logging for successful initialization
+    st.write(f"Debug - Retriever initialized with headers: {list(headers.keys())}")
     
-    # Rest of your chain configuration remains the same
+    # Rest of the chain configuration
     document_template = """
     <source>
         <url>{url}</url>
@@ -421,9 +422,8 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         }) | document_prompt
     )
 
-    # Add debug wrapper to the retrieval chain
     def debug_retrieval(docs):
-        print(f"Debug - Retrieved {len(docs) if docs else 0} documents")
+        st.write(f"Debug - Retrieved {len(docs) if docs else 0} documents")
         return "\n".join(str(doc) for doc in docs)
 
     retrieval_chain = (
@@ -460,45 +460,48 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
 def execute_research_query(chain, question: str):
     try:
-        # Get API keys
+        # Get API keys from environment with better error handling
         exa_api_key = st.secrets.get("exa", {}).get("api_key") or os.getenv("EXA_API_KEY")
         openai_api_key = st.secrets.get("openai", {}).get("api_key") or os.getenv("OPENAI_API_KEY")
         
-        # Debug prints
-        st.write("Debug - API Keys status:")
-        st.write(f"Exa API Key present: {'Yes' if exa_api_key else 'No'}")
-        st.write(f"OpenAI API Key present: {'Yes' if openai_api_key else 'No'}")
-        
-        if exa_api_key:
-            st.write(f"Exa API Key starts with: {exa_api_key[:5]}...")
-        
-        if not exa_api_key or not openai_api_key:
-            raise ValueError("One or both API keys are missing")
+        # Validate API keys
+        if not exa_api_key or len(exa_api_key.strip()) == 0:
+            st.error("Exa API key is missing or empty")
+            return {"output_text": "Configuration error: Exa API key is not properly set"}
+            
+        if not openai_api_key or len(openai_api_key.strip()) == 0:
+            st.error("OpenAI API key is missing or empty")
+            return {"output_text": "Configuration error: OpenAI API key is not properly set"}
 
-        # Create new chain with explicit debug logging
+        # Debug logging
+        st.write("Debug - API Keys validation:")
+        st.write(f"Exa API Key present and valid: {'Yes' if exa_api_key else 'No'}")
+        st.write(f"OpenAI API Key present and valid: {'Yes' if openai_api_key else 'No'}")
+
         try:
             research_chain = create_research_chain(exa_api_key, openai_api_key)
             st.write("Debug - Research chain created successfully")
-        except Exception as e:
-            st.error(f"Error creating research chain: {str(e)}")
-            return {"output_text": f"Error creating research chain: {str(e)}"}
-
-        # Execute the query with additional error context
-        try:
+            
+            # Execute query
             st.write(f"Debug - Executing query: {question[:50]}...")
             response = research_chain.invoke(question)
             st.write("Debug - Query executed successfully")
+            
             return {"output_text": response.content if hasattr(response, 'content') else str(response)}
+            
         except Exception as e:
-            st.error(f"Error during chain execution: {str(e)}")
+            st.error(f"Chain execution error: {str(e)}")
             if hasattr(e, 'response'):
-                st.error(f"Response details: {e.response.text if hasattr(e.response, 'text') else str(e.response)}")
-            return {"output_text": f"Error during chain execution: {str(e)}"}
+                error_details = e.response.text if hasattr(e.response, 'text') else str(e.response)
+                st.error(f"API Response details: {error_details}")
+            return {"output_text": f"Error during execution: {str(e)}"}
 
     except Exception as e:
         st.error(f"Critical error: {str(e)}")
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
 
+
+        
 
 # ----------------------------------------------------------------------------------------------------------
 
