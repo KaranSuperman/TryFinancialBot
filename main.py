@@ -30,7 +30,7 @@ from langchain_core.runnables import RunnablePassthrough, RunnableParallel, Runn
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
-import exa_py 
+from exa_py import Exa
 
 
 
@@ -453,6 +453,7 @@ def execute_research_query(chain, question: str):
             print(f"Streamlit secrets error: {secrets_error}")
             exa_api_key = os.getenv("EXA_API_KEY", "")
             openai_api_key = os.getenv("OPENAI_API_KEY", "")
+
         
         st.info(f"{exa_api_key[:2]}")
         st.info(f"{openai_api_key[:2]}")
