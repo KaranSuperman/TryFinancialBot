@@ -30,7 +30,7 @@ from langchain_core.runnables import RunnablePassthrough, RunnableParallel, Runn
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
-from langchain.retrievers.web_research import EvaSearchRetriever
+from langchain_community.retrievers import EvaRetriever  # Corrected import
 
 
 
@@ -390,11 +390,10 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         "Content-Type": "application/json"
     }
     
-    # Initialize EvaSearchRetriever with custom configuration
-    retriever = EvaSearchRetriever(
+    # Initialize EvaRetriever with custom configuration
+    retriever = EvaRetriever(
         api_key=exa_api_key,
         k=3,
-        highlights=True,
         headers=headers,
         extra_request_options={
             'headers': headers
@@ -498,9 +497,7 @@ def execute_research_query(chain, question: str):
     except Exception as e:
         st.error(f"Critical error: {str(e)}")
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
-
-
-
+        
 
 # ----------------------------------------------------------------------------------------------------------
 
