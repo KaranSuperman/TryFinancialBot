@@ -397,7 +397,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
                 "Content-Type": "application/json"
             })
             
-        st.write(f"Debug - Retriever headers after update: {dict(retriever.client.headers) if hasattr(retriever, 'client') else 'No client headers'}")
+        # st.write(f"Debug - Retriever headers after update: {dict(retriever.client.headers) if hasattr(retriever, 'client') else 'No client headers'}")
         
     except Exception as e:
         st.error(f"Error initializing retriever: {str(e)}")
@@ -405,9 +405,9 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
     # Test the retriever
     try:
-        st.write("Debug - Testing retriever with sample query...")
+        # st.write("Debug - Testing retriever with sample query...")
         test_docs = retriever.get_relevant_documents("test")
-        st.write(f"Debug - Test successful, retrieved {len(test_docs)} documents")
+        # st.write(f"Debug - Test successful, retrieved {len(test_docs)} documents")
     except Exception as e:
         st.error(f"Retriever test failed: {str(e)}")
         if hasattr(e, 'response'):
@@ -429,7 +429,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         return formatted_text
 
     def process_docs(docs):
-        st.write(f"Debug - Processing {len(docs) if docs else 0} documents")
+        # st.write(f"Debug - Processing {len(docs) if docs else 0} documents")
         formatted_docs = [format_doc(doc) for doc in docs]
         return "\n\n".join(formatted_docs)
 
@@ -485,13 +485,13 @@ def execute_research_query(question: str):
 
         # Execute chain with error handling
         try:
-            st.write("Debug - Creating research chain...")
+            # st.write("Debug - Creating research chain...")
             research_chain = create_research_chain(exa_api_key, openai_api_key)
-            st.write("Debug - Research chain created successfully")
+            # st.write("Debug - Research chain created successfully")
             
-            st.write(f"Debug - Executing query: {question[:50]}...")
+            # st.write(f"Debug - Executing query: {question[:50]}...")
             response = research_chain.invoke(question)
-            st.write("Debug - Query executed successfully")
+            # st.write("Debug - Query executed successfully")
             
             # Handle response
             if hasattr(response, 'content'):
