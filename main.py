@@ -579,7 +579,7 @@ def user_input(user_question):
                 research_query = result[5:]
                 
                 # Directly use Exa research for news-type queries
-                # st.info("Using Exa Research response")
+                st.info("Using Exa Research response")
 
                 # exa_api_key = st.secrets["news"]["EXA_API_KEY"]
                 # openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
@@ -607,17 +607,17 @@ def user_input(user_question):
                 }
         
         # Instead, use a more direct approach
-        else:
-            st.info("Using LLM response")
-            prompt1 = user_question + """ In the context of Finance       
-            (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
-                for example, 
-                - which are the best stocks to invest 
-                - which stock is worst
-                - Suggest me best stocks )"""
+        # else:
+        #     st.info("Using LLM response")
+        #     prompt1 = user_question + """ In the context of Finance       
+        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+        #         for example, 
+        #         - which are the best stocks to invest 
+        #         - which stock is worst
+        #         - Suggest me best stocks )"""
     
-            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-            return {"output_text": response.content} if response else {"output_text": "No response generated."}
+        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
 
         
@@ -668,17 +668,17 @@ def user_input(user_question):
         max_similarity = max(max_similarity_pdf, max_similarity_faq)
 
         # Process based on similarity scores
-        # if max_similarity < 0.65:
-        #     st.info("Using LLM response")
-        #     prompt1 = user_question + """ In the context of Finance       
-        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
-        #         for example, 
-        #         - which are the best stocks to invest 
-        #         - which stock is worst
-        #         - Suggest me best stocks )"""
+        if max_similarity < 0.65:
+            st.info("Using LLM response")
+            prompt1 = user_question + """ In the context of Finance       
+            (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+                for example, 
+                - which are the best stocks to invest 
+                - which stock is worst
+                - Suggest me best stocks )"""
     
-        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
+            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+            return {"output_text": response.content} if response else {"output_text": "No response generated."}
         
         # Handle FAQ and PDF responses
         try:
