@@ -413,7 +413,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
     # Create generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a highly knowledgeable finance and stocks assistant. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
+    ("system", "You are a highly knowledgeable finance and stocks assistant of India. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
         ("human", """
         Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
 
@@ -443,7 +443,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 def execute_research_query(chain, question: str):
     try:
         # Initialize response to None
-        response = None
+        # response = None
 
         # Retrieve API keys from Streamlit secrets with multiple fallback methods
         try:
