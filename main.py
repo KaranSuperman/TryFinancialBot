@@ -298,11 +298,11 @@ def is_stock_query(user_question):
     prompt = f'''Analyze the following question precisely. Determine if it's a stock-related query:
 
     RULES:
-    1. IF the question is about STOCK PRICE, respond: "True [STOCK_SYMBOL]"
+    1. IF the question is about CURRENT STOCK PRICE, respond: "True [STOCK_SYMBOL]"
        - Examples:
          "What is Microsoft's current stock price?" → "True MSFT"
          "How much is Tesla trading for?" → "True TSLA"
-         "What is the price of Google?" → "True GOOGL"
+         "What is the price of google?" → "True GOOGL"
 
     2. IF the question is about STOCK NEWS/ANALYSIS, respond: "News [REPHRASED_QUERY]"
        - Examples:
