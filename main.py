@@ -30,6 +30,8 @@ from langchain_core.runnables import RunnablePassthrough, RunnableParallel, Runn
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
+from langchain.retrievers import ExaSearchRetriever
+from langchain.callbacks.manager import CallbackManager
 
 
 
@@ -378,28 +380,34 @@ def get_stock_price(symbol):
 
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
-    st.info(f"Debug - Exa API Key received: {exa_api_key[:5]}...") # Only print first 5 chars for security
+    print(f"Debug - Exa API Key received: {exa_api_key[:5]}...")
     
     if not exa_api_key:
         raise ValueError("Exa API key is empty in create_research_chain")
-        
-    # Try creating the retriever with explicit headers
-    try:
-        retriever = ExaSearchRetriever(
-            api_key=exa_api_key,
-            k=3,
-            highlights=True,
-            extra_headers={  # Changed from headers to extra_headers
-                "x-api-key": exa_api_key,
-                "Content-Type": "application/json"
-            }
-        )
-        print("Debug - Retriever created successfully")
-    except Exception as e:
-        print(f"Debug - Error creating retriever: {str(e)}")
-        raise
-
-    # Create document formatting template
+    
+    # Create a custom headers dictionary
+    headers = {
+        "x-api-key": exa_api_key,
+        "Content-Type": "application/json"
+    }
+    
+    # Initialize ExaSearchRetriever with custom configuration
+    retriever = ExaSearchRetriever(
+        api_key=exa_api_key,
+        k=3,
+        highlights=True,
+        headers=headers,  # Try with direct headers
+        extra_request_options={  # Add extra request options
+            'headers': headers
+        }
+    )
+    
+    # Verify the headers are set
+    if hasattr(retriever, 'client'):
+        if hasattr(retriever.client, 'headers'):
+            print(f"Debug - Retriever headers set: {list(retriever.client.headers.keys())}")
+    
+    # Rest of your chain configuration remains the same
     document_template = """
     <source>
         <url>{url}</url>
@@ -416,10 +424,15 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         }) | document_prompt
     )
 
+    # Add debug wrapper to the retrieval chain
+    def debug_retrieval(docs):
+        print(f"Debug - Retrieved {len(docs) if docs else 0} documents")
+        return "\n".join(str(doc) for doc in docs)
+
     retrieval_chain = (
         retriever | 
         document_chain.map() | 
-        RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs)) 
+        RunnableLambda(debug_retrieval)
     )
 
     generation_prompt = ChatPromptTemplate.from_messages([
@@ -450,32 +463,22 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
 def execute_research_query(chain, question: str):
     try:
-        # Get API keys with better error handling
-        try:
-            exa_api_key = st.secrets.get("exa", {}).get("api_key")
-            if not exa_api_key:
-                exa_api_key = os.getenv("EXA_API_KEY")
-            
-            openai_api_key = st.secrets.get("openai", {}).get("api_key")
-            if not openai_api_key:
-                openai_api_key = os.getenv("OPENAI_API_KEY")
-                
-            # Debug prints
-            st.write("Debug - API Keys status:")
-            st.write(f"Exa API Key present: {'Yes' if exa_api_key else 'No'}")
-            st.write(f"OpenAI API Key present: {'Yes' if openai_api_key else 'No'}")
-            
-            if exa_api_key:
-                st.write(f"Exa API Key starts with: {exa_api_key[:5]}...")
-            
-        except Exception as e:
-            st.error(f"Error getting API keys: {str(e)}")
-            return {"output_text": "Error retrieving API keys"}
-
+        # Get API keys
+        exa_api_key = st.secrets.get("exa", {}).get("api_key") or os.getenv("EXA_API_KEY")
+        openai_api_key = st.secrets.get("openai", {}).get("api_key") or os.getenv("OPENAI_API_KEY")
+        
+        # Debug prints
+        st.write("Debug - API Keys status:")
+        st.write(f"Exa API Key present: {'Yes' if exa_api_key else 'No'}")
+        st.write(f"OpenAI API Key present: {'Yes' if openai_api_key else 'No'}")
+        
+        if exa_api_key:
+            st.write(f"Exa API Key starts with: {exa_api_key[:5]}...")
+        
         if not exa_api_key or not openai_api_key:
             raise ValueError("One or both API keys are missing")
 
-        # Create new chain with the current API keys
+        # Create new chain with explicit debug logging
         try:
             research_chain = create_research_chain(exa_api_key, openai_api_key)
             st.write("Debug - Research chain created successfully")
@@ -483,21 +486,25 @@ def execute_research_query(chain, question: str):
             st.error(f"Error creating research chain: {str(e)}")
             return {"output_text": f"Error creating research chain: {str(e)}"}
 
-        # Execute the query
+        # Execute the query with additional error context
         try:
-            st.write(f"Debug - Executing query: {question[:50]}...")  # Only show first 50 chars
+            st.write(f"Debug - Executing query: {question[:50]}...")
             response = research_chain.invoke(question)
             st.write("Debug - Query executed successfully")
+            return {"output_text": response.content if hasattr(response, 'content') else str(response)}
         except Exception as e:
             st.error(f"Error during chain execution: {str(e)}")
+            if hasattr(e, 'response'):
+                st.error(f"Response details: {e.response.text if hasattr(e.response, 'text') else str(e.response)}")
             return {"output_text": f"Error during chain execution: {str(e)}"}
-
-        content = response.content if hasattr(response, 'content') else str(response)
-        return {"output_text": content}
 
     except Exception as e:
         st.error(f"Critical error: {str(e)}")
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
+
+
+
+
         
 # ----------------------------------------------------------------------------------------------------------
 
