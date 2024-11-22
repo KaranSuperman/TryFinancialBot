@@ -390,12 +390,13 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         "Content-Type": "application/json"
     }
     
-    # Initialize EvaRetriever with custom configuration
-    retriever = EvaRetriever(
+    # Initialize ExaSearchRetriever with custom configuration
+    retriever = ExaSearchRetriever(
         api_key=exa_api_key,
         k=3,
-        headers=headers,
-        extra_request_options={
+        highlights=True,
+        headers=headers,  # Try with direct headers
+        extra_request_options={  # Add extra request options
             'headers': headers
         }
     )
@@ -405,6 +406,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         if hasattr(retriever.client, 'headers'):
             print(f"Debug - Retriever headers set: {list(retriever.client.headers.keys())}")
     
+    # Rest of your chain configuration remains the same
     document_template = """
     <source>
         <url>{url}</url>
@@ -421,6 +423,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         }) | document_prompt
     )
 
+    # Add debug wrapper to the retrieval chain
     def debug_retrieval(docs):
         print(f"Debug - Retrieved {len(docs) if docs else 0} documents")
         return "\n".join(str(doc) for doc in docs)
@@ -470,7 +473,7 @@ def execute_research_query(chain, question: str):
         
         if exa_api_key:
             st.write(f"Exa API Key starts with: {exa_api_key[:5]}...")
-
+        
         if not exa_api_key or not openai_api_key:
             raise ValueError("One or both API keys are missing")
 
@@ -497,7 +500,7 @@ def execute_research_query(chain, question: str):
     except Exception as e:
         st.error(f"Critical error: {str(e)}")
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
-        
+
 
 # ----------------------------------------------------------------------------------------------------------
 
