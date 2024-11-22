@@ -378,18 +378,28 @@ def get_stock_price(symbol):
 
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
-    # Initialize ExaSearchRetriever with proper headers
-    retriever = ExaSearchRetriever(
-        api_key=exa_api_key,
-        k=3,
-        highlights=True,
-        headers={
-            "x-api-key": exa_api_key,
-            "Content-Type": "application/json"
-        }
-    )
+    st.info(f"Debug - Exa API Key received: {exa_api_key[:5]}...") # Only print first 5 chars for security
+    
+    if not exa_api_key:
+        raise ValueError("Exa API key is empty in create_research_chain")
+        
+    # Try creating the retriever with explicit headers
+    try:
+        retriever = ExaSearchRetriever(
+            api_key=exa_api_key,
+            k=3,
+            highlights=True,
+            extra_headers={  # Changed from headers to extra_headers
+                "x-api-key": exa_api_key,
+                "Content-Type": "application/json"
+            }
+        )
+        print("Debug - Retriever created successfully")
+    except Exception as e:
+        print(f"Debug - Error creating retriever: {str(e)}")
+        raise
 
-    # Rest of your existing code remains the same
+    # Create document formatting template
     document_template = """
     <source>
         <url>{url}</url>
@@ -440,41 +450,54 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
 def execute_research_query(chain, question: str):
     try:
-        response = None
-        
-        # More robust API key validation
-        exa_api_key = st.secrets.get("exa", {}).get("api_key") or os.getenv("EXA_API_KEY")
-        openai_api_key = st.secrets.get("openai", {}).get("api_key") or os.getenv("OPENAI_API_KEY")
-
-        if not exa_api_key:
-            raise ValueError("Exa API key is missing. Check Streamlit secrets or environment variables.")
-        if not openai_api_key:
-            raise ValueError("OpenAI API key is missing. Check Streamlit secrets or environment variables.")
-
-        # Debug logging
-        print(f"DEBUG: Executing research query for: {question}")
-        print(f"DEBUG: API Keys present: Exa={'✓' if exa_api_key else '✗'}, OpenAI={'✓' if openai_api_key else '✗'}")
-
+        # Get API keys with better error handling
         try:
-            response = chain.invoke(question)
-        except Exception as invoke_error:
-            print(f"Chain invocation error: {invoke_error}")
-            st.error(f"Error during chain invocation: {str(invoke_error)}")
-            return {"output_text": f"Chain invocation failed: {str(invoke_error)}"}
+            exa_api_key = st.secrets.get("exa", {}).get("api_key")
+            if not exa_api_key:
+                exa_api_key = os.getenv("EXA_API_KEY")
+            
+            openai_api_key = st.secrets.get("openai", {}).get("api_key")
+            if not openai_api_key:
+                openai_api_key = os.getenv("OPENAI_API_KEY")
+                
+            # Debug prints
+            st.write("Debug - API Keys status:")
+            st.write(f"Exa API Key present: {'Yes' if exa_api_key else 'No'}")
+            st.write(f"OpenAI API Key present: {'Yes' if openai_api_key else 'No'}")
+            
+            if exa_api_key:
+                st.write(f"Exa API Key starts with: {exa_api_key[:5]}...")
+            
+        except Exception as e:
+            st.error(f"Error getting API keys: {str(e)}")
+            return {"output_text": "Error retrieving API keys"}
 
-        if response is None:
-            return {"output_text": "No research findings available for this query."}
+        if not exa_api_key or not openai_api_key:
+            raise ValueError("One or both API keys are missing")
+
+        # Create new chain with the current API keys
+        try:
+            research_chain = create_research_chain(exa_api_key, openai_api_key)
+            st.write("Debug - Research chain created successfully")
+        except Exception as e:
+            st.error(f"Error creating research chain: {str(e)}")
+            return {"output_text": f"Error creating research chain: {str(e)}"}
+
+        # Execute the query
+        try:
+            st.write(f"Debug - Executing query: {question[:50]}...")  # Only show first 50 chars
+            response = research_chain.invoke(question)
+            st.write("Debug - Query executed successfully")
+        except Exception as e:
+            st.error(f"Error during chain execution: {str(e)}")
+            return {"output_text": f"Error during chain execution: {str(e)}"}
 
         content = response.content if hasattr(response, 'content') else str(response)
-        
-        if not content or len(content.strip()) < 10:
-            return {"output_text": "Unable to generate a meaningful response. Please try a different query."}
-
         return {"output_text": content}
 
     except Exception as e:
-        print(f"CRITICAL ERROR in execute_research_query: {str(e)}")
-        return {"output_text": f"An unexpected error occurred: {str(e)}. Please check your API key configuration."}
+        st.error(f"Critical error: {str(e)}")
+        return {"output_text": f"An unexpected error occurred: {str(e)}"}
         
 # ----------------------------------------------------------------------------------------------------------
 
