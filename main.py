@@ -30,8 +30,6 @@ from langchain_core.runnables import RunnablePassthrough, RunnableParallel, Runn
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
-from langchain_community.retrievers import EvaRetriever  # Corrected import
-
 
 
 load_dotenv() 
