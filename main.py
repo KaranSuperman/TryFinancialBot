@@ -30,8 +30,7 @@ from langchain_core.runnables import RunnablePassthrough, RunnableParallel, Runn
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
-from langchain.retrievers import ExaSearchRetriever
-from langchain.callbacks.manager import CallbackManager
+from langchain.retrievers.web_research import EvaSearchRetriever
 
 
 
@@ -391,13 +390,13 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         "Content-Type": "application/json"
     }
     
-    # Initialize ExaSearchRetriever with custom configuration
-    retriever = ExaSearchRetriever(
+    # Initialize EvaSearchRetriever with custom configuration
+    retriever = EvaSearchRetriever(
         api_key=exa_api_key,
         k=3,
         highlights=True,
-        headers=headers,  # Try with direct headers
-        extra_request_options={  # Add extra request options
+        headers=headers,
+        extra_request_options={
             'headers': headers
         }
     )
@@ -407,7 +406,6 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         if hasattr(retriever.client, 'headers'):
             print(f"Debug - Retriever headers set: {list(retriever.client.headers.keys())}")
     
-    # Rest of your chain configuration remains the same
     document_template = """
     <source>
         <url>{url}</url>
@@ -424,7 +422,6 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         }) | document_prompt
     )
 
-    # Add debug wrapper to the retrieval chain
     def debug_retrieval(docs):
         print(f"Debug - Retrieved {len(docs) if docs else 0} documents")
         return "\n".join(str(doc) for doc in docs)
@@ -474,7 +471,7 @@ def execute_research_query(chain, question: str):
         
         if exa_api_key:
             st.write(f"Exa API Key starts with: {exa_api_key[:5]}...")
-        
+
         if not exa_api_key or not openai_api_key:
             raise ValueError("One or both API keys are missing")
 
@@ -505,7 +502,6 @@ def execute_research_query(chain, question: str):
 
 
 
-        
 # ----------------------------------------------------------------------------------------------------------
 
 def user_input(user_question):
