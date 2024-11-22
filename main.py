@@ -377,35 +377,43 @@ def get_stock_price(symbol):
 
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
-    # Validate API keys first
-    if not exa_api_key or not isinstance(exa_api_key, str) or len(exa_api_key.strip()) == 0:
+    if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
-    if not openai_api_key or not isinstance(openai_api_key, str) or len(openai_api_key.strip()) == 0:
-        raise ValueError("Valid OpenAI API key is required")
-    
-    # Clean the API keys by removing any whitespace
+        
+    # Clean the API key
     exa_api_key = exa_api_key.strip()
-    openai_api_key = openai_api_key.strip()
     
-    # Create headers with proper formatting
-    headers = {
-        "x-api-key": exa_api_key,
-        "Content-Type": "application/json"
-    }
-    
-    # Initialize ExaSearchRetriever with updated configuration
-    retriever = ExaSearchRetriever(
-        api_key=exa_api_key,
-        k=3,
-        highlights=True,
-        # Remove the redundant headers in extra_request_options
-        headers=headers
-    )
-    
-    # Add debug logging for successful initialization
-    st.write(f"Debug - Retriever initialized with headers: {list(headers.keys())}")
-    
-    # Rest of the chain configuration
+    # Try a different approach to initializing the retriever
+    try:
+        retriever = ExaSearchRetriever(
+            api_key=exa_api_key,
+            k=3,
+            highlights=True
+        )
+        
+        # Explicitly set the headers after initialization
+        if hasattr(retriever, 'client'):
+            retriever.client.headers.update({
+                "x-api-key": exa_api_key,
+                "Content-Type": "application/json"
+            })
+            
+        st.write(f"Debug - Retriever headers after update: {dict(retriever.client.headers) if hasattr(retriever, 'client') else 'No client headers'}")
+        
+    except Exception as e:
+        st.error(f"Error initializing retriever: {str(e)}")
+        raise
+
+    # Test the retriever with a simple query
+    try:
+        st.write("Debug - Testing retriever with sample query...")
+        test_docs = retriever.get_relevant_documents("test")
+        st.write(f"Debug - Test successful, retrieved {len(test_docs)} documents")
+    except Exception as e:
+        st.error(f"Retriever test failed: {str(e)}")
+        if hasattr(e, 'response'):
+            st.error(f"Response: {e.response.text if hasattr(e.response, 'text') else str(e.response)}")
+
     document_template = """
     <source>
         <url>{url}</url>
@@ -424,6 +432,8 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
     def debug_retrieval(docs):
         st.write(f"Debug - Retrieved {len(docs) if docs else 0} documents")
+        for doc in docs:
+            st.write(f"Debug - Document URL: {doc.metadata.get('url', 'No URL')}")
         return "\n".join(str(doc) for doc in docs)
 
     retrieval_chain = (
@@ -432,10 +442,17 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         RunnableLambda(debug_retrieval)
     )
 
+    # Initialize LLM with error handling
+    try:
+        llm = ChatOpenAI(api_key=openai_api_key)
+    except Exception as e:
+        st.error(f"Error initializing LLM: {str(e)}")
+        raise
+
     generation_prompt = ChatPromptTemplate.from_messages([
         ("system", "You are a highly knowledgeable finance and stocks assistant of India. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
         ("human", """
-        Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
+        Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable.
 
         Query: {query}
         ---
@@ -444,8 +461,6 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         </context>
         """)
     ])
-
-    llm = ChatOpenAI(api_key=openai_api_key)
 
     chain = (
         RunnableParallel({
@@ -458,31 +473,34 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
     return chain
 
-def execute_research_query(chain, question: str):
+def execute_research_query(question: str):
     try:
-        # Get API keys from environment with better error handling
-        exa_api_key = st.secrets.get("exa", {}).get("api_key") or os.getenv("EXA_API_KEY")
-        openai_api_key = st.secrets.get("openai", {}).get("api_key") or os.getenv("OPENAI_API_KEY")
-        
-        # Validate API keys
-        if not exa_api_key or len(exa_api_key.strip()) == 0:
-            st.error("Exa API key is missing or empty")
-            return {"output_text": "Configuration error: Exa API key is not properly set"}
+        # Get API keys with additional debugging
+        exa_api_key = st.secrets.get("exa", {}).get("api_key")
+        if not exa_api_key:
+            exa_api_key = os.getenv("EXA_API_KEY")
+            st.write("Debug - Using EXA_API_KEY from environment variables")
             
-        if not openai_api_key or len(openai_api_key.strip()) == 0:
-            st.error("OpenAI API key is missing or empty")
-            return {"output_text": "Configuration error: OpenAI API key is not properly set"}
+        openai_api_key = st.secrets.get("openai", {}).get("api_key")
+        if not openai_api_key:
+            openai_api_key = os.getenv("OPENAI_API_KEY")
+            st.write("Debug - Using OPENAI_API_KEY from environment variables")
 
-        # Debug logging
-        st.write("Debug - API Keys validation:")
-        st.write(f"Exa API Key present and valid: {'Yes' if exa_api_key else 'No'}")
-        st.write(f"OpenAI API Key present and valid: {'Yes' if openai_api_key else 'No'}")
+        # Validate API keys
+        if not exa_api_key:
+            st.error("Exa API key is missing")
+            return {"output_text": "Configuration error: Exa API key is not set"}
+        
+        if not openai_api_key:
+            st.error("OpenAI API key is missing")
+            return {"output_text": "Configuration error: OpenAI API key is not set"}
 
+        # Create chain with extensive error handling
         try:
+            st.write("Debug - Creating research chain...")
             research_chain = create_research_chain(exa_api_key, openai_api_key)
             st.write("Debug - Research chain created successfully")
             
-            # Execute query
             st.write(f"Debug - Executing query: {question[:50]}...")
             response = research_chain.invoke(question)
             st.write("Debug - Query executed successfully")
@@ -490,18 +508,24 @@ def execute_research_query(chain, question: str):
             return {"output_text": response.content if hasattr(response, 'content') else str(response)}
             
         except Exception as e:
-            st.error(f"Chain execution error: {str(e)}")
+            error_msg = str(e)
+            st.error(f"Chain execution error: {error_msg}")
+            
+            # Try to extract more detailed error information
             if hasattr(e, 'response'):
-                error_details = e.response.text if hasattr(e.response, 'text') else str(e.response)
-                st.error(f"API Response details: {error_details}")
-            return {"output_text": f"Error during execution: {str(e)}"}
+                try:
+                    error_details = e.response.json() if hasattr(e.response, 'json') else e.response.text
+                    st.error(f"API Response details: {error_details}")
+                except:
+                    st.error(f"Raw response: {e.response}")
+                    
+            return {"output_text": f"Error during execution: {error_msg}"}
 
     except Exception as e:
         st.error(f"Critical error: {str(e)}")
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
-
-
         
+
 
 # ----------------------------------------------------------------------------------------------------------
 
