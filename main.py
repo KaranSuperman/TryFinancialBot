@@ -445,7 +445,12 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
     # Modified prompt template
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a highly knowledgeable finance and stocks assistant of India. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the provided context to ensure your responses are accurate and informative."),
+        ("system", '''You are a highly knowledgeable finance and stocks assistant of India. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the provided context to ensure your responses are accurate and informative.
+                        Important formatting rules:
+                        - Always format numbers with proper spacing, for example: "18.1 billion" not "18.1billion"
+                        - Use proper spacing between numbers and words, for example: "3.83 billion" not "3.83billion"
+                        - Maintain consistent font size throughout the response
+                        - Use proper currency formatting when applicable, for example: "$18.1 billion" or "₹18.1 billion" '''),
         ("human", """
         Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable.
 
@@ -551,7 +556,7 @@ def user_input(user_question):
         if result.startswith("True "):
             _, symbol = result.split(maxsplit=1)
             try:
-                st.info("Using Stocks response")
+                # st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
                     return {
@@ -579,7 +584,7 @@ def user_input(user_question):
                 research_query = result[5:]
                 
                 # Directly use Exa research for news-type queries
-                st.info("Using Exa Research response")
+                # st.info("Using Exa Research response")
 
                 # exa_api_key = st.secrets["news"]["EXA_API_KEY"]
                 # openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
@@ -669,7 +674,7 @@ def user_input(user_question):
 
         # Process based on similarity scores
         if max_similarity < 0.65:
-            st.info("Using LLM response")
+            # st.info("Using LLM response")
             prompt1 = user_question + """ In the context of Finance       
             (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
                 for example, 
@@ -689,7 +694,7 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                st.info("Using FAQ response")
+                # st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                 
                 if best_faq.page_content in faq_dict:
@@ -717,7 +722,7 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                st.info("Using PDF response")
+                # st.info("Using PDF response")
                 prompt_template = """ About the company: 
                 Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
                 Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
