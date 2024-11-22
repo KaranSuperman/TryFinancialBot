@@ -383,7 +383,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
     # Clean the API key
     exa_api_key = exa_api_key.strip()
     
-    # Try a different approach to initializing the retriever
+    # Initialize retriever with error handling
     try:
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
@@ -391,7 +391,6 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
             highlights=True
         )
         
-        # Explicitly set the headers after initialization
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
@@ -404,7 +403,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         st.error(f"Error initializing retriever: {str(e)}")
         raise
 
-    # Test the retriever with a simple query
+    # Test the retriever
     try:
         st.write("Debug - Testing retriever with sample query...")
         test_docs = retriever.get_relevant_documents("test")
@@ -414,33 +413,28 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         if hasattr(e, 'response'):
             st.error(f"Response: {e.response.text if hasattr(e.response, 'text') else str(e.response)}")
 
-    document_template = """
-    <source>
-        <url>{url}</url>
-        <highlights>{highlights}</highlights>
-    </source>
-    """
-    document_prompt = PromptTemplate.from_template(document_template)
+    # Modified document processing
+    def format_doc(doc):
+        # Safely extract metadata
+        metadata = getattr(doc, 'metadata', {}) if hasattr(doc, 'metadata') else {}
+        highlights = metadata.get('highlights', 'No highlights available.')
+        url = metadata.get('url', 'No URL available.')
+        
+        # Format the document text with source information
+        formatted_text = f"""
+        Source: {url}
+        Highlights: {highlights}
+        Content: {doc.page_content if hasattr(doc, 'page_content') else str(doc)}
+        """
+        return formatted_text
 
-    document_chain = (
-        RunnablePassthrough() | 
-        RunnableLambda(lambda doc: {
-            "highlights": doc.metadata.get("highlights", "No highlights available."),
-            "url": doc.metadata.get("url", "No URL available.")
-        }) | document_prompt
-    )
+    def process_docs(docs):
+        st.write(f"Debug - Processing {len(docs) if docs else 0} documents")
+        formatted_docs = [format_doc(doc) for doc in docs]
+        return "\n\n".join(formatted_docs)
 
-    def debug_retrieval(docs):
-        st.write(f"Debug - Retrieved {len(docs) if docs else 0} documents")
-        for doc in docs:
-            st.write(f"Debug - Document URL: {doc.metadata.get('url', 'No URL')}")
-        return "\n".join(str(doc) for doc in docs)
-
-    retrieval_chain = (
-        retriever | 
-        document_chain.map() | 
-        RunnableLambda(debug_retrieval)
-    )
+    # Simplified retrieval chain
+    retrieval_chain = retriever | RunnableLambda(process_docs)
 
     # Initialize LLM with error handling
     try:
@@ -449,25 +443,26 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         st.error(f"Error initializing LLM: {str(e)}")
         raise
 
-    generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a highly knowledgeable finance and stocks assistant of India. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
+    # Modified prompt template
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a highly knowledgeable finance and stocks assistant of India. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the provided context to ensure your responses are accurate and informative."),
         ("human", """
         Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable.
 
         Query: {query}
-        ---
-        <context>
+        
+        Context:
         {context}
-        </context>
         """)
     ])
 
+    # Simplified final chain
     chain = (
         RunnableParallel({
-            "query": RunnablePassthrough(),  
-            "context": retrieval_chain,  
-        }) 
-        | generation_prompt 
+            "query": RunnableLambda(lambda x: x),
+            "context": retrieval_chain
+        })
+        | prompt
         | llm
     )
 
@@ -475,16 +470,9 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
 def execute_research_query(question: str):
     try:
-        # Get API keys with additional debugging
-        exa_api_key = st.secrets.get("exa", {}).get("api_key")
-        if not exa_api_key:
-            exa_api_key = os.getenv("EXA_API_KEY")
-            st.write("Debug - Using EXA_API_KEY from environment variables")
-            
-        openai_api_key = st.secrets.get("openai", {}).get("api_key")
-        if not openai_api_key:
-            openai_api_key = os.getenv("OPENAI_API_KEY")
-            st.write("Debug - Using OPENAI_API_KEY from environment variables")
+        # Get API keys
+        exa_api_key = st.secrets.get("exa", {}).get("api_key") or os.getenv("EXA_API_KEY")
+        openai_api_key = st.secrets.get("openai", {}).get("api_key") or os.getenv("OPENAI_API_KEY")
 
         # Validate API keys
         if not exa_api_key:
@@ -495,7 +483,7 @@ def execute_research_query(question: str):
             st.error("OpenAI API key is missing")
             return {"output_text": "Configuration error: OpenAI API key is not set"}
 
-        # Create chain with extensive error handling
+        # Execute chain with error handling
         try:
             st.write("Debug - Creating research chain...")
             research_chain = create_research_chain(exa_api_key, openai_api_key)
@@ -505,13 +493,17 @@ def execute_research_query(question: str):
             response = research_chain.invoke(question)
             st.write("Debug - Query executed successfully")
             
-            return {"output_text": response.content if hasattr(response, 'content') else str(response)}
+            # Handle response
+            if hasattr(response, 'content'):
+                return {"output_text": response.content}
+            else:
+                return {"output_text": str(response)}
             
         except Exception as e:
             error_msg = str(e)
             st.error(f"Chain execution error: {error_msg}")
             
-            # Try to extract more detailed error information
+            # Extract detailed error information
             if hasattr(e, 'response'):
                 try:
                     error_details = e.response.json() if hasattr(e.response, 'json') else e.response.text
