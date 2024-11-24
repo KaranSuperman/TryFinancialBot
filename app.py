@@ -95,9 +95,9 @@ if user_question:
         st.write(bot_response)
 
         #Store chat data in Supabase
-        # store_chat_data(user_question, bot_response)
-        # store_questions(user_question)
-        # store_answers(bot_response)
+        store_chat_data(user_question, bot_response)
+        store_questions(user_question)
+        store_answers(bot_response)
         
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
