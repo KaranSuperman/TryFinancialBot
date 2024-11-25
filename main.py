@@ -31,6 +31,7 @@ from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 
 load_dotenv() 
