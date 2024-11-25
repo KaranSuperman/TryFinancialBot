@@ -330,7 +330,7 @@ def is_stock_query(user_question):
         )([HumanMessage(content=prompt)]).content
 
         # Add detailed debugging output
-        print(f"DEBUG: LLM Stock Query Classification - Raw Response: {response}")
+        st.write(f"DEBUG: LLM Stock Query Classification - Raw Response: {response}")
 
         # Validate and process LLM response
         if response.startswith("True "):
@@ -345,39 +345,59 @@ def is_stock_query(user_question):
         return "False NONE"
 
     except Exception as e:
-        print(f"DEBUG: Error in is_stock_query LLM processing: {str(e)}")
+        st.write(f"DEBUG: Error in is_stock_query LLM processing: {str(e)}")
         return "False NONE"
 
 def get_stock_price(symbol):
     try:
-        # If the symbol is for an Indian company, check if it ends with '.NS' or '.BO'
-        if symbol.endswith('.NS') or symbol.endswith('.BO'):
-            stock = yf.Ticker(symbol)
-            currency_symbol = "₹"
-        else:
-            # For global companies, ensure the symbol is valid for global exchanges
-            stock = yf.Ticker(symbol)
-            currency_symbol = "$"
+        # Initialize variables
+        stock = yf.Ticker(symbol)
+        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
         
-        # Fetch the latest closing price
-        stock_price = stock.history(period="1d")["Close"].iloc[-1]
-        previous_day_stock_price = stock.history(period="5d")["Close"].iloc[-2]
-        st.write("Debug - stock price & previous_day_stock_price coming...")
-
+        # Fetch historical data with error checking
+        hist = stock.history(period="5d")
+        
+        # Check if we received any data
+        if hist.empty:
+            print(f"DEBUG: No data received for symbol {symbol}")
+            return None, None, None, None, None, None
+            
+        # Get the most recent data points
+        recent_prices = hist['Close'].tail(2)
+        
+        # Check if we have enough data points
+        if len(recent_prices) < 2:
+            print(f"DEBUG: Insufficient price data for {symbol}. Got {len(recent_prices)} days of data")
+            return None, None, None, None, None, None
+            
+        # Get current and previous prices
+        stock_price = recent_prices.iloc[-1]
+        previous_day_stock_price = recent_prices.iloc[-2]
+        
+        # Calculate changes
         price_change = stock_price - previous_day_stock_price
-        # Determine the direction of the price change
         change_direction = "up" if price_change > 0 else "down"
-
         percentage_change = (price_change / previous_day_stock_price) * 100
-        st.write("Debug - percentage change coming...")
-
-
-        return stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change
+        
+        # Debug logging
+        st.write(f"DEBUG: Successfully fetched data for {symbol}")
+        st.write(f"DEBUG: Current price: {stock_price}")
+        st.write(f"DEBUG: Previous price: {previous_day_stock_price}")
+        
+        return (
+            stock_price,
+            previous_day_stock_price,
+            currency_symbol,
+            price_change,
+            change_direction,
+            percentage_change
+        )
+        
     except Exception as e:
-        print(f"DEBUG: Error in get_stock_price: {str(e)}")
-        st.write(f"DEBUG: Error in get_stock_price: {str(e)}")
-        return None, None
-
+        print(f"DEBUG: Error in get_stock_price for {symbol}: {str(e)}")
+        st.write(f"DEBUG: Error in get_stock_price for {symbol}: {str(e)}")
+        # Return None values for all expected return values
+        return None, None, None, None, None, None
 
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
