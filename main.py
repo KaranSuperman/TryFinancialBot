@@ -384,63 +384,12 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
     # Clean the API key
     exa_api_key = exa_api_key.strip()
     
-    # Initialize retriever with comprehensive stock market sources
+    # Initialize retriever with error handling
     try:
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=7,  # Increased for better coverage of stock-specific info
-            highlights=True,
-            search_params={
-                "recency_days": 3,  # More recent for stock data
-                "use_autoprompt": True,
-                "source_filters": {
-                    "include_domains": [
-                        # Major Financial News
-                        "moneycontrol.com",
-                        "economictimes.indiatimes.com",
-                        "livemint.com",
-                        "ndtv.com/business",
-                        "business-standard.com",
-                        
-                        # Stock Market Specific
-                        "nseindia.com",
-                        "bseindia.com",
-                        "tickertape.in",
-                        "screener.in",
-                        "tradingview.com",
-                        "investing.com/indices/sensex",
-                        "investing.com/indices/s-p-cnx-nifty",
-                        
-                        # Market Analysis
-                        "valueresearchonline.com",
-                        "marketsmojo.com",
-                        "trendlyne.com",
-                        "stockedge.com",
-                        "chartink.com",
-                        
-                        # Trading Platforms
-                        "zerodha.com/z-connect",
-                        "upstox.com/market-talk",
-                        "angelone.in/knowledge-center",
-                        
-                        # Research and Analytics
-                        "groww.in/blog",
-                        "equitymaster.com",
-                        "stocksandbonds.info",
-                        "indiainfoline.com",
-                        "capitalmarket.com"
-                    ],
-                    "content_type": ["webpage", "article", "blog_post"],
-                    "exclude_domains": [
-                        "forum.",  # Exclude forum discussions
-                        "community.",
-                        "chat."
-                    ]
-                },
-                "post_filter": {
-                    "min_word_count": 100  # Filter out very short content
-                }
-            }
+            k=3,
+            highlights=True
         )
         
         if hasattr(retriever, 'client'):
@@ -449,99 +398,101 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
                 "Content-Type": "application/json"
             })
             
+        # st.write(f"Debug - Retriever headers after update: {dict(retriever.client.headers) if hasattr(retriever, 'client') else 'No client headers'}")
+        
     except Exception as e:
         st.error(f"Error initializing retriever: {str(e)}")
         raise
 
-    # Enhanced document processing with stock-specific metadata
+    # Test the retriever
+    try:
+        # st.write("Debug - Testing retriever with sample query...")
+        test_docs = retriever.get_relevant_documents("test")
+        # st.write(f"Debug - Test successful, retrieved {len(test_docs)} documents")
+    except Exception as e:
+        st.error(f"Retriever test failed: {str(e)}")
+        if hasattr(e, 'response'):
+            st.error(f"Response: {e.response.text if hasattr(e.response, 'text') else str(e.response)}")
+
+    # Modified document processing
     def format_doc(doc):
+        # Safely extract metadata
         metadata = getattr(doc, 'metadata', {}) if hasattr(doc, 'metadata') else {}
         highlights = metadata.get('highlights', 'No highlights available.')
         url = metadata.get('url', 'No URL available.')
-        published_date = metadata.get('published_date', 'Date not available')
-        source_name = url.split('/')[2] if url.startswith('http') else 'Unknown Source'
         
-        # Format the document text with enhanced source information
+        # Format the document text with source information
         formatted_text = f"""
-        Source: {source_name}
-        URL: {url}
-        Published Date: {published_date}
+        Source: {url}
         Highlights: {highlights}
         Content: {doc.page_content if hasattr(doc, 'page_content') else str(doc)}
         """
         return formatted_text
 
     def process_docs(docs):
-        if not docs:
-            return "No recent stock market information found. Please try a different query."
+        # st.write(f"Debug - Processing {len(docs) if docs else 0} documents")
         formatted_docs = [format_doc(doc) for doc in docs]
         return "\n\n".join(formatted_docs)
 
-    # Enhanced retrieval chain
+    # Simplified retrieval chain
     retrieval_chain = retriever | RunnableLambda(process_docs)
 
-    # Initialize LLM with optimized settings for stock analysis
+    # Initialize LLM with error handling
     try:
-        llm = ChatOpenAI(
-            api_key=openai_api_key,
-            temperature=0.1,  # Even lower for more precise stock information
-            model="gpt-4-turbo-preview",
-            max_tokens=2000  # Increased for detailed analysis
-        )
+        llm = ChatOpenAI(api_key=openai_api_key)
     except Exception as e:
         st.error(f"Error initializing LLM: {str(e)}")
         raise
 
-    # Enhanced prompt template with stock market focus
+    # Modified prompt template
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a highly knowledgeable finance and stocks assistant for India. Your role is to provide the latest news, trends, and insights related to finance and stock markets.
 
-        IMPORTANT GUIDELINES:
-        1. Always check and mention the date and time of stock market information
-        2. Highlight real-time market movements and trends
-        3. Include relevant market indices (Sensex, Nifty) when discussing stocks
-        4. Specify if quoted prices are real-time, closing, or historical
-        5. Note any significant intraday movements
-        6. Include trading volumes when relevant
-        7. Mention any circuit breakers or trading halts
-        8. Reference sector-specific trends
-        
-        STOCK DATA PRESENTATION:
-        1. Stock Prices: Always include
-           - Current/Last Price
-           - Day's High/Low
-           - Volume (if available)
-           - % Change
-        
-        2. Technical Indicators (when available):
-           - Moving Averages
-           - Support/Resistance levels
-           - Trading patterns
-        
-        3. Company Info:
-           - Market Cap
-           - P/E Ratio
-           - Latest company news/announcements
-        
-        [Previous formatting rules remain the same...]
+        FORMATTING RULES:
+        1. Number Formatting:
+        - Use commas for thousands separation (e.g., 1,234,567)
+        - Always include two decimal places for financial figures (e.g., $1,234.00)
+        - Add spaces after commas and periods
+        - Use proper currency symbols with a space (e.g., $ 1,234.00, ₹ 1,234.00)
+        - If only number comes then use after that use space (e.g., 18.12 billion thousand)
+
+        2. Text Formatting:
+        - Use bold (**) only for headers and key metrics
+        - Never use italics
+        - Always add a space between sentences
+        - Maintain consistent line spacing between sections
+        - Use bullet points with proper indentation
+        - Ensure proper spacing around special characters and symbols
+
+        3. Structure:
+        - Start with a clear header
+        - Organize information in logical sections
+        - Use bullet points for lists
+        - Include a summary section when applicable
+        - End with a source reference if needed
+
+        4. Data Presentation:
+        - Present financial metrics in a structured table format when comparing multiple items
+        - Use consistent units (millions, billions) throughout the response
+        - Always specify the time period for financial data (e.g., Q3 2023)
+        - Include year-over-year comparisons when relevant
+
+        REMEMBER:
+        - Maintain consistency throughout the response
+        - Never join words or numbers without proper spacing
+        - Keep formatting clean and professional
+        - Present data in an easily readable format
         """),
         ("human", """
-        Please provide the most up-to-date stock market analysis using recent information from the context. Include specific dates, times, and sources for all data points.
+        Please respond to the following query using the provided context. Ensure your answer follows all formatting rules and presents information in a clear, structured manner.
 
         Query: {query}
         
         Context: {context}
-
-        Remember to:
-        1. Specify the timestamp for each price quote
-        2. Note market hours and trading status
-        3. Highlight any breaking news affecting stocks
-        4. Include relevant sector-specific context
-        5. Mention data sources and their timestamps
         """)
     ])
 
-    # Final chain with error handling
+    # Simplified final chain
     chain = (
         RunnableParallel({
             "query": RunnableLambda(lambda x: x),
@@ -552,7 +503,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
     )
 
     return chain
-    
+
 def execute_research_query(question: str):
     try:
         # Get API keys
