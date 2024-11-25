@@ -681,23 +681,23 @@ def plot_stock_graph(symbol, period='1mo'):
             margin=dict(l=50, r=50, t=50, b=50),
             
             # Add price information box
-            annotations=[
-                dict(
-                    text=(f'Current: {currency_symbol}{hist["Close"][-1]:.2f}<br>'
-                          f'Change: {currency_symbol}{price_change:+.2f} ({price_change_pct:+.1f}%)'),
-                    align='left',
-                    showarrow=False,
-                    xref='paper',
-                    yref='paper',
-                    x=1.0,
-                    y=1.0,
-                    bgcolor='rgba(0,0,0,0.8)',  # Dark semi-transparent background
-                    font=dict(color='white'),
-                    bordercolor='#00C805' if is_positive else '#FF3E2E',
-                    borderwidth=2,
-                    borderpad=8
-                )
-            ]
+            # annotations=[
+            #     dict(
+            #         text=(f'Current: {currency_symbol}{hist["Close"][-1]:.2f}<br>'
+            #               f'Change: {currency_symbol}{price_change:+.2f} ({price_change_pct:+.1f}%)'),
+            #         align='left',
+            #         showarrow=False,
+            #         xref='paper',
+            #         yref='paper',
+            #         x=1.0,
+            #         y=1.0,
+            #         bgcolor='rgba(0,0,0,0.8)',  # Dark semi-transparent background
+            #         font=dict(color='white'),
+            #         bordercolor='#00C805' if is_positive else '#FF3E2E',
+            #         borderwidth=2,
+            #         borderpad=8
+            #     )
+            # ]
         )
         
         # Update axes for better visibility
