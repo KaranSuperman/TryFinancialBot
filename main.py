@@ -30,6 +30,7 @@ from langchain_core.runnables import RunnablePassthrough, RunnableParallel, Runn
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
+import matplotlib.pyplot as plt
 
 
 load_dotenv() 
@@ -602,6 +603,53 @@ def execute_research_query(question: str):
         st.error(f"Critical error: {str(e)}")
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
         
+def plot_stock_graph(symbol, period='1mo'):
+    try:
+        # Get stock data using yfinance
+        stock = yf.Ticker(symbol)
+        hist = stock.history(period=period)
+        # Create figure using matplotlib
+        fig = plt.figure(figsize=(10, 6))
+        plt.plot(hist.index, hist['Close'])
+        plt.title(f'{symbol} Stock Price - Last {period}')
+        plt.xlabel('Date')
+        plt.ylabel('Price')
+        plt.grid(True)
+        
+        # Rotate x-axis labels for better readability
+        plt.xticks(rotation=45)
+        
+        # Add current price annotation
+        current_price = hist['Close'][-1]
+        plt.annotate(f'Current: ${current_price:.2f}', 
+                    xy=(hist.index[-1], current_price),
+                    xytext=(10, 10), textcoords='offset points')
+        
+        # Use Streamlit to display the plot
+        st.pyplot(fig)
+        plt.close()
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error plotting graph: {str(e)}")
+        return False
+
+def plot_stock_if_requested(user_question, symbol=None):
+    # If symbol is directly provided, use it
+    if symbol:
+        return plot_stock_graph(symbol)
+        
+    # Check if question contains graph/chart/plot keywords
+    graph_keywords = ['graph', 'chart', 'plot', 'trend', 'performance']
+    if any(keyword in user_question.lower() for keyword in graph_keywords):
+        # Try to extract stock symbol from question if not provided
+        result = is_stock_query(user_question)
+        if result.startswith("True "):
+            _, symbol = result.split(maxsplit=1)
+            return plot_stock_graph(symbol)
+            
+    return False
 
 
 # ----------------------------------------------------------------------------------------------------------
@@ -639,13 +687,17 @@ def user_input(user_question):
                 # st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
+                    # Plot stock graph if requested
+                    graph_result = plot_stock_if_requested(user_question, symbol)
+                    
                     return {
                         "output_text":          
                         f"**Stock Update for {symbol}** \n\n"
                         f"- Current Price: {currency_symbol}{stock_price:.2f}\n"
                         f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
                         f"\n{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                        f"({percentage_change:+.2f}%) compared to the previous close!\n\n"
+                        f"({percentage_change:+.2f}%) compared to the previous close!\n\n",
+                        "graph": graph_result
                     }
                 else:
                     return {
