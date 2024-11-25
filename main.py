@@ -370,12 +370,11 @@ def get_stock_price(symbol):
 
         percentage_change = (price_change / previous_day_stock_price) * 100
 
-
         return stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change
     except Exception as e:
         print(f"DEBUG: Error in get_stock_price: {str(e)}")
-        return None, None
-
+        # Return None for all six expected values
+        return None, None, None, None, None, None
 
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
