@@ -636,6 +636,9 @@ def plot_stock_graph(symbol, period='1mo'):
         if hist.empty:
             st.error(f"No data found for {symbol}")
             return False
+            
+        # Determine currency symbol based on exchange
+        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
         
         # Calculate price changes
         price_change = hist['Close'][-1] - hist['Close'][0]
@@ -668,7 +671,7 @@ def plot_stock_graph(symbol, period='1mo'):
                 font=dict(size=20)
             ),
             xaxis_title='Date',
-            yaxis_title='Price ($)',
+            yaxis_title=f'Price ({currency_symbol})',
             hovermode='x unified',
             template='plotly_dark',  # Dark theme
             height=500,
@@ -680,8 +683,8 @@ def plot_stock_graph(symbol, period='1mo'):
             # Add price information box
             annotations=[
                 dict(
-                    text=(f'Current: ${hist["Close"][-1]:.2f}<br>'
-                          f'Change: {price_change:+.2f} ({price_change_pct:+.1f}%)'),
+                    text=(f'Current: {currency_symbol}{hist["Close"][-1]:.2f}<br>'
+                          f'Change: {currency_symbol}{price_change:+.2f} ({price_change_pct:+.1f}%)'),
                     align='left',
                     showarrow=False,
                     xref='paper',
@@ -708,7 +711,7 @@ def plot_stock_graph(symbol, period='1mo'):
             showgrid=True,
             gridwidth=1,
             gridcolor='rgba(128,128,128,0.2)',
-            tickprefix='$'  # Add dollar sign to y-axis values
+            tickprefix=currency_symbol  # Use appropriate currency symbol
         )
         
         # Display in Streamlit
