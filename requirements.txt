@@ -236,3 +236,4 @@ langchain-openai==0.2.8
 openai
 python-dotenv
 matplotlib==3.9.2
+plotly
