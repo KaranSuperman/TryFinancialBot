@@ -635,21 +635,6 @@ def plot_stock_graph(symbol, period='1mo'):
         print(f"Error plotting graph: {str(e)}")
         return False
 
-def plot_stock_if_requested(user_question, symbol=None):
-    # If symbol is directly provided, use it
-    if symbol:
-        return plot_stock_graph(symbol)
-        
-    # Check if question contains graph/chart/plot keywords
-    graph_keywords = ['graph', 'chart', 'plot', 'trend', 'performance']
-    if any(keyword in user_question.lower() for keyword in graph_keywords):
-        # Try to extract stock symbol from question if not provided
-        result = is_stock_query(user_question)
-        if result.startswith("True "):
-            _, symbol = result.split(maxsplit=1)
-            return plot_stock_graph(symbol)
-            
-    return False
 
 
 # ----------------------------------------------------------------------------------------------------------
@@ -687,9 +672,8 @@ def user_input(user_question):
                 # st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
-                    # Plot stock graph if requested
-                    graph_result = plot_stock_if_requested(user_question, symbol)
-                    
+                    plot_stock_graph(symbol)
+                    # Plot stock graph if requested                    
                     return {
                         "output_text":          
                         f"**Stock Update for {symbol}** \n\n"
