@@ -628,34 +628,65 @@ def execute_research_query(question: str):
         
 def plot_stock_graph(symbol, period='1mo'):
     try:
-        # Get stock data using yfinance
+        # Get stock data
         stock = yf.Ticker(symbol)
         hist = stock.history(period=period)
-        # Create figure using matplotlib
-        fig = plt.figure(figsize=(10, 6))
-        plt.plot(hist.index, hist['Close'])
-        plt.title(f'{symbol} Stock Price - Last {period}')
-        plt.xlabel('Date')
-        plt.ylabel('Price')
-        plt.grid(True)
         
-        # Rotate x-axis labels for better readability
-        plt.xticks(rotation=45)
+        # Calculate price changes
+        price_change = hist['Close'][-1] - hist['Close'][0]
+        price_change_pct = (price_change / hist['Close'][0]) * 100
         
-        # Add current price annotation
-        current_price = hist['Close'][-1]
-        plt.annotate(f'Current: ${current_price:.2f}', 
-                    xy=(hist.index[-1], current_price),
-                    xytext=(10, 10), textcoords='offset points')
+        # Create Plotly figure
+        fig = go.Figure()
         
-        # Use Streamlit to display the plot
-        st.pyplot(fig)
-        plt.close()
+        # Add price line
+        fig.add_trace(go.Scatter(
+            x=hist.index,
+            y=hist['Close'],
+            mode='lines',
+            name='Close Price',
+            line=dict(color='#2196f3', width=2)
+        ))
         
+        # Update layout
+        fig.update_layout(
+            title=dict(
+                text=f'{symbol} Stock Price | {period}',
+                x=0.5,
+                font=dict(size=20)
+            ),
+            xaxis_title='Date',
+            yaxis_title='Price ($)',
+            hovermode='x unified',
+            template='plotly_white',
+            height=500,
+            showlegend=False,
+            annotations=[
+                dict(
+                    text=f'Current: ${hist["Close"][-1]:.2f}<br>Change: {price_change_pct:.1f}%',
+                    align='left',
+                    showarrow=False,
+                    xref='paper',
+                    yref='paper',
+                    x=1.0,
+                    y=1.0,
+                    bgcolor='rgba(255,255,255,0.8)',
+                    bordercolor='#2196f3',
+                    borderwidth=1,
+                    borderpad=4
+                )
+            ]
+        )
+        
+        # Add range slider
+        fig.update_xaxes(rangeslider_visible=True)
+        
+        # Display in Streamlit
+        st.plotly_chart(fig, use_container_width=True)
         return True
         
     except Exception as e:
-        print(f"Error plotting graph: {str(e)}")
+        st.error(f"Error plotting graph: {str(e)}")
         return False
 
 # ----------------------------------------------------------------------------------------------------------
@@ -693,16 +724,23 @@ def user_input(user_question):
                 # st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
-                    plot_stock_graph(symbol)
-                    return {
-                        "output_text":          
-                        f"**Stock Update for {symbol}** \n\n"
-                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n"
-                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                        f"\n{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                    graph = plot_stock_graph(symbol)                     
+                    # Format the output text
+                    output_text = (
+                        f"**Stock Update for {symbol}**\n\n"
+                        f"Current Price: {currency_symbol}{stock_price:.2f}\n"
+                        f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        f"{'📈' if change_direction == 'up' else '📉'} "
+                        f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
                         f"({percentage_change:+.2f}%) compared to the previous close!\n\n"
-                        f"\nI've included a graph above showing the stock's recent performance."
+                        f"I've included a graph above showing the stock's recent performance."
+                    )
+                    
+                    return {
+                        "output_text": output_text,
+                        "graph": graph
                     }
+
                 else:
                     return {
                         "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
