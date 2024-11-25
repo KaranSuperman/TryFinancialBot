@@ -385,7 +385,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=3,
-            highlights=True
+            highlights=True,
             k=7,  # Increased for better coverage of stock-specific info
             highlights=True,
             search_params={
