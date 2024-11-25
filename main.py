@@ -632,9 +632,14 @@ def plot_stock_graph(symbol, period='1mo'):
         stock = yf.Ticker(symbol)
         hist = stock.history(period=period)
         
+        if hist.empty:
+            st.error(f"No data found for {symbol}")
+            return False
+        
         # Calculate price changes
         price_change = hist['Close'][-1] - hist['Close'][0]
         price_change_pct = (price_change / hist['Close'][0]) * 100
+        is_positive = price_change >= 0
         
         # Create Plotly figure
         fig = go.Figure()
@@ -645,41 +650,66 @@ def plot_stock_graph(symbol, period='1mo'):
             y=hist['Close'],
             mode='lines',
             name='Close Price',
-            line=dict(color='#2196f3', width=2)
+            line=dict(
+                color='#00C805' if is_positive else '#FF3E2E',
+                width=2
+            )
         ))
         
         # Update layout
         fig.update_layout(
             title=dict(
                 text=f'{symbol} Stock Price | {period}',
-                x=0.5,
+                x=0.5,  # Center title
+                y=0.95,
+                xanchor='center',
+                yanchor='top',
                 font=dict(size=20)
             ),
             xaxis_title='Date',
-            yaxis_title='Price ($)',
+            yaxis_title='Price',
             hovermode='x unified',
-            template='plotly_white',
+            template='plotly_dark',  # Dark theme
             height=500,
             showlegend=False,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=50, r=50, t=50, b=50),
+            
+            # Add price information box
             annotations=[
                 dict(
-                    text=f'Current: ${hist["Close"][-1]:.2f}<br>Change: {price_change_pct:.1f}%',
+                    text=(f'Current: ${hist["Close"][-1]:.2f}<br>'
+                          f'Change: {price_change:+.2f} ({price_change_pct:+.1f}%)'),
                     align='left',
                     showarrow=False,
                     xref='paper',
                     yref='paper',
                     x=1.0,
                     y=1.0,
-                    bgcolor='rgba(255,255,255,0.8)',
-                    bordercolor='#2196f3',
-                    borderwidth=1,
-                    borderpad=4
+                    bgcolor='rgba(0,0,0,0.8)',  # Dark semi-transparent background
+                    font=dict(color='white'),
+                    bordercolor='#00C805' if is_positive else '#FF3E2E',
+                    borderwidth=2,
+                    borderpad=8,
+                    padding=dict(l=10, r=10, t=5, b=5)
                 )
             ]
         )
         
-        # Add range slider
-        fig.update_xaxes(rangeslider_visible=True)
+        # Update axes for better visibility
+        fig.update_xaxes(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128,128,128,0.2)',
+            rangeslider_visible=True
+        )
+        fig.update_yaxes(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128,128,128,0.2)',
+            tickprefix='$'  # Add dollar sign to y-axis values
+        )
         
         # Display in Streamlit
         st.plotly_chart(fig, use_container_width=True)
@@ -726,7 +756,7 @@ def user_input(user_question):
                 if stock_price is not None:
                     output_text = (
                         f"**Stock Update for {symbol}**\n\n"
-                        f"Current Price: {currency_symbol}{stock_price:.2f}\n"
+                        f"Current Price: {currency_symbol}{stock_price:.2f}\n\n"
                         f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
                         f"{'📈' if change_direction == 'up' else '📉'} "
                         f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
