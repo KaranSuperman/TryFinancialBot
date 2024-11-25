@@ -627,143 +627,96 @@ def execute_research_query(question: str):
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
         
 # Available period options include: '1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max'
-def create_stock_graph(symbol: str, period: str = '1mo') -> go.Figure:
-    """
-    Creates a Plotly figure for stock price visualization.
-    
-    Args:
-        symbol (str): Stock ticker symbol (e.g., 'AAPL', 'GOOGL')
-        period (str): Time period for data (e.g., '1mo', '1y', '1d')
-    
-    Returns:
-        go.Figure: Plotly figure object with stock price visualization
-    """
-    # Get stock data
-    stock = yf.Ticker(symbol)
-    hist = stock.history(period=period)
-    
-    if hist.empty:
-        raise ValueError(f"No data found for symbol {symbol}")
-    
-    # Calculate price metrics
-    current_price = hist['Close'][-1]
-    price_change = current_price - hist['Close'][0]
-    price_change_pct = (price_change / hist['Close'][0]) * 100
-    is_positive = price_change >= 0
-    
-    # Set color theme based on price movement
-    price_color = '#00C805' if is_positive else '#FF3E2E'  # Green for up, Red for down
-    
-    # Create figure
-    fig = go.Figure()
-    
-    # Add price line trace
-    fig.add_trace(go.Scatter(
-        x=hist.index,
-        y=hist['Close'],
-        mode='lines',
-        name='Close Price',
-        line=dict(color=price_color, width=2)
-    ))
-    
-    # Configure layout
-    fig.update_layout(
-        # Title configuration
-        title=dict(
-            text=f'{symbol} Stock Price | {period}',
-            x=0.5,
-            y=0.95,
-            xanchor='center',
-            yanchor='top',
-            font=dict(size=20)
-        ),
-        
-        # General layout settings
-        height=500,
-        template='plotly_dark',
-        showlegend=False,
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=50, r=50, t=50, b=50),
-        hovermode='x unified',
-        
-        # Axis labels
-        xaxis_title='Date',
-        yaxis_title='Price ($)',
-        
-        # Price information box
-        annotations=[create_price_info_box(
-            current_price,
-            price_change,
-            price_change_pct,
-            price_color
-        )]
-    )
-    
-    # Configure axes
-    fig.update_xaxes(
-        showgrid=True,
-        gridwidth=1,
-        gridcolor='rgba(128,128,128,0.2)',
-        rangeslider_visible=True
-    )
-    
-    fig.update_yaxes(
-        showgrid=True,
-        gridwidth=1,
-        gridcolor='rgba(128,128,128,0.2)',
-        tickprefix='$'
-    )
-    
-    return fig
-
-def create_price_info_box(current_price: float, 
-                         price_change: float, 
-                         price_change_pct: float, 
-                         box_color: str) -> dict:
-    """
-    Creates the price information box annotation for the graph.
-    
-    Args:
-        current_price (float): Current stock price
-        price_change (float): Absolute price change
-        price_change_pct (float): Percentage price change
-        box_color (str): Border color for the box
-    
-    Returns:
-        dict: Plotly annotation configuration
-    """
-    return dict(
-        text=(f'Current: ${current_price:.2f}<br>'
-              f'Change: {price_change:+.2f} ({price_change_pct:+.1f}%)'),
-        align='left',
-        showarrow=False,
-        xref='paper',
-        yref='paper',
-        x=1.0,
-        y=1.0,
-        bgcolor='rgba(0,0,0,0.8)',
-        font=dict(color='white'),
-        bordercolor=box_color,
-        borderwidth=2,
-        borderpad=8,
-        padding=dict(l=10, r=10, t=5, b=5)
-    )
-
-def display_stock_graph(symbol: str, period: str = '1mo'):
-    """
-    Creates and displays the stock graph in Streamlit.
-    
-    Args:
-        symbol (str): Stock ticker symbol
-        period (str): Time period for data
-    """
+def plot_stock_graph(symbol, period='1mo'):
     try:
-        fig = create_stock_graph(symbol, period)
+        # Get stock data
+        stock = yf.Ticker(symbol)
+        hist = stock.history(period=period)
+        
+        if hist.empty:
+            st.error(f"No data found for {symbol}")
+            return False
+        
+        # Calculate price changes
+        price_change = hist['Close'][-1] - hist['Close'][0]
+        price_change_pct = (price_change / hist['Close'][0]) * 100
+        is_positive = price_change >= 0
+        
+        # Create Plotly figure
+        fig = go.Figure()
+        
+        # Add price line
+        fig.add_trace(go.Scatter(
+            x=hist.index,
+            y=hist['Close'],
+            mode='lines',
+            name='Close Price',
+            line=dict(
+                color='#00C805' if is_positive else '#FF3E2E',
+                width=2
+            )
+        ))
+        
+        # Update layout
+        fig.update_layout(
+            title=dict(
+                text=f'{symbol} Stock Price | {period}',
+                x=0.5,  # Center title
+                y=0.95,
+                xanchor='center',
+                yanchor='top',
+                font=dict(size=20)
+            ),
+            xaxis_title='Date',
+            yaxis_title='Price ($)',
+            hovermode='x unified',
+            template='plotly_dark',  # Dark theme
+            height=500,
+            showlegend=False,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=50, r=50, t=50, b=50),
+            
+            # Add price information box
+            annotations=[
+                dict(
+                    text=(f'Current: ${hist["Close"][-1]:.2f}<br>'
+                          f'Change: {price_change:+.2f} ({price_change_pct:+.1f}%)'),
+                    align='left',
+                    showarrow=False,
+                    xref='paper',
+                    yref='paper',
+                    x=1.0,
+                    y=1.0,
+                    bgcolor='rgba(0,0,0,0.8)',  # Dark semi-transparent background
+                    font=dict(color='white'),
+                    bordercolor='#00C805' if is_positive else '#FF3E2E',
+                    borderwidth=2,
+                    borderpad=8
+                )
+            ]
+        )
+        
+        # Update axes for better visibility
+        fig.update_xaxes(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128,128,128,0.2)',
+            rangeslider_visible=True
+        )
+        fig.update_yaxes(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128,128,128,0.2)',
+            tickprefix='$'  # Add dollar sign to y-axis values
+        )
+        
+        # Display in Streamlit
         st.plotly_chart(fig, use_container_width=True)
         return True
+        
     except Exception as e:
-        st.error(f"Error displaying stock graph: {str(e)}")
+        st.error(f"Error plotting graph: {str(e)}")
         return False
 
 # ----------------------------------------------------------------------------------------------------------
@@ -813,7 +766,7 @@ def user_input(user_question):
                     # Generate and return graph after text
                     return {
                         "output_text": output_text,
-                        "graph": display_stock_graph(symbol),
+                        "graph": plot_stock_graph(symbol),
                         "display_order": ["text", "graph"]  # Optional: add explicit ordering
                     }
 
