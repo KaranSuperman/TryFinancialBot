@@ -30,6 +30,7 @@ from langchain_core.runnables import RunnablePassthrough, RunnableParallel, Runn
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
+import matplotlib.pyplot as plt
 
 
 load_dotenv() 
@@ -330,7 +331,7 @@ def is_stock_query(user_question):
         )([HumanMessage(content=prompt)]).content
 
         # Add detailed debugging output
-        st.write(f"DEBUG: LLM Stock Query Classification - Raw Response: {response}")
+        # st.write(f"DEBUG: LLM Stock Query Classification - Raw Response: {response}")
 
         # Validate and process LLM response
         if response.startswith("True "):
@@ -380,9 +381,9 @@ def get_stock_price(symbol):
         percentage_change = (price_change / previous_day_stock_price) * 100
         
         # Debug logging
-        st.write(f"DEBUG: Successfully fetched data for {symbol}")
-        st.write(f"DEBUG: Current price: {stock_price}")
-        st.write(f"DEBUG: Previous price: {previous_day_stock_price}")
+        # st.write(f"DEBUG: Successfully fetched data for {symbol}")
+        # st.write(f"DEBUG: Current price: {stock_price}")
+        # st.write(f"DEBUG: Previous price: {previous_day_stock_price}")
         
         return (
             stock_price,
@@ -625,7 +626,37 @@ def execute_research_query(question: str):
         st.error(f"Critical error: {str(e)}")
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
         
-
+def plot_stock_graph(symbol, period='1mo'):
+    try:
+        # Get stock data using yfinance
+        stock = yf.Ticker(symbol)
+        hist = stock.history(period=period)
+        # Create figure using matplotlib
+        fig = plt.figure(figsize=(10, 6))
+        plt.plot(hist.index, hist['Close'])
+        plt.title(f'{symbol} Stock Price - Last {period}')
+        plt.xlabel('Date')
+        plt.ylabel('Price')
+        plt.grid(True)
+        
+        # Rotate x-axis labels for better readability
+        plt.xticks(rotation=45)
+        
+        # Add current price annotation
+        current_price = hist['Close'][-1]
+        plt.annotate(f'Current: ${current_price:.2f}', 
+                    xy=(hist.index[-1], current_price),
+                    xytext=(10, 10), textcoords='offset points')
+        
+        # Use Streamlit to display the plot
+        st.pyplot(fig)
+        plt.close()
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error plotting graph: {str(e)}")
+        return False
 
 # ----------------------------------------------------------------------------------------------------------
 
@@ -662,6 +693,7 @@ def user_input(user_question):
                 # st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
+                    plot_stock_graph(symbol)
                     return {
                         "output_text":          
                         f"**Stock Update for {symbol}** \n\n"
@@ -669,6 +701,7 @@ def user_input(user_question):
                         f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
                         f"\n{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
                         f"({percentage_change:+.2f}%) compared to the previous close!\n\n"
+                        f"\nI've included a graph above showing the stock's recent performance."
                     }
                 else:
                     return {
