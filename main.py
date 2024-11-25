@@ -400,7 +400,6 @@ def get_stock_price(symbol):
         # Return None values for all expected return values
         return None, None, None, None, None, None
 
-
 def create_research_chain(exa_api_key: str, openai_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
@@ -724,21 +723,20 @@ def user_input(user_question):
                 # st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
-                    graph = plot_stock_graph(symbol)                     
-                    # Format the output text
                     output_text = (
                         f"**Stock Update for {symbol}**\n\n"
                         f"Current Price: {currency_symbol}{stock_price:.2f}\n"
                         f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
                         f"{'📈' if change_direction == 'up' else '📉'} "
                         f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                        f"({percentage_change:+.2f}%) compared to the previous close!\n\n"
-                        f"I've included a graph above showing the stock's recent performance."
+                        f"({percentage_change:+.2f}%) compared to the previous close!"
                     )
                     
+                    # Generate and return graph after text
                     return {
                         "output_text": output_text,
-                        "graph": graph
+                        "graph": plot_stock_graph(symbol),
+                        "display_order": ["text", "graph"]  # Optional: add explicit ordering
                     }
 
                 else:
