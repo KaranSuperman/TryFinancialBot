@@ -627,6 +627,7 @@ def execute_research_query(question: str):
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
         
 # Available period options include: '1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max'
+# task add more filters
 def plot_stock_graph(symbol, period='1mo'):
     try:
         # Get stock data
@@ -754,16 +755,16 @@ def user_input(user_question):
         if result.startswith("True "):
             _, symbol = result.split(maxsplit=1)
             try:
-                # st.info("Using Stocks response")
+                st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
                     output_text = (
                         f"**Stock Update for {symbol}**\n\n"
                         f"Current Price: {currency_symbol}{stock_price:.2f}\n\n"
                         f"\nPrevious Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                        f"{'📈' if change_direction == 'up' else '📉'} "
-                        f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                        f"({percentage_change:+.2f}%) compared to the previous close!"
+                        # f"{'📈' if change_direction == 'up' else '📉'} "
+                        # f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        # f"({percentage_change:+.2f}%) compared to the previous close!"
                     )
                     
                     # Generate and return graph after text
@@ -790,7 +791,7 @@ def user_input(user_question):
                 research_query = result[5:]
                 
                 # Directly use Exa research for news-type queries
-                # st.info("Using Exa Research response")
+                st.info("Using Exa Research response")
 
                 # exa_api_key = st.secrets["news"]["EXA_API_KEY"]
                 # openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
@@ -880,7 +881,7 @@ def user_input(user_question):
 
         # Process based on similarity scores
         if max_similarity < 0.65:
-            # st.info("Using LLM response")
+            st.info("Using LLM response")
             prompt1 = user_question + """ In the context of Finance       
             (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
                 for example, 
@@ -900,7 +901,7 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                # st.info("Using FAQ response")
+                st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                 
                 if best_faq.page_content in faq_dict:
@@ -928,7 +929,7 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                # st.info("Using PDF response")
+                st.info("Using PDF response")
                 prompt_template = """ About the company: 
                 Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
                 Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
