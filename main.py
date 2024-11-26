@@ -690,7 +690,7 @@ def plot_stock_graph(symbol):
         ))
         
         # Add price change annotation
-        annotation_text = f"Price Change: {currency_symbol}{abs(price_change):.2f} ({price_change_pct:.2f}%)"
+        # annotation_text = f"Price Change: {currency_symbol}{abs(price_change):.2f} ({price_change_pct:.2f}%)"
         fig.add_annotation(
             xref='paper',
             yref='paper',
