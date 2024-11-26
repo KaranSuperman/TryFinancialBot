@@ -696,19 +696,6 @@ def plot_stock_graph(symbol):
             hovertemplate='Date: %{x}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
         ))
         
-        # Add price change annotation
-        annotation_text = f"Price Change: {currency_symbol}{abs(price_change):.2f} ({price_change_pct:.2f}%)"
-        fig.add_annotation(
-            xref='paper',
-            yref='paper',
-            x=0.5,
-            y=-0.15,
-            text=annotation_text,
-            showarrow=False,
-            font=dict(size=12, color='white'),
-            align='center'
-        )
-        
         # Update layout
         fig.update_layout(
             title=dict(
@@ -924,19 +911,24 @@ def user_input(user_question):
         # ---------------------------------------------------------------------------
         max_similarity = max(max_similarity_pdf, max_similarity_faq)
 
+# -------------------------------------------------------------------------------------------
+
         # Process based on similarity scores
-        if max_similarity < 0.65:
-            st.info("Using LLM response")
-            prompt1 = user_question + """ In the context of Finance       
-            (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
-                for example, 
-                - which are the best stocks to invest 
-                - which stock is worst
-                - Suggest me best stocks )"""
+        # if max_similarity < 0.65:
+        #     st.info("Using LLM response")
+        #     prompt1 = user_question + """ In the context of Finance       
+        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+        #         for example, 
+        #         - which are the best stocks to invest 
+        #         - which stock is worst
+        #         - Suggest me best stocks )"""
     
-            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-            return {"output_text": response.content} if response else {"output_text": "No response generated."}
+        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
         
+# -------------------------------------------------------------------------------------------
+
+
         # Handle FAQ and PDF responses
         try:
             with open('./faq.json', 'r') as f:
