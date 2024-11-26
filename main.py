@@ -691,16 +691,16 @@ def plot_stock_graph(symbol):
         
         # Add price change annotation
         # annotation_text = f"Price Change: {currency_symbol}{abs(price_change):.2f} ({price_change_pct:.2f}%)"
-        fig.add_annotation(
-            xref='paper',
-            yref='paper',
-            x=0.5,
-            y=-0.15,
-            text=annotation_text,
-            showarrow=False,
-            font=dict(size=12, color='white'),
-            align='center'
-        )
+        # fig.add_annotation(
+        #     xref='paper',
+        #     yref='paper',
+        #     x=0.5,
+        #     y=-0.15,
+        #     text=annotation_text,
+        #     showarrow=False,
+        #     font=dict(size=12, color='white'),
+        #     align='center'
+        # )
         
         # Update layout
         fig.update_layout(
