@@ -415,7 +415,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
             k=7,  # Increased for better coverage of stock-specific info
             highlights=True,
             search_params={
-                "recency_days": 3,  # More recent for stock data
+                "recency_days": 1,  # More recent for stock data
                 "use_autoprompt": True,
                 "source_filters": {
                     "include_domains": [
@@ -911,7 +911,7 @@ def user_input(user_question):
         # ---------------------------------------------------------------------------
         max_similarity = max(max_similarity_pdf, max_similarity_faq)
 
-# -------------------------------------------------------------------------------------------
+        # -------------------------------------------------------------------------------------------
 
         # Process based on similarity scores
         # if max_similarity < 0.65:
@@ -925,8 +925,8 @@ def user_input(user_question):
     
         #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
         #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
-        
-# -------------------------------------------------------------------------------------------
+
+        # -------------------------------------------------------------------------------------------
 
 
         # Handle FAQ and PDF responses
