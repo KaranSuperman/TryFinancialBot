@@ -306,10 +306,11 @@ def is_stock_query(user_question):
          "How much is Tesla trading for?" → "True TSLA"
          "What is the price of google?" → "True GOOGL"
 
-    2. IF the question is about STOCK NEWS/ANALYSIS, respond: "News [REPHRASED_QUERY]"
+    2. IF the question is about NEWS/ANALYSIS, respond: "News [REPHRASED_QUERY]"
        - Examples:
          "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
          "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
+         "What's the today news? → "News What is the today news?"
 
     3. For NON-STOCK queries, respond: "False NONE"
 
