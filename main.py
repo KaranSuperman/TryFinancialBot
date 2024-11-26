@@ -630,6 +630,12 @@ def execute_research_query(question: str):
 # task add more filters
 def plot_stock_graph(symbol, period='1mo'):
     try:
+        # Validate period input
+        valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max']
+        if period not in valid_periods:
+            st.error(f"Invalid period. Choose from {', '.join(valid_periods)}")
+            return False
+        
         # Get stock data
         stock = yf.Ticker(symbol)
         hist = stock.history(period=period)
@@ -646,6 +652,21 @@ def plot_stock_graph(symbol, period='1mo'):
         price_change_pct = (price_change / hist['Close'][0]) * 100
         is_positive = price_change >= 0
         
+        # Create period label
+        period_labels = {
+            '1d': '1 Day',
+            '5d': '5 Days', 
+            '1mo': '1 Month', 
+            '3mo': '3 Months', 
+            '6mo': '6 Months', 
+            '1y': '1 Year', 
+            '2y': '2 Years', 
+            '5y': '5 Years', 
+            'ytd': 'Year to Date', 
+            'max': 'Maximum'
+        }
+        period_label = period_labels.get(period, period)
+        
         # Create Plotly figure
         fig = go.Figure()
         
@@ -658,13 +679,27 @@ def plot_stock_graph(symbol, period='1mo'):
             line=dict(
                 color='#00C805' if is_positive else '#FF3E2E',
                 width=2
-            )
+            ),
+            hovertemplate='Date: %{x}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
         ))
+        
+        # Add price change annotation
+        annotation_text = f"Price Change: {currency_symbol}{abs(price_change):.2f} ({price_change_pct:.2f}%)"
+        fig.add_annotation(
+            xref='paper',
+            yref='paper',
+            x=0.5,
+            y=-0.15,
+            text=annotation_text,
+            showarrow=False,
+            font=dict(size=12, color='white'),
+            align='center'
+        )
         
         # Update layout
         fig.update_layout(
             title=dict(
-                text=f'{symbol} Stock Price | {period}',
+                text=f'{symbol} Stock Price | {period_label}',
                 x=0.5,  # Center title
                 y=0.95,
                 xanchor='center',
@@ -679,26 +714,7 @@ def plot_stock_graph(symbol, period='1mo'):
             showlegend=False,
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=50, r=50, t=50, b=50),
-            
-            # Add price information box
-            # annotations=[
-            #     dict(
-            #         text=(f'Current: {currency_symbol}{hist["Close"][-1]:.2f}<br>'
-            #               f'Change: {currency_symbol}{price_change:+.2f} ({price_change_pct:+.1f}%)'),
-            #         align='left',
-            #         showarrow=False,
-            #         xref='paper',
-            #         yref='paper',
-            #         x=1.0,
-            #         y=1.0,
-            #         bgcolor='rgba(0,0,0,0.8)',  # Dark semi-transparent background
-            #         font=dict(color='white'),
-            #         bordercolor='#00C805' if is_positive else '#FF3E2E',
-            #         borderwidth=2,
-            #         borderpad=8
-            #     )
-            # ]
+            margin=dict(l=50, r=50, t=50, b=80),  # Increased bottom margin for annotation
         )
         
         # Update axes for better visibility
@@ -717,12 +733,12 @@ def plot_stock_graph(symbol, period='1mo'):
         
         # Display in Streamlit
         st.plotly_chart(fig, use_container_width=True)
+        
         return True
         
     except Exception as e:
         st.error(f"Error plotting graph: {str(e)}")
         return False
-
 # ----------------------------------------------------------------------------------------------------------
 
 def user_input(user_question):
