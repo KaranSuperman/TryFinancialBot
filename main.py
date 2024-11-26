@@ -626,7 +626,6 @@ def execute_research_query(question: str):
         st.error(f"Critical error: {str(e)}")
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
         
-# Available period options include: '1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max'
 def plot_stock_graph(symbol):
     try:
         # Period selection
@@ -680,27 +679,35 @@ def plot_stock_graph(symbol):
         fig.add_trace(go.Scatter(
             x=hist.index,
             y=hist['Close'],
-            mode='lines',
+            mode='lines+markers',  # Add markers to show data points
             name='Close Price',
             line=dict(
                 color='#00C805' if is_positive else '#FF3E2E',
                 width=2
             ),
+            marker=dict(
+                size=8,
+                color='#ffffff',  # Set marker color to white
+                line=dict(
+                    color='#00C805' if is_positive else '#FF3E2E',
+                    width=2
+                )
+            ),
             hovertemplate='Date: %{x}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
         ))
         
         # Add price change annotation
-        # annotation_text = f"Price Change: {currency_symbol}{abs(price_change):.2f} ({price_change_pct:.2f}%)"
-        # fig.add_annotation(
-        #     xref='paper',
-        #     yref='paper',
-        #     x=0.5,
-        #     y=-0.15,
-        #     text=annotation_text,
-        #     showarrow=False,
-        #     font=dict(size=12, color='white'),
-        #     align='center'
-        # )
+        annotation_text = f"Price Change: {currency_symbol}{abs(price_change):.2f} ({price_change_pct:.2f}%)"
+        fig.add_annotation(
+            xref='paper',
+            yref='paper',
+            x=0.5,
+            y=-0.15,
+            text=annotation_text,
+            showarrow=False,
+            font=dict(size=12, color='white'),
+            align='center'
+        )
         
         # Update layout
         fig.update_layout(
@@ -723,19 +730,34 @@ def plot_stock_graph(symbol):
             margin=dict(l=50, r=50, t=50, b=80),  # Increased bottom margin for annotation
         )
         
-        # Update axes for better visibility
-        fig.update_xaxes(
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='rgba(128,128,128,0.2)',
-            rangeslider_visible=True
-        )
-        fig.update_yaxes(
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='rgba(128,128,128,0.2)',
-            tickprefix=currency_symbol  # Use appropriate currency symbol
-        )
+        # Adjust axis range for 1-day period
+        if period == '1d':
+            fig.update_xaxes(
+                range=[hist.index[0], hist.index[-1]],
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                rangeslider_visible=False
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                tickprefix=currency_symbol
+            )
+        else:
+            fig.update_xaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                rangeslider_visible=True
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                tickprefix=currency_symbol
+            )
         
         # Display in Streamlit
         st.plotly_chart(fig, use_container_width=True)
@@ -745,7 +767,6 @@ def plot_stock_graph(symbol):
     except Exception as e:
         st.error(f"Error plotting graph: {str(e)}")
         return False
-
 
 # ----------------------------------------------------------------------------------------------------------
 
