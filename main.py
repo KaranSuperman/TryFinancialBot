@@ -501,8 +501,12 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         formatted_docs = [format_doc(doc) for doc in docs]
         return "\n\n".join(formatted_docs)
 
+    st.write(f"retriever: {retriever}")
+    st.write(f"RunnableLambda: {RunnableLambda(process_docs)}")
+
     # Enhanced retrieval chain
     retrieval_chain = retriever | RunnableLambda(process_docs)
+    st.write(f"retrieval_chain: {retrieval_chain}")
 
     # Initialize LLM with optimized settings for stock analysis
     try:
