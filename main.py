@@ -627,9 +627,15 @@ def execute_research_query(question: str):
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
         
 # Available period options include: '1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max'
-# task add more filters
-def plot_stock_graph(symbol, period='1mo'):
+def plot_stock_graph(symbol):
     try:
+        # Period selection
+        period = st.selectbox(
+            "Select Time Period", 
+            ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max'], 
+            index=2  # Default to 1 month
+        )
+        
         # Validate period input
         valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max']
         if period not in valid_periods:
@@ -739,6 +745,8 @@ def plot_stock_graph(symbol, period='1mo'):
     except Exception as e:
         st.error(f"Error plotting graph: {str(e)}")
         return False
+
+
 # ----------------------------------------------------------------------------------------------------------
 
 def user_input(user_question):
