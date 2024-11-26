@@ -805,8 +805,8 @@ def user_input(user_question):
                 if stock_price is not None:
                     output_text = (
                         f"**Stock Update for {symbol}**\n\n"
-                        f"Current Price: {currency_symbol}{stock_price:.2f}\n\n"
-                        f"\nPrevious Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
                         # f"{'📈' if change_direction == 'up' else '📉'} "
                         # f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
                         # f"({percentage_change:+.2f}%) compared to the previous close!"
