@@ -311,6 +311,7 @@ def is_stock_query(user_question):
          "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
          "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
          "What's the today news? → "News What is the today news?"
+         "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
 
 
     Important Stock Symbols:
@@ -411,62 +412,12 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
     # Initialize retriever with comprehensive stock market sources
     try:
         retriever = ExaSearchRetriever(
-            api_key=exa_api_key,
-            k=7,  # Increased for better coverage of stock-specific info
-            highlights=True,
-            search_params={
-                "recency_days": 1,  # More recent for stock data
-                "use_autoprompt": True,
-                "source_filters": {
-                    "include_domains": [
-                        # Major Financial News
-                        "moneycontrol.com",
-                        "economictimes.indiatimes.com",
-                        "livemint.com",
-                        "ndtv.com/business",
-                        "business-standard.com",
-                        
-                        # Stock Market Specific
-                        "nseindia.com",
-                        "bseindia.com",
-                        "tickertape.in",
-                        "screener.in",
-                        "tradingview.com",
-                        "investing.com/indices/sensex",
-                        "investing.com/indices/s-p-cnx-nifty",
-                        
-                        # Market Analysis
-                        "valueresearchonline.com",
-                        "marketsmojo.com",
-                        "trendlyne.com",
-                        "stockedge.com",
-                        "chartink.com",
-                        
-                        # Trading Platforms
-                        "zerodha.com/z-connect",
-                        "upstox.com/market-talk",
-                        "angelone.in/knowledge-center",
-                        
-                        # Research and Analytics
-                        "groww.in/blog",
-                        "equitymaster.com",
-                        "stocksandbonds.info",
-                        "indiainfoline.com",
-                        "capitalmarket.com"
-                    ],
-                    "content_type": ["webpage", "article", "blog_post"],
-                    "exclude_domains": [
-                        "forum.",  # Exclude forum discussions
-                        "community.",
-                        "chat."
-                    ]
-                },
-                "post_filter": {
-                    "min_word_count": 100  # Filter out very short content
-                }
-            }
+        api_key=exa_api_key,
+        k=3,  # Number of documents to retrieve
+        highlights=True
         )
-        
+
+
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
@@ -477,68 +428,55 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         st.error(f"Error initializing retriever: {str(e)}")
         raise
 
-    # Enhanced document processing with stock-specific metadata
-    def format_doc(doc):
-        metadata = getattr(doc, 'metadata', {}) if hasattr(doc, 'metadata') else {}
-        highlights = metadata.get('highlights', 'No highlights available.')
-        url = metadata.get('url', 'No URL available.')
-        
-        return f"""
-        Source: {url.split('/')[2] if url.startswith('http') else 'Unknown'}
-        URL: {url}
-        Highlights: {highlights}
-        Content: {doc.page_content if hasattr(doc, 'page_content') else str(doc)}
-        """
+    # Create document formatting template
+    document_template = """
+    <source>
+        <url>{url}</url>
+        <highlights>{highlights}</highlights>
+    </source>
+    """
+    document_prompt = PromptTemplate.from_template(document_template)
+    
+    # Create document processing chain
+    document_chain = (
+        RunnablePassthrough() | 
+        RunnableLambda(lambda doc: {
+            "highlights": doc.metadata.get("highlights", "No highlights available."),
+            "url": doc.metadata.get("url", "No URL available.")
+        }) | document_prompt
+    )
+    
+    # Create retrieval chain
+    retrieval_chain = (
+        retriever | 
+        document_chain.map() | 
+        RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))  # Convert docs to strings
+    )
 
-    def process_docs(docs):
-        if not docs:
-            return "No recent information found."
-        return "\n\n".join(format_doc(doc) for doc in docs)
+    # Create generation prompt
+    generation_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are well-versed in finance and stock-related topics, particularly within the Indian tax framework. Your role is to provide the latest news, trends, and insights related to finance and stock markets. You also give the up to date inforamtion of stock price and finance. Use the XML-formatted context to ensure your responses are accurate and informative."),
+        ("human", """
+        Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
 
-    # Modify retrieval chain
-    retrieval_chain = retriever | RunnableLambda(process_docs)
-
-
-    # Initialize LLM with optimized settings for stock analysis
-    try:
-        llm = ChatOpenAI(
-            api_key=openai_api_key,
-            temperature=0.1,  # Even lower for more precise stock information
-            model="gpt-4-turbo-preview",
-            max_tokens=1500  # Increased for detailed analysis
-        )
-    except Exception as e:
-        st.error(f"Error initializing LLM: {str(e)}")
-        raise
-
-    # Enhanced prompt template with stock market focus
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a highly knowledgeable finance and stocks assistant. 
-            Provide concise, data-driven insights with:
-            - Latest market trends
-            - Specific stock details
-            - Contextual analysis
-            - Cited sources
-            """),
-            ("human", """
-            Analyze the following query using the most recent context:
-            
-            Query: {query}
-            
-            Context:
-            {context}
-            
-            Provide a comprehensive yet succinct analysis.
-            """)
+        Query: {query}
+        ---
+        <context>
+        {context}
+        </context>
+        """)
         ])
+
+    # Initialize LLM
+    llm = ChatOpenAI(api_key=openai_api_key)
 
     # Final chain with error handling
     chain = (
         RunnableParallel({
-            "query": RunnableLambda(lambda x: x),
-            "context": retrieval_chain
-        })
-        | prompt
+            "query": RunnablePassthrough(),  
+            "context": retrieval_chain,  
+        }) 
+        | generation_prompt 
         | llm
     )
     return chain
@@ -561,13 +499,13 @@ def execute_research_query(question: str):
 
         # Execute chain with error handling
         try:
-            # st.write("Debug - Creating research chain...")
-            research_chain = create_research_chain(exa_api_key, openai_api_key)
-            # st.write("Debug - Research chain created successfully")
+            st.write("Debug - Creating chain...")
+            chain = create_research_chain(exa_api_key, openai_api_key)
+            st.write("Debug - Chain created successfully")
             
-            # st.write(f"Debug - Executing query: {question[:50]}...")
-            response = research_chain.invoke(question)
-            # st.write("Debug - Query executed successfully")
+            st.write(f"Debug - Executing query: {question[:50]}...")
+            response = chain.invoke(question)
+            st.write("Debug - Query executed successfully")
             
             # Handle response
             if hasattr(response, 'content'):
