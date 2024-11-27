@@ -413,7 +413,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
     try:
         retriever = ExaSearchRetriever(
         api_key=exa_api_key,
-        k=3,  # Number of documents to retrieve
+        k=7,  # Number of documents to retrieve
         highlights=True
         )
 
@@ -455,9 +455,9 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
     # Create generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are well-versed in finance and stock-related topics, particularly within the Indian tax framework. Your role is to provide the latest news, trends, and insights related to finance and stock markets. You also give the up to date inforamtion of stock price and finance. Use the XML-formatted context to ensure your responses are accurate and informative."),
+    ("system", "You are an expert in finance, with in-depth knowledge of the latest news, trends, and insights related to finance and stock markets, particularly within the Indian context. Your role is to provide accurate, up-to-date information to the user, from reputable sources. Ensure your responses are well-structured, concise, and include relevant data or statistics where applicable."),
         ("human", """
-        Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
+        Please respond to the following query using the provided context. Ensure your answer includes the latest available data and is formatted cleanly for easy readability.
 
         Query: {query}
         ---
