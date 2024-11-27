@@ -306,13 +306,12 @@ def is_stock_query(user_question):
          "How much is Tesla trading for?" → "True TSLA"
          "What is the price of google?" → "True GOOGL"
 
-    2. IF the question is about NEWS/ANALYSIS, respond: "News [REPHRASED_QUERY]"
+    2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
        - Examples:
          "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
          "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
          "What's the today news? → "News What is the today news?"
 
-    3. For NON-STOCK queries, respond: "False NONE"
 
     Important Stock Symbols:
     - Microsoft = MSFT
@@ -579,129 +578,72 @@ def get_stock_price(symbol):
 #         | prompt
 #         | llm
 #     )
-
 #     return chain
 
 def create_research_chain(exa_api_key: str, openai_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
         
-    # Clean the API key
-    exa_api_key = exa_api_key.strip()
-    
-    # Initialize retriever with comprehensive stock market sources
+    # Initialize retriever with focus on recent content
     try:
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=3,  # Increased for better coverage of stock-specific info
-            highlights=True
+            k=5,
+            highlights=True,
+            search_params={
+                "recency_days": 1,  # Ensure content is from last 24 hours
+                "use_autoprompt": False,  # Disable autoprompt to get more direct results
+                "include_domains": [
+                    "moneycontrol.com", "economictimes.indiatimes.com",
+                    "livemint.com", "reuters.com", "bloomberg.com",
+                    "finance.yahoo.com", "marketwatch.com"
+                ]
+            }
         )
-        
-        if hasattr(retriever, 'client'):
-            retriever.client.headers.update({
-                "x-api-key": exa_api_key,
-                "Content-Type": "application/json"
-            })
-            
     except Exception as e:
         st.error(f"Error initializing retriever: {str(e)}")
         raise
 
-    # Create document formatting template
-    document_template = """
-    <source>
-        <url>{url}</url>
-        <highlights>{highlights}</highlights>
-    </source>
-    """
-    document_prompt = PromptTemplate.from_template(document_template)
-    
-    # Create document processing chain
-    document_chain = (
-        RunnablePassthrough() | 
-        RunnableLambda(lambda doc: {
-            "highlights": doc.metadata.get("highlights", "No highlights available."),
-            "url": doc.metadata.get("url", "No URL available.")
-        }) | document_prompt
-    )
-    
-    # Create retrieval chain
-    retrieval_chain = (
-        retriever | 
-        document_chain.map() | 
-        RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))  # Convert docs to strings
-    )
+    # Simplified document processing to preserve source data
+    def process_docs(docs):
+        if not docs:
+            return "No recent information found."
+        
+        processed_content = []
+        for doc in docs:
+            metadata = doc.metadata
+            content = f"""
+            Source: {metadata.get('url', 'Unknown')}
+            Date: {metadata.get('published_date', 'Recent')}
+            {doc.page_content}
+            ---"""
+            processed_content.append(content)
+        
+        return "\n".join(processed_content)
 
-
-    # Initialize LLM with optimized settings for stock analysis
-    try:
-        llm = ChatOpenAI(
-            api_key=openai_api_key,
-            temperature=0.1,  # Even lower for more precise stock information
-            model="gpt-4-turbo-preview",
-            max_tokens=2000  # Increased for detailed analysis
-        )
-    except Exception as e:
-        st.error(f"Error initializing LLM: {str(e)}")
-        raise
-
-    # Enhanced prompt template with stock market focus
+    # Create prompt that focuses on reformatting rather than generating
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a highly knowledgeable finance and stocks assistant for India. Your role is to provide the latest news, trends, and insights related to finance and stock markets.
-
-        IMPORTANT GUIDELINES:
-        1. Always check and mention the date and time of stock market information
-        2. Highlight real-time market movements and trends
-        3. Include relevant market indices (Sensex, Nifty) when discussing stocks
-        4. Specify if quoted prices are real-time, closing, or historical
-        5. Note any significant intraday movements
-        6. Include trading volumes when relevant
-        7. Mention any circuit breakers or trading halts
-        8. Reference sector-specific trends
+        ("system", """You are a financial news formatter. Your role is to organize and present the provided news content clearly.
+        DO NOT generate new information or use historical knowledge.
+        ONLY use the information provided in the context.
         
-        STOCK DATA PRESENTATION:
-        1. Stock Prices: Always include
-           - Current/Last Price
-           - Day's High/Low
-           - Volume (if available)
-           - % Change
-        
-        2. Technical Indicators (when available):
-           - Moving Averages
-           - Support/Resistance levels
-           - Trading patterns
-        
-        3. Company Info:
-           - Market Cap
-           - P/E Ratio
-           - Latest company news/announcements
-        
-        [Previous formatting rules remain the same...]
-        """),
-        ("human", """
-        Please provide the most up-to-date stock market analysis using recent information from the context. Include specific dates, times, and sources for all data points.
-
-        Query: {query}
-        
-        Context: {context}
-
-        Remember to:
-        1. Specify the timestamp for each price quote
-        2. Note market hours and trading status
-        3. Highlight any breaking news affecting stocks
-        4. Include relevant sector-specific context
-        5. Mention data sources and their timestamps
-        """)
+        Format rules:
+        1. Start with the most recent information
+        2. Clearly attribute sources
+        3. Maintain factual accuracy
+        4. Present data points as provided
+        5. Do not add speculation or analysis not present in sources"""),
+        ("human", "Please format this financial news content:\n\nQuery: {query}\n\nContent: {context}")
     ])
 
-    # Final chain with error handling
+    # Simplified chain that preserves Exa's data
     chain = (
         RunnableParallel({
             "query": RunnablePassthrough(),
-            "context": retrieval_chain
+            "context": retriever | RunnableLambda(process_docs)
         })
         | prompt
-        | llm
+        | ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
     )
 
     return chain
