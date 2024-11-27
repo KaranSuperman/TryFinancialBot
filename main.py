@@ -466,7 +466,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         </context>
         """)
         ])
-
+ 
     # Initialize LLM
     llm = ChatOpenAI(api_key=openai_api_key)
 
