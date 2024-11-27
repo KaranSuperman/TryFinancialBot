@@ -455,9 +455,9 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
     # Create generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are an expert in finance, with in-depth knowledge of the latest news, trends, and insights related to finance and stock markets, particularly within the Indian context. Your role is to provide accurate, up-to-date information to the user, from reputable sources. Ensure your responses are well-structured, concise, and include relevant data or statistics where applicable."),
-        ("human", """
-        Please respond to the following query using the provided context. Ensure your answer includes the latest available data and is formatted cleanly for easy readability.
+    ("system", "You are an expert in finance, with in-depth knowledge of the latest news, trends, and insights related to finance and stock markets, particularly within the Indian context. Your role is to provide accurate, up-to-date information to the user, citing reputable sources. Ensure your responses are well-structured, concise, and include relevant data or statistics where applicable. Pay close attention to the formatting of your responses to ensure they are easy to read and understand."),
+    ("human", """
+    Please respond to the following query using the provided context. Ensure your answer includes the latest available data and is formatted cleanly for easy readability.
 
         Query: {query}
         ---
@@ -499,13 +499,13 @@ def execute_research_query(question: str):
 
         # Execute chain with error handling
         try:
-            st.write("Debug - Creating chain...")
+            # st.write("Debug - Creating chain...")
             chain = create_research_chain(exa_api_key, openai_api_key)
-            st.write("Debug - Chain created successfully")
+            # st.write("Debug - Chain created successfully")
             
-            st.write(f"Debug - Executing query: {question[:50]}...")
+            # st.write(f"Debug - Executing query: {question[:50]}...")
             response = chain.invoke(question)
-            st.write("Debug - Query executed successfully")
+            # st.write("Debug - Query executed successfully")
             
             # Handle response
             if hasattr(response, 'content'):
