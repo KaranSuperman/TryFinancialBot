@@ -455,9 +455,14 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
     # Create generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are an expert in finance, with in-depth knowledge of the latest news, trends, and insights related to companies, stocks, and the broader financial markets. Your role is to provide accurate, up-to-date information to the user, citing reputable sources. Ensure your responses are concise, relevant, and include key data or statistics where applicable."),
+    ("system", '''You are an expert in finance, with in-depth knowledge of the latest news, trends, 
+                    and insights related to finance and stock markets, particularly within the Indian context. 
+                    Your role is to provide accurate, up-to-date information to the user, citing reputable sources.
+                     Ensure your responses are well-structured, concise, and include relevant data or statistics where applicable.
+                      Pay close attention to the formatting of your responses to ensure they are easy to read and understand.
+                      Note: You always answer related to finance and economy. '''),
     ("human", """
-    Please respond to the following finance, company, or stock-related query using the provided context. Ensure your answer is concise and focused on addressing the specific question.
+    Please respond to the following query using the provided context. Ensure your answer includes the latest available data and is formatted cleanly for easy readability.
 
         Query: {query}
         ---
