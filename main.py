@@ -297,7 +297,7 @@ def is_relevant(question, embeddings_model, threshold=0.55):
         return False
 
 def is_stock_query(user_question):
-    prompt = f'''Analyze the following question precisely. Determine if it's a stock-related query:
+    prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance news query:
 
     RULES:
     1. IF the question is about STOCK PRICE then Generate only [Yahoo Finance] compatible symbol, respond: "True [STOCK_SYMBOL]"
@@ -305,6 +305,8 @@ def is_stock_query(user_question):
          "What is Microsoft's current stock price?" → "True MSFT"
          "How much is Tesla trading for?" → "True TSLA"
          "What is the price of google?" → "True GOOGL"
+         "What is price of cxpx" → "True CXPX.L"
+         "csndx price" → "True CSNDX.SW"
 
     2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
        - Examples:
