@@ -297,62 +297,36 @@ def is_relevant(question, embeddings_model, threshold=0.55):
         return False
 
 def is_stock_query(user_question):
-    prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
-    SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK
+    prompt = f'''Analyze the following question based on these rules:
 
-    RULES:
-    1. IF the question is about STOCK PRICE then Generate only [Yahoo Finance] compatible symbol, respond: "True [STOCK_SYMBOL]"
-       - Examples:
-         "What is Microsoft's current stock price?" → "True MSFT"
-         "How much is Tesla trading for?" → "True TSLA"
-         "What is the price of google?" → "True GOOGL"
-         "What is price of cspx" → "True CSPX.L"
-         "csndx price" → "True CSNDX.SW"
-
-    2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
-       - Examples:
-         "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
-         "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
-         "What's the today news? → "News What is the today news?"
-         "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
-
-
-    Important Stock Symbols:
-    - Microsoft = MSFT
-    - Apple = AAPL
-    - Tesla = TSLA
-    - Google = GOOGL
-    - Amazon = AMZN
-    - Meta = META
-
-
-    COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
-    EXCHANGE SUFFIXES:
-    - US Exchanges:
-      * No suffix for NYSE/NASDAQ (AAPL, MSFT)
+    IF the question is asking about CURRENT STOCK PRICE in any way:
+    - Respond with exactly two words: "True" and the stock symbol
+    - Examples:
+      "what is microsoft stock price" → "True MSFT"
+      "tell me about tesla stock" → "True TSLA"
+      "how much is apple trading for" → "True AAPL"
     
-    NOTE: Append appropriate exchange suffix if needed
-    - International Exchanges:
-      - .L = London Stock Exchange (UK)
-      - .SW = SIX Swiss Exchange (Switzerland)
-      - .NS = National Stock Exchange (India)
-      - .BO = Bombay Stock Exchange (India)
-      - .JK = Indonesia Stock Exchange
-      - .SI = Singapore Exchange
-      - .HK = Hong Kong Stock Exchange
-      - .T = Tokyo Stock Exchange (Japan)
-      - .AX = Australian Securities Exchange
-      - .SA = São Paulo Stock Exchange (Brazil)
-      - .TO = Toronto Stock Exchange (Canada)
-      - .MX = Mexican Stock Exchange
-      - .KS = Korea Exchange
-      - .DE = Deutsche Börse (Germany)
-      - .PA = Euronext Paris
-      - .AS = Euronext Amsterdam
-      - .MI = Milan Stock Exchange (Italy)
-      - .MC = Madrid Stock Exchange (Spain)
-
-
+    IF the question is about any OTHER financial or stock-related topic:
+    - Start response with "News"
+    - Follow with a clear, concise rephrasing of the question
+    - Examples:
+      "why is apple stock falling today" → "News Why has Apple's stock price decreased today?"
+      "what was tesla's revenue last quarter" → "News What was Tesla's revenue performance in the previous quarter?"
+      "explain the impact of interest rates on bank stocks" → "News How do interest rates affect banking sector stocks?"
+    
+    Stock symbol guide:
+    - US stocks: Standard ticker (AAPL, MSFT, GOOGL, TSLA)
+    - Indian NSE: Add .NS (RELIANCE.NS)
+    - Indian BSE: Add .BO (RELIANCE.BO)
+    
+    Common tickers:
+    Microsoft = MSFT
+    Apple = AAPL
+    Tesla = TSLA
+    Google = GOOGL
+    Amazon = AMZN
+    Meta = META
+    
     Question: {user_question}'''
 
     try:
