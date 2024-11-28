@@ -299,31 +299,59 @@ def is_relevant(question, embeddings_model, threshold=0.55):
 def is_stock_query(user_question):
     prompt = f'''Analyze the following question precisely. Determine if it's a stock-related query:
 
-    RULES:
-    1. IF the question is about CURRENT STOCK PRICE, respond: "True [STOCK_SYMBOL]"
-       - Examples:
-         "What is Microsoft's current stock price?" → "True MSFT"
-         "How much is Tesla trading for?" → "True TSLA"
-         "What is the price of google?" → "True GOOGL"
+        COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
+        EXCHANGE SUFFIXES:
+        - US Exchanges:
+        * No suffix for NYSE/NASDAQ (AAPL, MSFT)
+        
+        - International Exchanges:
+        * .L = London Stock Exchange (UK)
+        * .SW = SIX Swiss Exchange (Switzerland)
+        * .NS = National Stock Exchange (India)
+        * .BO = Bombay Stock Exchange (India)
+        * .JK = Indonesia Stock Exchange
+        * .SI = Singapore Exchange
+        * .HK = Hong Kong Stock Exchange
+        * .T = Tokyo Stock Exchange (Japan)
+        * .AX = Australian Securities Exchange
+        * .SA = São Paulo Stock Exchange (Brazil)
+        * .TO = Toronto Stock Exchange (Canada)
+        * .MX = Mexican Stock Exchange
+        * .KS = Korea Exchange
+        * .DE = Deutsche Börse (Germany)
+        * .PA = Euronext Paris
+        * .AS = Euronext Amsterdam
+        * .MI = Milan Stock Exchange (Italy)
+        * .MC = Madrid Stock Exchange (Spain)
 
-    2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
-       - Examples:
-         "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
-         "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
-         "What's the today news? → "News What is the today news?"
-         "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
+        STOCK PRICE QUERY RULES:
+        1. IF the question is about CURRENT STOCK PRICE:
+        - Generate most likely Yahoo Finance compatible symbol
+        - Append appropriate exchange suffix if needed
+        - Respond with "True [STOCK_SYMBOL]"
+        
+        EXAMPLES:
+        "What is price of cxpx" → "True CXPX.L"
+        "What is Microsoft's stock price?" → "True MSFT"
+        "Reliance stock price?" → "True RELIANCE.NS"
+        "Google stock" → "True GOOGL"
+        "Apple stock price" → "True AAPL"
 
+        NEWS/ANALYSIS QUERY RULES:
+        2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES:
+        - Respond with "News [REPHRASED_QUERY]"
+        - Rephrase the query to be more precise and informative
+        
+        EXAMPLES:
+        "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
+        "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
+        "What's the today news?" → "News What is the today stock market news?"
+        "What happened to nifty50 down today?" → "News What happened to nifty50 index today?"
 
-    Important Stock Symbols:
-    - Microsoft = MSFT
-    - Apple = AAPL
-    - Tesla = TSLA
-    - Google = GOOGL
-    - Amazon = AMZN
-    - Meta = META
-    - Indian stocks can use .NS or .BO suffixes
+        FALLBACK APPROACH:
+        - If absolutely no symbol can be determined, return a hint about needing a more specific stock identifier
 
-    Question: {user_question}'''
+        Question: {user_question}'''
 
     try:
         # Use Gemini for intelligent classification
