@@ -117,11 +117,15 @@
 
     },
     {
-        "question": "Who are the founders of paasa/company?",
+        "question": "Who are the founders of paasa?",
         "answer": "Nitish Sahni & Sparsh Sharma are the co-founders of Paasa "
     },
     {
         "question": "Who is the CEO of paasa?",
         "answer": "Nitish Sahni, based in San Francisco, CA, US, is currently a Co-Founder, CEO at Paasa. Nitish Sahni brings experience from previous roles at Paasa, SoFi, University of California, Berkeley and UC Berkeley Electrical Engineering & Computer Sciences (EECS). Nitish Sahni holds a University of California, Berkeley. "
+    },
+    {
+        "question": "Who is the founders of this company?",
+        "answer": "Nitish Sahni & Sparsh Sharma are the co-founders of Paasa "
     }
 ]
