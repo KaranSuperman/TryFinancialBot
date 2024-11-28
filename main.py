@@ -297,7 +297,8 @@ def is_relevant(question, embeddings_model, threshold=0.55):
         return False
 
 def is_stock_query(user_question):
-    prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance news query:
+    prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
+    SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK
 
     RULES:
     1. IF the question is about STOCK PRICE then Generate only [Yahoo Finance] compatible symbol, respond: "True [STOCK_SYMBOL]"
@@ -350,6 +351,7 @@ def is_stock_query(user_question):
       - .AS = Euronext Amsterdam
       - .MI = Milan Stock Exchange (Italy)
       - .MC = Madrid Stock Exchange (Spain)
+
 
     Question: {user_question}'''
 
