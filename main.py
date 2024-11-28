@@ -446,7 +446,9 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         retriever = ExaSearchRetriever(
         api_key=exa_api_key,
         k=7,  # Number of documents to retrieve
-        highlights=True
+        highlights=True,
+        search_type='neural',
+        time_range='past_week'
         )
 
 
@@ -487,20 +489,43 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
 
     # Create generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
-    ("system", '''You are an expert in finance, with in-depth knowledge of the latest news, trends, 
-                    and insights related to finance and stock markets, particularly within the Indian context. 
-                    Your role is to provide accurate, up-to-date information to the user, citing reputable sources.
-                     Ensure your responses are well-structured, concise, and include relevant data or statistics where applicable.
-                      Pay close attention to the formatting of your responses to ensure they are easy to read and understand.
-                      Note: You always answer related to finance and economy. '''),
-    ("human", """
-    Please respond to the following query using the provided context. Ensure your answer includes the latest available data and is formatted cleanly for easy readability.
+    ("system", '''
+    You are a hyper-focused financial intelligence analyst specializing in extracting critical, actionable market insights. 
+    Your analysis must be:
+    - Laser-focused on the most recent financial developments
+    - Supported by concrete, verifiable data
+    - Concise yet comprehensive
+    - Immediately useful for strategic decision-making
 
-        Query: {query}
-        ---
-        <context>
-        {context}
-        </context>
+    Core Principles:
+    - Prioritize recent, high-impact information
+    - Highlight key trends, potential market movements
+    - Provide clear, quantifiable insights
+    - Reference credible sources directly 
+    '''),
+    ("human", """
+    Analyze the following financial query with extreme precision:
+
+    Query: {query}
+    
+    Context Guidelines:
+    - Use ONLY the most recent sources (within past week)
+    - Extract maximum signal, minimum noise
+    - Provide:
+      1. Immediate market implications
+      2. Quantitative evidence
+      3. Potential strategic responses
+    
+    Available Context:
+    <context>
+    {context}
+    </context>
+
+    Mandatory Output Format:
+    - Bold key findings
+    - Bullet critical insights
+    - Cite source credibility
+    - Flag any information gaps
         """)
         ])
  
