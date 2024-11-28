@@ -297,36 +297,63 @@ def is_relevant(question, embeddings_model, threshold=0.55):
         return False
 
 def is_stock_query(user_question):
-    prompt = f'''Analyze the following question based on these rules:
+    prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
+    SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. ALSO [PAASA] is a fintech company if 
+    any user ask query related to the company then donot response to that query.
 
-    IF the question is asking about CURRENT STOCK PRICE in any way:
-    - Respond with exactly two words: "True" and the stock symbol
-    - Examples:
-      "what is microsoft stock price" → "True MSFT"
-      "tell me about tesla stock" → "True TSLA"
-      "how much is apple trading for" → "True AAPL"
+    RULES:
+    1. IF the question is about STOCK PRICE then Generate only [Yahoo Finance] compatible symbol, respond: "True [STOCK_SYMBOL]"
+       - Examples:
+         "What is Microsoft's current stock price?" → "True MSFT"
+         "How much is Tesla trading for?" → "True TSLA"
+         "What is the price of google?" → "True GOOGL"
+         "What is price of cspx" → "True CSPX.L"
+         "csndx price" → "True CSNDX.SW"
+
+    2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
+       - Examples:
+         "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
+         "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
+         "What's the today news? → "News What is the today news?"
+         "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
+
+
+    Important Stock Symbols:
+    - Microsoft = MSFT
+    - Apple = AAPL
+    - Tesla = TSLA
+    - Google = GOOGL
+    - Amazon = AMZN
+    - Meta = META
+
+
+    COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
+    EXCHANGE SUFFIXES:
+    - US Exchanges:
+      * No suffix for NYSE/NASDAQ (AAPL, MSFT)
     
-    IF the question is about any OTHER financial or stock-related topic:
-    - Start response with "News"
-    - Follow with a clear, concise rephrasing of the question
-    - Examples:
-      "why is apple stock falling today" → "News Why has Apple's stock price decreased today?"
-      "what was tesla's revenue last quarter" → "News What was Tesla's revenue performance in the previous quarter?"
-      "explain the impact of interest rates on bank stocks" → "News How do interest rates affect banking sector stocks?"
-    
-    Stock symbol guide:
-    - US stocks: Standard ticker (AAPL, MSFT, GOOGL, TSLA)
-    - Indian NSE: Add .NS (RELIANCE.NS)
-    - Indian BSE: Add .BO (RELIANCE.BO)
-    
-    Common tickers:
-    Microsoft = MSFT
-    Apple = AAPL
-    Tesla = TSLA
-    Google = GOOGL
-    Amazon = AMZN
-    Meta = META
-    
+    NOTE: Append appropriate exchange suffix if needed
+    - International Exchanges:
+      - .L = London Stock Exchange (UK)
+      - .SW = SIX Swiss Exchange (Switzerland)
+      - .NS = National Stock Exchange (India)
+      - .BO = Bombay Stock Exchange (India)
+      - .JK = Indonesia Stock Exchange
+      - .SI = Singapore Exchange
+      - .HK = Hong Kong Stock Exchange
+      - .T = Tokyo Stock Exchange (Japan)
+      - .AX = Australian Securities Exchange
+      - .SA = São Paulo Stock Exchange (Brazil)
+      - .TO = Toronto Stock Exchange (Canada)
+      - .MX = Mexican Stock Exchange
+      - .KS = Korea Exchange
+      - .DE = Deutsche Börse (Germany)
+      - .PA = Euronext Paris
+      - .AS = Euronext Amsterdam
+      - .MI = Milan Stock Exchange (Italy)
+      - .MC = Madrid Stock Exchange (Spain)
+
+
     Question: {user_question}'''
 
     try:
@@ -354,6 +381,7 @@ def is_stock_query(user_question):
     except Exception as e:
         st.write(f"DEBUG: Error in is_stock_query LLM processing: {str(e)}")
         return "False NONE"
+
 
 def get_stock_price(symbol):
     try:
@@ -695,75 +723,75 @@ def user_input(user_question):
 
         # Check for stock query
 
-        # result = is_stock_query(user_question)
-        # st.write(f"DEBUG: Processed query - Result: {result}")
+        result = is_stock_query(user_question)
+        st.write(f"DEBUG: Processed query - Result: {result}")
         
-        # # Handle current stock price query
-        # if result.startswith("True "):
-        #     _, symbol = result.split(maxsplit=1)
-        #     try:
-        #         st.info("Using Stocks response")
-        #         stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-        #         if stock_price is not None:
-        #             output_text = (
-        #                 f"**Stock Update for {symbol}**\n\n"
-        #                 f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
-        #                 f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-        #                 # f"{'📈' if change_direction == 'up' else '📉'} "
-        #                 # f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-        #                 # f"({percentage_change:+.2f}%) compared to the previous close!"
-        #             )
+        # Handle current stock price query
+        if result.startswith("True "):
+            _, symbol = result.split(maxsplit=1)
+            try:
+                st.info("Using Stocks response")
+                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
+                if stock_price is not None:
+                    output_text = (
+                        f"**Stock Update for {symbol}**\n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        # f"{'📈' if change_direction == 'up' else '📉'} "
+                        # f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        # f"({percentage_change:+.2f}%) compared to the previous close!"
+                    )
                     
-        #             # Generate and return graph after text
-        #             return {
-        #                 "output_text": output_text,
-        #                 "graph": plot_stock_graph(symbol),
-        #                 "display_order": ["text", "graph"]  # Optional: add explicit ordering
-        #             }
+                    # Generate and return graph after text
+                    return {
+                        "output_text": output_text,
+                        "graph": plot_stock_graph(symbol),
+                        "display_order": ["text", "graph"]  # Optional: add explicit ordering
+                    }
 
-        #         else:
-        #             return {
-        #                 "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
-        #             }
-        #     except Exception as e:
-        #         print(f"DEBUG: Stock price error: {str(e)}")
-        #         return {
-        #             "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
-        #         }
+                else:
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
+            except Exception as e:
+                print(f"DEBUG: Stock price error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                }
         
-        # # Handle stock news/analysis query
-        # elif result.startswith("News "):
-        #     try:
-        #         # Remove "News " prefix to get the original research query
-        #         research_query = result[5:]
+        # Handle stock news/analysis query
+        elif result.startswith("News "):
+            try:
+                # Remove "News " prefix to get the original research query
+                research_query = result[5:]
                 
-        #         # Directly use Exa research for news-type queries
-        #         st.info("Using Exa Research response")
+                # Directly use Exa research for news-type queries
+                st.info("Using Exa Research response")
 
-        #         # exa_api_key = st.secrets["news"]["EXA_API_KEY"]
-        #         # openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
+                # exa_api_key = st.secrets["news"]["EXA_API_KEY"]
+                # openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
 
-        #         # exa_api_key = st.secrets["exa"]["api_key"]
-        #         # openai_api_key = st.secrets["openai"]["api_key"]
+                # exa_api_key = st.secrets["exa"]["api_key"]
+                # openai_api_key = st.secrets["openai"]["api_key"]
 
 
-        #         exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-        #         openai_api_key = st.secrets.get("openai", {}).get("api_key", os.getenv("OPENAI_API_KEY"))
+                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+                openai_api_key = st.secrets.get("openai", {}).get("api_key", os.getenv("OPENAI_API_KEY"))
 
-        #         if not exa_api_key or not openai_api_key:
-        #             raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
+                if not exa_api_key or not openai_api_key:
+                    raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
 
-        #         # research_chain = create_research_chain(exa_api_key, openai_api_key)
-        #         # Execute the research query
-        #         # research_result = execute_research_query(research_chain, research_query)
-        #         research_result = execute_research_query(research_query)
-        #         return research_result
+                # research_chain = create_research_chain(exa_api_key, openai_api_key)
+                # Execute the research query
+                # research_result = execute_research_query(research_chain, research_query)
+                research_result = execute_research_query(research_query)
+                return research_result
 
-        #     except Exception as e:
-        #         print(f"DEBUG: Research query error: {str(e)}")
-        #         return {
-        #             "output_text": f"An error occurred while researching your query: {str(e)}"
-        #         }
+            except Exception as e:
+                print(f"DEBUG: Research query error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while researching your query: {str(e)}"
+                }
         
         # Instead, use a more direct approach
         # else:
@@ -900,78 +928,6 @@ def user_input(user_question):
         except Exception as e:
             print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
             return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
-
-
-        # Stocks and Exa logic
-        result = is_stock_query(user_question)
-        st.write(f"DEBUG: Processed query - Result: {result}")
-        
-        # Handle current stock price query
-        if result.startswith("True "):
-            _, symbol = result.split(maxsplit=1)
-            try:
-                st.info("Using Stocks response")
-                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-                if stock_price is not None:
-                    output_text = (
-                        f"**Stock Update for {symbol}**\n\n"
-                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
-                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                        # f"{'📈' if change_direction == 'up' else '📉'} "
-                        # f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                        # f"({percentage_change:+.2f}%) compared to the previous close!"
-                    )
-                    
-                    # Generate and return graph after text
-                    return {
-                        "output_text": output_text,
-                        "graph": plot_stock_graph(symbol),
-                        "display_order": ["text", "graph"]  # Optional: add explicit ordering
-                    }
-
-                else:
-                    return {
-                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
-                    }
-            except Exception as e:
-                print(f"DEBUG: Stock price error: {str(e)}")
-                return {
-                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
-                }
-        
-        # Handle stock news/analysis query
-        elif result.startswith("News "):
-            try:
-                # Remove "News " prefix to get the original research query
-                research_query = result[5:]
-                
-                # Directly use Exa research for news-type queries
-                st.info("Using Exa Research response")
-
-                # exa_api_key = st.secrets["news"]["EXA_API_KEY"]
-                # openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
-
-                # exa_api_key = st.secrets["exa"]["api_key"]
-                # openai_api_key = st.secrets["openai"]["api_key"]
-
-
-                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-                openai_api_key = st.secrets.get("openai", {}).get("api_key", os.getenv("OPENAI_API_KEY"))
-
-                if not exa_api_key or not openai_api_key:
-                    raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
-
-                # research_chain = create_research_chain(exa_api_key, openai_api_key)
-                # Execute the research query
-                # research_result = execute_research_query(research_chain, research_query)
-                research_result = execute_research_query(research_query)
-                return research_result
-
-            except Exception as e:
-                print(f"DEBUG: Research query error: {str(e)}")
-                return {
-                    "output_text": f"An error occurred while researching your query: {str(e)}"
-                }
 
 
     except Exception as e:
