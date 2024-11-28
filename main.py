@@ -527,11 +527,11 @@ def execute_research_query(question: str):
 
         # Validate API keys
         if not exa_api_key:
-            st.error("Exa API key is missing")
+            # st.error("Exa API key is missing")
             return {"output_text": "Configuration error: Exa API key is not set"}
         
         if not openai_api_key:
-            st.error("OpenAI API key is missing")
+            # st.error("OpenAI API key is missing")
             return {"output_text": "Configuration error: OpenAI API key is not set"}
 
         # Execute chain with error handling
@@ -724,13 +724,13 @@ def user_input(user_question):
         # Check for stock query
 
         result = is_stock_query(user_question)
-        st.write(f"DEBUG: Processed query - Result: {result}")
+        # st.write(f"DEBUG: Processed query - Result: {result}")
         
         # Handle current stock price query
         if result.startswith("True "):
             _, symbol = result.split(maxsplit=1)
             try:
-                st.info("Using Stocks response")
+                # st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
                     output_text = (
@@ -766,7 +766,7 @@ def user_input(user_question):
                 research_query = result[5:]
                 
                 # Directly use Exa research for news-type queries
-                st.info("Using Exa Research response")
+                # st.info("Using Exa Research response")
 
                 # exa_api_key = st.secrets["news"]["EXA_API_KEY"]
                 # openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
@@ -881,7 +881,7 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                st.info("Using FAQ response")
+                # st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                 
                 if best_faq.page_content in faq_dict:
@@ -909,7 +909,7 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                st.info("Using PDF response")
+                # st.info("Using PDF response")
                 prompt_template = """
                 Use only the information from the provided PDF context to answer the question precisely and concisely.
 
@@ -918,6 +918,7 @@ def user_input(user_question):
                 Question: {question}
 
                 Answer in a clear, direct manner, using only the factual information available in the document. Keep the response within 100 words.
+                If the question is unrelated to the PDF, respond with: "Please ask a query related to finance."
                 """
  
                 prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
