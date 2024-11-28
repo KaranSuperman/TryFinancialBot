@@ -877,15 +877,16 @@ def user_input(user_question):
                     return {"output_text": best_faq.page_content}
             else:
                 st.info("Using PDF response")
-                prompt_template = """ About the company: 
-                Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
-                Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
-                Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
-                Answer the Question in brief and should be within 100 words only.
-                Background:\n{context}?\n
-                Question:\n{question}. + Explain in detail.\n
-                Answer:
-                """ 
+                prompt_template = """
+                Use only the information from the provided PDF context to answer the question precisely and concisely.
+
+                Context:\n{context}
+
+                Question: {question}
+
+                Answer in a clear, direct manner, using only the factual information available in the document. Keep the response within 100 words.
+                """
+ 
                 prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
                 response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
