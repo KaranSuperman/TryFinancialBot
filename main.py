@@ -325,12 +325,13 @@ def is_stock_query(user_question):
         * .MC = Madrid Stock Exchange (Spain)
 
         STOCK PRICE QUERY RULES:
-        1. IF the question is about CURRENT STOCK PRICE:
+        1. IF the question is about STOCK PRICE in any sense:
         - Generate only Yahoo Finance compatible symbol
         - Append appropriate exchange suffix if needed
         - Respond with "True [STOCK_SYMBOL]"
         
         EXAMPLES:
+        "csndx price" → "True CSNDX.SW"
         "What is price of cxpx" → "True CXPX.L"
         "What is Microsoft's stock price?" → "True MSFT"
         "Reliance stock price?" → "True RELIANCE.NS"
