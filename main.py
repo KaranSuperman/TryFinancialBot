@@ -326,7 +326,7 @@ def is_stock_query(user_question):
 
         STOCK PRICE QUERY RULES:
         1. IF the question is about CURRENT STOCK PRICE:
-        - Generate most likely Yahoo Finance compatible symbol
+        - Generate only Yahoo Finance compatible symbol
         - Append appropriate exchange suffix if needed
         - Respond with "True [STOCK_SYMBOL]"
         
