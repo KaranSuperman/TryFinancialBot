@@ -298,7 +298,8 @@ def is_relevant(question, embeddings_model, threshold=0.55):
 
 def is_stock_query(user_question):
     prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
-    SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. If no specific company is mentioned in the query, and [PAASA] is a fintech company, do not respond to any user queries related to the company.
+    SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. ALSO [PAASA] is a fintech company if 
+    any user ask query related to the company then donot response to that query.
 
     RULES:
     1. IF the question is about STOCK PRICE then Generate only [Yahoo Finance] compatible symbol, respond: "True [STOCK_SYMBOL]"
@@ -756,7 +757,7 @@ def user_input(user_question):
         if result.startswith("True "):
             _, symbol = result.split(maxsplit=1)
             try:
-                st.info("Using Stocks response")
+                # st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
                     output_text = (
@@ -792,7 +793,7 @@ def user_input(user_question):
                 research_query = result[5:]
                 
                 # Directly use Exa research for news-type queries
-                st.info("Using Exa Research response")
+                # st.info("Using Exa Research response")
 
                 # exa_api_key = st.secrets["news"]["EXA_API_KEY"]
                 # openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
@@ -818,6 +819,20 @@ def user_input(user_question):
                 return {
                     "output_text": f"An error occurred while researching your query: {str(e)}"
                 }
+        
+        # Instead, use a more direct approach
+        # else:
+        #     st.info("Using LLM response")
+        #     prompt1 = user_question + """ In the context of Finance       
+        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+        #         for example, 
+        #         - which are the best stocks to invest 
+        #         - which stock is worst
+        #         - Suggest me best stocks )"""
+    
+        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
+
 
         
         # Generate embedding for the user question
@@ -870,7 +885,7 @@ def user_input(user_question):
 
         # Process based on similarity scores
         # if max_similarity < 0.65:
-            # st.info("Using LLM response")
+        #     st.info("Using LLM response")
         #     prompt1 = user_question + """ In the context of Finance       
         #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
         #         for example, 
@@ -893,7 +908,7 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                st.info("Using FAQ response")
+                # st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                 
                 if best_faq.page_content in faq_dict:
@@ -921,7 +936,7 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                st.info("Using PDF response")
+                # st.info("Using PDF response")
                 prompt_template = """
                 Use only the information from the provided PDF context to answer the question precisely and concisely.
 
