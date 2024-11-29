@@ -883,17 +883,17 @@ def user_input(user_question):
         # -------------------------------------------------------------------------------------------
 
         # Process based on similarity scores
-        if max_similarity < 0.65:
-            st.info("Using LLM response")
-            prompt1 = user_question + """ In the context of Finance       
-            (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
-                for example, 
-                - which are the best stocks to invest 
-                - which stock is worst
-                - Suggest me best stocks )"""
+        # if max_similarity < 0.65:
+        #     st.info("Using LLM response")
+        #     prompt1 = user_question + """ In the context of Finance       
+        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+        #         for example, 
+        #         - which are the best stocks to invest 
+        #         - which stock is worst
+        #         - Suggest me best stocks )"""
     
-            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-            return {"output_text": response.content} if response else {"output_text": "No response generated."}
+        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
         # -------------------------------------------------------------------------------------------
 
