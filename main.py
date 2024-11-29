@@ -456,7 +456,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
                 "Content-Type": "application/json"
             })
 
-        st.write(f"retriever: {retriever}")
+        # st.write(f"retriever: {retriever}")
             
     except Exception as e:
         st.error(f"Error initializing retriever: {str(e)}")
@@ -486,7 +486,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         document_chain.map() | 
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))  # Convert docs to strings
     )
-    st.write(f"retrieval_chain: {retrieval_chain}")
+    # st.write(f"retrieval_chain: {retrieval_chain}")
 
     # Create generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
@@ -542,7 +542,7 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         | generation_prompt 
         | llm
     )
-    st.write(f"chain: {chain}")
+    # st.write(f"chain: {chain}")
     return chain
 
 
