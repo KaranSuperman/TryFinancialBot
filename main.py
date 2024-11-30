@@ -484,20 +484,28 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
 
-    # Simplified generation prompt for Gemini
+    # Updated generation prompt for cleaner, structured responses
     generation_prompt = ChatPromptTemplate.from_messages([
         ("human", """
-        Analyze this financial query:
+        Analyze this financial query and provide a clean, structured response:
         Query: {query}
         
         Context:
         {context}
 
-        Provide a clear and concise analysis focusing on:
-        - Key market developments
-        - Important trends
-        - Relevant data points
-        - Source credibility
+        Format your response in the following structure:
+        1. Start with "Key Findings:" on a new line
+        2. List each finding as a clear, complete sentence with numbers and units properly formatted
+        3. Use bullet points (•) for each finding
+        4. End with a "Sources:" section on a new line
+        5. Keep all numbers in standard format (e.g., "56.5 billion" not split up)
+        6. Avoid any duplicate information
+
+        Remember to:
+        - Be concise and clear
+        - Format numbers consistently
+        - Use proper spacing and line breaks
+        - Ensure all text is properly formatted
         """)
     ])
  
