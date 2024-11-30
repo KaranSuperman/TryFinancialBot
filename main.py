@@ -487,17 +487,33 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
         ("human", """
-        Analyze this financial query:
+        Analyze this financial or stock related query or news:
         Query: {query}
         
         Context:
         {context}
 
-        Provide a clear and concise analysis focusing on:
-        - Key market developments
-        - Important trends
-        - Relevant data points
-        - Source credibility
+        Provide a clear and structured analysis in the following format:
+
+        **Key Market Developments**
+        • [Key development 1]
+        • [Key development 2]
+        • [Key development 3]
+
+        **Important Market Trends**
+        • [Trend 1]
+        • [Trend 2]
+        • [Trend 3]
+
+        **Relevant Data Points**
+        • [Data point 1]
+        • [Data point 2]
+        • [Data point 3]
+
+        **Source Analysis**
+        • Credibility: [Assessment of source reliability]
+        • Coverage: [Breadth and depth of coverage]
+        • Timeliness: [How recent/relevant the information is]
         """)
     ])
  
@@ -775,28 +791,7 @@ def user_input(user_question):
                 
                 # Extract and clean the content
                 if hasattr(response, 'content'):
-                    content = response.content
-                    
-                    # Clean up the content
-                    import re
-                    
-                    # Remove extra whitespace and newlines
-                    content = ' '.join(content.split())
-                    
-                    # Fix broken numbers and text
-                    content = re.sub(r'(\d+)\s*([a-zA-Z])', r'\1 \2', content)
-                    
-                    # Remove duplicate information
-                    content = re.sub(r'(\d+\.?\d*\s*billion)[^.]*\1', r'\1', content)
-                    
-                    # Add proper line breaks for readability
-                    content = content.replace('* ', '\n* ')
-                    content = content.replace('Source Credibility:', '\n\nSource Credibility:')
-                    
-                    # Clean up any remaining artifacts
-                    content = re.sub(r'[^\x00-\x7F]+', '', content)  # Remove non-ASCII characters
-                    content = re.sub(r'\s+', ' ', content).strip()    # Clean up spacing
-                    
+                    content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
                     return {"output_text": content}
                 else:
                     return {"output_text": "No valid content received from the response."}
