@@ -297,7 +297,7 @@ def is_relevant(question, embeddings_model, threshold=0.55):
         return False
 
 def is_stock_query(user_question):
-    prompt = f'''Analyze the following question precisely. Determine if it's a stock/company news or financial market news query:
+    prompt = f'''Analyze the following question precisely. Determine if it's a stock/company news or financial market news query ONLY:
 
     RULES:
     1. IF the question is about STOCK PRICE then Generate only [Yahoo Finance] compatible symbol, respond: "True [STOCK_SYMBOL]"
@@ -305,17 +305,23 @@ def is_stock_query(user_question):
          "What is Microsoft's current stock price?" → "True MSFT"
          "How much is Tesla trading for?" → "True TSLA"
 
-    2. IF the question is about COMPANY/MARKET NEWS or FINANCIAL PERFORMANCE, respond: "News [REPHRASED_QUERY]"
+    2. IF the question is about CURRENT/RECENT COMPANY NEWS or MARKET PERFORMANCE, respond: "News [REPHRASED_QUERY]"
        Examples:
          "What is Microsoft's revenue this quarter?" → "News What are Microsoft's recent financial results?"
          "How is Apple performing financially?" → "News What is Apple's current financial performance?"
          "What's happening with the stock market today?" → "News What are today's major stock market developments?"
          "Tell me about Tesla's earnings" → "News What are Tesla's recent earnings results?"
 
-    3. For all other questions, respond: "False NONE"
+    3. For ALL OTHER questions (including general finance concepts, investment strategies, or educational topics), respond: "False NONE"
        Examples:
          "What is compound interest?" → "False NONE"
          "How do mutual funds work?" → "False NONE"
+         "What is a low risk portfolio?" → "False NONE"
+         "How to diversify investments?" → "False NONE"
+         "What are ETFs?" → "False NONE"
+
+    IMPORTANT: Only classify as "News" if the question specifically asks about CURRENT events, market updates, or recent company performance.
+    General finance concepts and educational questions should be "False NONE".
 
     Question: {user_question}'''
 
