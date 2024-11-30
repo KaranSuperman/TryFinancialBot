@@ -496,23 +496,35 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         Provide a clear and structured analysis in the following format:
 
         **Key Market Developments**
+        
         • [Key development 1]
+        
         • [Key development 2]
+        
         • [Key development 3]
 
         **Important Market Trends**
+        
         • [Trend 1]
+        
         • [Trend 2]
+        
         • [Trend 3]
 
         **Relevant Data Points**
+        
         • [Data point 1]
+        
         • [Data point 2]
+        
         • [Data point 3]
 
         **Source Analysis**
+        
         • Credibility: [Assessment of source reliability]
+        
         • Coverage: [Breadth and depth of coverage]
+        
         • Timeliness: [How recent/relevant the information is]
         """)
     ])
