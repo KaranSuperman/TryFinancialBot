@@ -499,31 +499,18 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         • [Key development 1]
         • [Key development 2]
         • [Key development 3]
-        .
-        .
-         
-        soon
 
-        \n\n**Important Market Trends**
+        **Important Market Trends**
         • [Trend 1]
         • [Trend 2]
         • [Trend 3]
-        .
-        .
-         
-        soon        
 
-
-        \n\n**Relevant Data Points**
+        **Relevant Data Points**
         • [Data point 1]
         • [Data point 2]
         • [Data point 3]
-        .
-        .
-         
-        soon
 
-        \n\n**Source Analysis**
+        **Source Analysis**
         • Credibility: [Assessment of source reliability]
         • Coverage: [Breadth and depth of coverage]
         • Timeliness: [How recent/relevant the information is]
