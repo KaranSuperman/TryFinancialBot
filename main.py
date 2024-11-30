@@ -760,9 +760,6 @@ def user_input(user_question):
                 # Remove "News " prefix to get the original research query
                 research_query = result[5:]
                 
-                # Directly use Exa research for news-type queries
-                # st.info("Using Exa Research response")
-
                 # Retrieve API keys from Streamlit secrets or environment variables
                 exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
                 gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
@@ -774,8 +771,14 @@ def user_input(user_question):
                 research_chain = create_research_chain(exa_api_key, gemini_api_key)
                 
                 # Execute the research query
-                research_result = research_chain.invoke(research_query)
-                return research_result
+                response = research_chain.invoke(research_query)
+                
+                # Extract and clean the content
+                if hasattr(response, 'content'):
+                    content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
+                    return {"output_text": content}
+                else:
+                    return {"output_text": "No valid content received from the response."}
 
             except Exception as e:
                 print(f"DEBUG: Research query error: {str(e)}")
