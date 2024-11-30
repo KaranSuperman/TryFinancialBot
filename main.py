@@ -493,27 +493,30 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         Context:
         {context}
 
-        Provide a clear and structured analysis in the following format:
+        Provide a clear and structured analysis. Follow this EXACT format with line breaks between sections:
 
-        **Key Market Developments**
+        # Key Market Developments
         • [Key development 1]
         • [Key development 2]
         • [Key development 3]
 
-        **Important Market Trends**
+        # Important Market Trends
         • [Trend 1]
         • [Trend 2]
         • [Trend 3]
 
-        **Relevant Data Points**
+        # Relevant Data Points
         • [Data point 1]
         • [Data point 2]
         • [Data point 3]
         
-        **Source Analysis**
+        # Source Analysis
         • Credibility: [Assessment of source reliability]
         • Coverage: [Breadth and depth of coverage]
         • Timeliness: [How recent/relevant the information is]
+
+        Note: Ensure each section is clearly separated by line breaks and starts with a '#' symbol.
+        Keep responses concise and factual.
         """)
     ])
  
