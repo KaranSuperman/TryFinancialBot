@@ -38,7 +38,7 @@ load_dotenv()
 
 
 exa_api_key = st.secrets["exa"]["api_key"]
-openai_api_key = st.secrets["openai"]["api_key"]
+# openai_api_key = st.secrets["openai"]["api_key"]
  
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -789,23 +789,18 @@ def user_input(user_question):
                 # Directly use Exa research for news-type queries
                 # st.info("Using Exa Research response")
 
-                # exa_api_key = st.secrets["news"]["EXA_API_KEY"]
-                # openai_api_key = st.secrets["news"]["OPENAI_API_KEY"]
-
-                # exa_api_key = st.secrets["exa"]["api_key"]
-                # openai_api_key = st.secrets["openai"]["api_key"]
-
-
+                # Retrieve API keys from Streamlit secrets or environment variables
                 exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-                openai_api_key = st.secrets.get("openai", {}).get("api_key", os.getenv("OPENAI_API_KEY"))
+                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
 
-                if not exa_api_key or not openai_api_key:
+                if not exa_api_key or not gemini_api_key:
                     raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
 
-                # research_chain = create_research_chain(exa_api_key, openai_api_key)
+                # Create the research chain using the Gemini API key
+                research_chain = create_research_chain(exa_api_key, gemini_api_key)
+                
                 # Execute the research query
-                # research_result = execute_research_query(research_chain, research_query)
-                research_result = execute_research_query(research_query)
+                research_result = research_chain.invoke(research_query)
                 return research_result
 
             except Exception as e:
