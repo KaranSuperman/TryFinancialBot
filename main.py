@@ -775,7 +775,28 @@ def user_input(user_question):
                 
                 # Extract and clean the content
                 if hasattr(response, 'content'):
-                    content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
+                    content = response.content
+                    
+                    # Clean up the content
+                    import re
+                    
+                    # Remove extra whitespace and newlines
+                    content = ' '.join(content.split())
+                    
+                    # Fix broken numbers and text
+                    content = re.sub(r'(\d+)\s*([a-zA-Z])', r'\1 \2', content)
+                    
+                    # Remove duplicate information
+                    content = re.sub(r'(\d+\.?\d*\s*billion)[^.]*\1', r'\1', content)
+                    
+                    # Add proper line breaks for readability
+                    content = content.replace('* ', '\n* ')
+                    content = content.replace('Source Credibility:', '\n\nSource Credibility:')
+                    
+                    # Clean up any remaining artifacts
+                    content = re.sub(r'[^\x00-\x7F]+', '', content)  # Remove non-ASCII characters
+                    content = re.sub(r'\s+', ' ', content).strip()    # Clean up spacing
+                    
                     return {"output_text": content}
                 else:
                     return {"output_text": "No valid content received from the response."}
