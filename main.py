@@ -774,6 +774,7 @@ def user_input(user_question):
         # Handle stock news/analysis query
         elif result.startswith("News "):
             try:
+                st.info("Exa logic")
                 # Remove "News " prefix to get the original research query
                 research_query = result[5:]
                 
@@ -893,7 +894,7 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                # st.info("Using FAQ response")
+                st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                 
                 if best_faq.page_content in faq_dict:
