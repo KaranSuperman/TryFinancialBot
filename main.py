@@ -481,53 +481,27 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     retrieval_chain = (
         retriever | 
         document_chain.map() | 
-        RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))  # Convert docs to strings
+        RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
-    # st.write(f"retrieval_chain: {retrieval_chain}")
 
-    # Create generation prompt
+    # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
-    ("system", '''
-    You are a hyper-focused financial intelligence analyst specializing in extracting critical, actionable market insights. 
-    Your analysis must be:
-    - Laser-focused on the most recent financial developments
-    - Supported by concrete, verifiable data
-    - Concise yet comprehensive
-    - Immediately useful for strategic decision-making
+        ("human", """
+        Analyze this financial query:
+        Query: {query}
+        
+        Context:
+        {context}
 
-    Core Principles:
-    - Prioritize recent, high-impact information
-    - Highlight key trends, potential market movements
-    - Provide clear, quantifiable insights
-    - Reference credible sources directly 
-    '''),
-    ("human", """
-    Analyze the following financial query with extreme precision:
-
-    Query: {query}
-    
-    Context Guidelines:
-    - Use ONLY the most recent sources (within past week)
-    - Extract maximum signal, minimum noise
-    - Provide:
-      1. Immediate market implications
-      2. Quantitative evidence
-      3. Potential strategic responses
-    
-    Available Context:
-    <context>
-    {context}
-    </context>
-
-    Mandatory Output Format:
-    - Bold key findings
-    - Bullet critical insights
-    - Cite source credibility
-    - Flag any information gaps
+        Provide a clear and concise analysis focusing on:
+        - Key market developments
+        - Important trends
+        - Relevant data points
+        - Source credibility
         """)
-        ])
+    ])
  
-    # Initialize LLM with Gemini instead of OpenAI
+    # Initialize LLM with Gemini
     llm = ChatGoogleGenerativeAI(
         model="gemini-pro",
         temperature=0,
@@ -543,7 +517,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         | generation_prompt 
         | llm
     )
-    # st.write(f"chain: {chain}")
+    
     return chain
 
 
