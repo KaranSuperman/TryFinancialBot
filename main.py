@@ -434,7 +434,7 @@ def get_stock_price(symbol):
         # Return None values for all expected return values
         return None, None, None, None, None, None
 
-def create_research_chain(exa_api_key: str, openai_api_key: str):
+def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
         
@@ -444,19 +444,16 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
     # Initialize retriever with comprehensive stock market sources
     try:
         retriever = ExaSearchRetriever(
-        api_key=exa_api_key,
-        k=7,  # Number of documents to retrieve
-        highlights=True
+            api_key=exa_api_key,
+            k=7,
+            highlights=True
         )
-
 
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
-
-        # st.write(f"retriever: {retriever}")
             
     except Exception as e:
         st.error(f"Error initializing retriever: {str(e)}")
@@ -530,8 +527,12 @@ def create_research_chain(exa_api_key: str, openai_api_key: str):
         """)
         ])
  
-    # Initialize LLM
-    llm = ChatOpenAI(api_key=openai_api_key)
+    # Initialize LLM with Gemini instead of OpenAI
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-pro",
+        temperature=0,
+        google_api_key=gemini_api_key
+    )
 
     # Final chain with error handling
     chain = (
@@ -550,26 +551,19 @@ def execute_research_query(question: str):
     try:
         # Get API keys
         exa_api_key = st.secrets.get("exa", {}).get("api_key") or os.getenv("EXA_API_KEY")
-        openai_api_key = st.secrets.get("openai", {}).get("api_key") or os.getenv("OPENAI_API_KEY")
+        gemini_api_key = st.secrets.get("gemini", {}).get("api_key") or os.getenv("GEMINI_API_KEY")
 
         # Validate API keys
         if not exa_api_key:
-            # st.error("Exa API key is missing")
             return {"output_text": "Configuration error: Exa API key is not set"}
         
-        if not openai_api_key:
-            # st.error("OpenAI API key is missing")
-            return {"output_text": "Configuration error: OpenAI API key is not set"}
+        if not gemini_api_key:
+            return {"output_text": "Configuration error: Gemini API key is not set"}
 
         # Execute chain with error handling
         try:
-            # st.write("Debug - Creating chain...")
-            chain = create_research_chain(exa_api_key, openai_api_key)
-            # st.write("Debug - Chain created successfully")
-            
-            # st.write(f"Debug - Executing query: {question[:50]}...")
+            chain = create_research_chain(exa_api_key, gemini_api_key)
             response = chain.invoke(question)
-            # st.write("Debug - Query executed successfully")
             
             # Handle response
             if hasattr(response, 'content'):
