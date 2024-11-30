@@ -487,33 +487,15 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
         ("human", """
-        Analyze this financial or stock related query or news:
+        Analyze this financial or stock related query or news.
+        Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
+
         Query: {query}
         
         Context:
         {context}
 
-        Provide a clear and structured analysis in the following format:
-
-        **Key Market Developments**
-        • [Key development 1]
-        • [Key development 2]
-        • [Key development 3]
-
-        **Important Market Trends**
-        • [Trend 1]
-        • [Trend 2]
-        • [Trend 3]
-
-        **Relevant Data Points**
-        • [Data point 1]
-        • [Data point 2]
-        • [Data point 3]
-        
-        **Source Analysis**
-        • Credibility: [Assessment of source reliability]
-        • Coverage: [Breadth and depth of coverage]
-        • Timeliness: [How recent/relevant the information is]
+You are well-versed in finance and stock-related topics, particularly within the Indian tax framework. Your role is to provide the latest news, trends, and insights related to finance and stock markets. You also give the up to date inforamtion of stock price and finance. Use the XML-formatted context to ensure your responses are accurate and informative.
         """)
     ])
  
