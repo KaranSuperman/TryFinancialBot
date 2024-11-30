@@ -465,7 +465,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         <url>{url}</url>
         <highlights>{highlights}</highlights>
     </source>
-    """.replace('\n', '<br>')
+    """
     document_prompt = PromptTemplate.from_template(document_template)
     
     # Create document processing chain
@@ -493,29 +493,27 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         Context:
         {context}
 
-        Provide a clear and structured analysis in the following format (ensure each bullet point starts on a new line):
+        Provide a clear and structured analysis in the following format:
 
-        **Key Market Developments**\n
-        • [Key development 1]\n
-        • [Key development 2]\n
-        • [Key development 3]\n
+        **Key Market Developments**
+        • [Key development 1]
+        • [Key development 2]
+        • [Key development 3]
 
-        **Important Market Trends**\n
-        • [Trend 1]\n
-        • [Trend 2]\n
-        • [Trend 3]\n
+        **Important Market Trends**
+        • [Trend 1]
+        • [Trend 2]
+        • [Trend 3]
 
-        **Relevant Data Points**\n
-        • [Data point 1]\n
-        • [Data point 2]\n
-        • [Data point 3]\n
+        **Relevant Data Points**
+        • [Data point 1]
+        • [Data point 2]
+        • [Data point 3]
 
-        **Source Analysis**\n
-        • Credibility: [Assessment of source reliability]\n
-        • Coverage: [Breadth and depth of coverage]\n
+        **Source Analysis**
+        • Credibility: [Assessment of source reliability]
+        • Coverage: [Breadth and depth of coverage]
         • Timeliness: [How recent/relevant the information is]
-
-        Note: Each bullet point must be on its own line with a line break after it.
         """)
     ])
  
@@ -526,7 +524,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         google_api_key=gemini_api_key
     )
 
-    # Final chain with error handling and line break preservation
+    # Final chain with error handling
     chain = (
         RunnableParallel({
             "query": RunnablePassthrough(),  
@@ -534,7 +532,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         }) 
         | generation_prompt 
         | llm
-        | RunnableLambda(lambda x: {"output_text": x.content.replace("• ", "\n• ")})  # Add explicit line breaks
     )
     
     return chain
