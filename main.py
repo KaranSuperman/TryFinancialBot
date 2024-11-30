@@ -486,7 +486,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
     # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are well-versed in finance and stock-related topics, particularly within the Indian tax framework. Your role is to provide the latest news, trends, and insights related to finance and stock markets. You also give the up to date inforamtion of stock price and finance. Use the XML-formatted context to ensure your responses are accurate and informative."),
         ("human", """
         Analyze this financial or stock related query or news.
 
@@ -743,7 +742,7 @@ def user_input(user_question):
         if result.startswith("True "):
             _, symbol = result.split(maxsplit=1)
             try:
-                # st.info("Using Stocks response")
+                st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
                     output_text = (
@@ -920,7 +919,7 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                # st.info("Using PDF response")
+                st.info("Using PDF response")
                 prompt_template = """
                 Use only the information from the provided PDF context to answer the question precisely and concisely.
 
