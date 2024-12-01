@@ -498,11 +498,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         Context:
         {context}
 
-        Provide a clear and concise analysis focusing on:
-        - Key market developments
-        - Important trends
-        - Relevant data points
-        - Source credibility
+        Provide a clear and concise analysis focusing on.  
+        Please respond to the following query using the provided context. 
+        Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
+        Cite your sources at the end of your response for verification.
         """)
     ])
  
@@ -781,7 +780,7 @@ def user_input(user_question):
                 
                 # Extract and clean the content
                 if hasattr(response, 'content'):
-                    # content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
+                    content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
                     return {"output_text": content}
                 else:
                     return {"output_text": "No valid content received from the response."}
