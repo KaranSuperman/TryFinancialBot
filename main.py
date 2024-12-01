@@ -495,11 +495,29 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         Context:
         {context}
 
-        Provide a clear and concise analysis focusing on:
-        - Key market developments
-        - Important trends
-        - Relevant data points
-        - Source credibility
+        Please provide a structured analysis in the following format:
+
+        1. Summary:
+        [Provide a 2-3 sentence overview of the key findings]
+
+        2. Market Developments:
+        - [Key point 1]
+        - [Key point 2]
+        - [Key point 3]
+
+        3. Notable Trends:
+        - [Trend 1]
+        - [Trend 2]
+
+        4. Key Data Points:
+        - [Data point 1]
+        - [Data point 2]
+        - [Data point 3]
+
+        5. Sources:
+        - [List key sources and their credibility]
+
+        Keep the response clear, concise, and well-formatted.
         """)
     ])
  
