@@ -436,31 +436,6 @@ def get_stock_price(symbol):
         # Return None values for all expected return values
         return None, None, None, None, None, None
 
-# First, create a structured output parser
-def format_response(response_content):
-    try:
-        # Clean and standardize the response
-        clean_response = response_content.replace('*', '').replace('_', '')
-        
-        # Split into sections and rebuild with proper formatting
-        sections = clean_response.split('\n')
-        formatted_sections = []
-        
-        for section in sections:
-            # Remove any special characters or markdown
-            section = section.strip()
-            if section:
-                # Clean up numbers and currency
-                section = section.replace('$', ' $ ')
-                section = ' '.join(section.split())
-                formatted_sections.append(section)
-        
-        # Join with proper spacing
-        return '\n\n'.join(formatted_sections)
-    except Exception as e:
-        return f"Error formatting response: {str(e)}"
-
-# Modify the chain creation
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
@@ -511,7 +486,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
 
-    # Create the chain with response formatting
+    # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
         ("human", """
         Analyze this financial query/news:
@@ -539,16 +514,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         - [Data point 2]
         - [Data point 3]
 
+        Keep the response clear, concise, and well-formatted.
+
         IMPORTANT RULES:
+        - Do not use italic or bold formatting
         - Use plain text only
-        - Use simple numbers (e.g., 3.397 instead of 3·397)
-        - Use standard currency format (e.g., $221.55)
-        - Each section must start on a new line
-        - Each bullet point must be on its own line
-        - No special formatting or characters allowed
+        - Avoid special characters
+        - Use numbers for data points
+        - Keep each point concise and clear
+        - Use proper line breaks between sections
+        - Do not merge sections together
+        - Start each section on a new line
+        - Use simple dollar signs ($) for currency
+        - Use standard numbers (no fancy formatting)
+        - Separate each bullet point with a line break
+        - Do not use any markdown formatting
         """)
     ])
-
+ 
     # Initialize LLM with Gemini
     llm = ChatGoogleGenerativeAI(
         model="gemini-pro",
@@ -556,15 +539,14 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         google_api_key=gemini_api_key
     )
 
-    # Create the chain with response formatting
+    # Final chain with error handling
     chain = (
         RunnableParallel({
-            "query": RunnablePassthrough(),
-            "context": retrieval_chain,
+            "query": RunnablePassthrough(),  
+            "context": retrieval_chain,  
         }) 
         | generation_prompt 
         | llm
-        | RunnableLambda(lambda x: {"output_text": format_response(x.content)})
     )
     
     return chain
