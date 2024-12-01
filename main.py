@@ -727,23 +727,23 @@ def plot_stock_graph(symbol):
 
 def user_input(user_question):
     try:
-        MAX_INPUT_LENGTH = 500
-
-        # Check for input length
-        if len(user_question) > MAX_INPUT_LENGTH:
-            st.error(f"Input is too long. Please limit your question to {MAX_INPUT_LENGTH} characters.")
-            return {"output_text": f"Input exceeds the maximum length of {MAX_INPUT_LENGTH} characters."}
-
-        # Sanitize user input
-        if not is_input_safe(user_question):
-            st.error("Your input contains disallowed content. Please modify your question.")
-            return {"output_text": "Input contains disallowed content."}
-
         # Initialize embeddings model
-        embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        embeddings_model = GoogleGenerativeAIEmbeddings(
+            model="models/embedding-001",
+            google_api_key=st.secrets["gemini"]["api_key"]
+        )
 
-        # First, try to get response from PDF content
-        new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
+        # Generate embedding for the user's question
+        question_embedding = embeddings_model.embed_query(user_question)
+
+        # Load the vector store
+        try:
+            new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
+        except Exception as e:
+            st.error(f"Error loading vector store: {str(e)}")
+            return {"output_text": "Error accessing the knowledge base."}
+
+        # Get relevant documents
         mq_retriever = MultiQueryRetriever.from_llm(
             retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
@@ -751,6 +751,9 @@ def user_input(user_question):
         
         docs = mq_retriever.get_relevant_documents(query=user_question)
         
+        if not docs:
+            return {"output_text": "No relevant information found in the documents."}
+
         # Compute similarity scores for PDF content
         pdf_similarity_scores = []
         for doc in docs:
@@ -761,8 +764,7 @@ def user_input(user_question):
         max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
 
         # If PDF content is relevant (similarity > threshold), use it
-        if max_similarity_pdf >= 0.65:  # Adjust threshold as needed
-            st.info("Using PDF content")
+        if max_similarity_pdf >= 0.65:
             prompt_template = """
             Use only the information from the provided PDF context to answer the question precisely and concisely.
 
@@ -774,23 +776,49 @@ def user_input(user_question):
             """
             
             prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-            chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-            response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
-            return response
+            chain = load_qa_chain(
+                ChatGoogleGenerativeAI(model="gemini-pro", temperature=0),
+                chain_type="stuff",
+                prompt=prompt
+            )
+            
+            try:
+                response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+                return response
+            except Exception as e:
+                st.error(f"Error in chain execution: {str(e)}")
+                return {"output_text": "Error processing the response."}
         
         # Only if PDF content isn't relevant, check if it's a stock/news query
         else:
             result = is_stock_query(user_question)
             if result.startswith("True ") or result.startswith("News "):
-                # ... existing stock/news query handling ...
-                pass
+                return process_stock_or_news_query(result, user_question)
             else:
-                # ... existing fallback logic ...
-                pass
+                return {"output_text": "I couldn't find relevant information to answer your question."}
 
     except Exception as e:
-        print(f"DEBUG: Error in user_input: {str(e)}")
+        st.error(f"Error in user_input: {str(e)}")
         return {"output_text": "An error occurred while processing your request. Please try again."}
+
+# Helper function to process stock or news queries
+def process_stock_or_news_query(result, user_question):
+    if result.startswith("True "):
+        symbol = result.split()[1]
+        # Handle stock price query
+        price_info = get_stock_price(symbol)
+        if price_info[0]:  # if price data exists
+            return {"output_text": f"Current price of {symbol}: ${price_info[0]:.2f}"}
+        else:
+            return {"output_text": f"Could not fetch price for {symbol}"}
+    elif result.startswith("News "):
+        # Handle news query
+        query = result[5:]  # Remove "News " prefix
+        try:
+            news_response = execute_research_query(query)
+            return news_response
+        except Exception as e:
+            return {"output_text": f"Error fetching news: {str(e)}"}
 
 def get_yahoo_finance_news(query: str, symbol: str = None):
     try:
