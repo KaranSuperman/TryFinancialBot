@@ -32,8 +32,6 @@ import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-from langchain.agents import AgentType, initialize_agent
-from langchain_community.tools.yahoo_finance_news import YahooFinanceNewsTool
 
 
 load_dotenv() 
@@ -489,46 +487,17 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
         ("human", """
-        Analyze this financial news:
+        Analyze this financial query/news:
         Query: {query}
         
         Context:
         {context}
 
-        Please provide a structured analysis in the following format:
-
-        1. Summary:
-        [Provide a 2-3 sentence overview of the key findings] 
-
-        2. Market Developments:
-        - [Key point 1]
-        - [Key point 2]
-        - [Key point 3]
-
-        3. Notable Trends:
-        - [Trend 1]
-        - [Trend 2]
-
-        4. Key Data Points:
-        - [Data point 1]
-        - [Data point 2]
-        - [Data point 3]
-
-        Keep the response clear, concise, and well-formatted.
-
-        IMPORTANT RULES:
-        - Do not use italic or bold formatting
-        - Use plain text only
-        - Avoid special characters
-        - Use numbers for data points
-        - Keep each point concise and clear
-        - Use proper line breaks between sections
-        - Do not merge sections together
-        - Start each section on a new line
-        - Use simple dollar signs ($) for currency
-        - Use standard numbers (no fancy formatting)
-        - Separate each bullet point with a line break
-        - Do not use any markdown formatting
+        Provide a clear and concise analysis focusing on:
+        - Key market developments
+        - Important trends
+        - Relevant data points
+        - Source credibility
         """)
     ])
  
@@ -727,23 +696,117 @@ def plot_stock_graph(symbol):
 
 def user_input(user_question):
     try:
+        MAX_INPUT_LENGTH = 500
+
+        # Check for input length
+        if len(user_question) > MAX_INPUT_LENGTH:
+            st.error(f"Input is too long. Please limit your question to {MAX_INPUT_LENGTH} characters.")
+            return {"output_text": f"Input exceeds the maximum length of {MAX_INPUT_LENGTH} characters."}
+
+        # Sanitize user input
+        if not is_input_safe(user_question):
+            st.error("Your input contains disallowed content. Please modify your question.")
+            return {"output_text": "Input contains disallowed content."}
+
         # Initialize embeddings model
-        embeddings_model = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
-            google_api_key=st.secrets["gemini"]["api_key"]
-        )
+        embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
-        # Generate embedding for the user's question
+        # Check if question is relevant to finance
+        # if not is_relevant(user_question, embeddings_model, threshold=0.5):
+        #     st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
+        #     return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
+
+        # Check for stock query
+
+        result = is_stock_query(user_question)
+        # st.write(f"DEBUG: Processed query - Result: {result}")
+        
+        # Handle current stock price query
+        if result.startswith("True "):
+            _, symbol = result.split(maxsplit=1)
+            try:
+                st.info("Using Stocks response")
+                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
+                if stock_price is not None:
+                    output_text = (
+                        f"**Stock Update for {symbol}**\n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        # f"{'📈' if change_direction == 'up' else '📉'} "
+                        # f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        # f"({percentage_change:+.2f}%) compared to the previous close!"
+                    )
+                    
+                    # Generate and return graph after text
+                    return {
+                        "output_text": output_text,
+                        "graph": plot_stock_graph(symbol),
+                        "display_order": ["text", "graph"]  # Optional: add explicit ordering
+                    }
+
+                else:
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
+            except Exception as e:
+                print(f"DEBUG: Stock price error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                }
+        
+        # Handle stock news/analysis query
+        elif result.startswith("News "):
+            try:
+                # Remove "News " prefix to get the original research query
+                research_query = result[5:]
+                
+                # Retrieve API keys from Streamlit secrets or environment variables
+                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+
+                if not exa_api_key or not gemini_api_key:
+                    raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
+
+                # Create the research chain using the Gemini API key
+                research_chain = create_research_chain(exa_api_key, gemini_api_key)
+                
+                # Execute the research query
+                response = research_chain.invoke(research_query)
+                
+                # Extract and clean the content
+                if hasattr(response, 'content'):
+                    content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
+                    return {"output_text": content}
+                else:
+                    return {"output_text": "No valid content received from the response."}
+
+            except Exception as e:
+                print(f"DEBUG: Research query error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while researching your query: {str(e)}"
+                }
+        
+        # Instead, use a more direct approach
+        # else:
+        #     st.info("Using LLM response")
+        #     prompt1 = user_question + """ In the context of Finance       
+        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+        #         for example, 
+        #         - which are the best stocks to invest 
+        #         - which stock is worst
+        #         - Suggest me best stocks )"""
+    
+        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
+
+
+        
+        # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
-
-        # Load the vector store
-        try:
-            new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
-        except Exception as e:
-            st.error(f"Error loading vector store: {str(e)}")
-            return {"output_text": "Error accessing the knowledge base."}
-
-        # Get relevant documents
+        
+        # -----------------------------------------------------
+        # Retrieve documents from FAISS for PDF content
+        new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever = MultiQueryRetriever.from_llm(
             retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
@@ -751,9 +814,6 @@ def user_input(user_question):
         
         docs = mq_retriever.get_relevant_documents(query=user_question)
         
-        if not docs:
-            return {"output_text": "No relevant information found in the documents."}
-
         # Compute similarity scores for PDF content
         pdf_similarity_scores = []
         for doc in docs:
@@ -762,89 +822,109 @@ def user_input(user_question):
             pdf_similarity_scores.append(score)
 
         max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
+        
+        # ----------------------------------------------------------
+        # Retrieve FAQs from FAISS
+        new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
+        mq_retriever_faq = MultiQueryRetriever.from_llm(
+            retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
+            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+        )
+        
+        faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
+        
+        # Compute similarity scores for FAQ content and store with their metadata
+        faq_similarity_scores = []
+        faq_with_scores = []
+        for faq in faqs:
+            faq_embedding = embeddings_model.embed_query(faq.page_content)
+            score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
+            faq_similarity_scores.append(score)
+            faq_with_scores.append((score, faq))
 
-        # If PDF content is relevant (similarity > threshold), use it
-        if max_similarity_pdf >= 0.65:
-            prompt_template = """
-            Use only the information from the provided PDF context to answer the question precisely and concisely.
+        max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
+        
+        # ---------------------------------------------------------------------------
+        max_similarity = max(max_similarity_pdf, max_similarity_faq)
 
-            Context:\n{context}
+        # -------------------------------------------------------------------------------------------
 
-            Question: {question}
+        # Process based on similarity scores
+        if max_similarity < 0.65:
+            st.info("Using LLM response")
+            prompt1 = user_question + """ In the context of Finance 
+            and response only on finance terms like (what is pe ratio?)
+            (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+                for example, 
+                - which are the best stocks to invest 
+                - which stock is worst
+                - Suggest me best stocks )"""
+    
+            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+            return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
-            Answer in a clear, direct manner, using only the factual information available in the document.
-            """
-            
-            prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-            chain = load_qa_chain(
-                ChatGoogleGenerativeAI(model="gemini-pro", temperature=0),
-                chain_type="stuff",
-                prompt=prompt
-            )
-            
-            try:
+        # -------------------------------------------------------------------------------------------
+
+
+        # Handle FAQ and PDF responses
+        try:
+            with open('./faq.json', 'r') as f:
+                faq_data = json.load(f)
+
+            # Create a dictionary to map questions to answers
+            faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
+
+            if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
+                st.info("Using FAQ response")
+                best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
+                
+                if best_faq.page_content in faq_dict:
+                    answer = faq_dict[best_faq.page_content]
+                    prompt_template = """
+                    Question: {question}
+
+                    The provided answer is:
+                    {answer}
+
+                    Based on this information, let me expand on the response:
+
+                    {context}
+
+                    Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
+                    """
+                    prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
+                    chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+                    response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
+                    Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
+                    """}, return_only_outputs=True)
+                    return response
+                elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+                    return {"output_text": best_faq.metadata['answer']}
+                else:
+                    return {"output_text": best_faq.page_content}
+            else:
+                st.info("Using PDF response")
+                prompt_template = """
+                Use only the information from the provided PDF context to answer the question precisely and concisely.
+
+                Context:\n{context}
+
+                Question: {question}
+
+                Answer in a clear, direct manner, using only the factual information available in the document. Keep the response within 100 words.
+                If the question is unrelated to the PDF, respond with: "Please ask a query related to finance."
+                """
+ 
+                prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+                chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
                 response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
                 return response
-            except Exception as e:
-                st.error(f"Error in chain execution: {str(e)}")
-                return {"output_text": "Error processing the response."}
-        
-        # Only if PDF content isn't relevant, check if it's a stock/news query
-        else:
-            result = is_stock_query(user_question)
-            if result.startswith("True ") or result.startswith("News "):
-                return process_stock_or_news_query(result, user_question)
-            else:
-                return {"output_text": "I couldn't find relevant information to answer your question."}
 
-    except Exception as e:
-        st.error(f"Error in user_input: {str(e)}")
-        return {"output_text": "An error occurred while processing your request. Please try again."}
-
-# Helper function to process stock or news queries
-def process_stock_or_news_query(result, user_question):
-    if result.startswith("True "):
-        symbol = result.split()[1]
-        # Handle stock price query
-        price_info = get_stock_price(symbol)
-        if price_info[0]:  # if price data exists
-            return {"output_text": f"Current price of {symbol}: ${price_info[0]:.2f}"}
-        else:
-            return {"output_text": f"Could not fetch price for {symbol}"}
-    elif result.startswith("News "):
-        # Handle news query
-        query = result[5:]  # Remove "News " prefix
-        try:
-            news_response = execute_research_query(query)
-            return news_response
         except Exception as e:
-            return {"output_text": f"Error fetching news: {str(e)}"}
+            print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
+            return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
 
-def get_yahoo_finance_news(query: str, symbol: str = None):
-    try:
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-pro",
-            temperature=0
-        )
-        tools = [YahooFinanceNewsTool()]
-        agent_chain = initialize_agent(
-            tools,
-            llm,
-            agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-            verbose=False
-        )
-
-        # If symbol is provided, use it directly
-        if symbol:
-            response = agent_chain.run(f"Get the latest news for {symbol}")
-        else:
-            response = agent_chain.run(query)
-
-        # Check if response is meaningful
-        if response and len(response.strip()) > 0 and "I cannot find" not in response:
-            return {"output_text": response, "source": "yahoo"}
-        return None
 
     except Exception as e:
-        print(f"DEBUG: Yahoo Finance News error: {str(e)}")
-        return None
+        print(f"DEBUG: Error in user_input: {str(e)}")
+        return {"output_text": "An error occurred while processing your request. Please try again."}
