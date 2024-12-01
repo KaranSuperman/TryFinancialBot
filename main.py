@@ -499,22 +499,30 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         1. Summary:
         [Provide a 2-3 sentence overview of the key findings]
-        \n\n
+
         2. Market Developments:
         - [Key point 1]
         - [Key point 2]
         - [Key point 3]
-        \n\n
+
         3. Notable Trends:
         - [Trend 1]
         - [Trend 2]
-        \n\n
+
         4. Key Data Points:
         - [Data point 1]
         - [Data point 2]
         - [Data point 3]
 
         Keep the response clear, concise, and well-formatted.
+
+        IMPORTANT RULES:
+        - Do not use italic or bold formatting
+        - Use plain text only
+        - Avoid special characters
+        - Use numbers for data points
+        - Keep each point concise and clear
+        - Use proper line breaks between sections
         """)
     ])
  
