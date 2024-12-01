@@ -32,6 +32,8 @@ import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from langchain.agents import AgentType, initialize_agent
+from langchain_community.tools.yahoo_finance_news import YahooFinanceNewsTool
 
 
 load_dotenv() 
@@ -760,30 +762,47 @@ def user_input(user_question):
                 # Remove "News " prefix to get the original research query
                 research_query = result[5:]
                 
-                # Retrieve API keys from Streamlit secrets or environment variables
+                # Extract symbol if present in the query
+                symbol = None
+                if "price" in research_query.lower():
+                    for word in research_query.split():
+                        if any(word.upper().endswith(suffix) for suffix in ['.NS', '.BO', '.L', '.SW']):
+                            symbol = word.upper()
+                            break
+                        elif word.upper() in ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA']:
+                            symbol = word.upper()
+                            break
+
+                # Try Yahoo Finance News first
+                yahoo_response = get_yahoo_finance_news(research_query, symbol)
+                if yahoo_response:
+                    st.info("Using Yahoo Finance News")
+                    return yahoo_response
+
+                # Fallback to Exa if Yahoo Finance News returns no results
+                st.info("Using Exa News (fallback)")
+                
+                # Existing Exa logic
                 exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
                 gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
 
                 if not exa_api_key or not gemini_api_key:
                     raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
 
-                # Create the research chain using the Gemini API key
                 research_chain = create_research_chain(exa_api_key, gemini_api_key)
-                
-                # Execute the research query
                 response = research_chain.invoke(research_query)
                 
-                # Extract and clean the content
                 if hasattr(response, 'content'):
                     content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
-                    return {"output_text": content}
+                    return {"output_text": content, "source": "exa"}
                 else:
-                    return {"output_text": "No valid content received from the response."}
+                    return {"output_text": "No news found from any source.", "source": "none"}
 
             except Exception as e:
-                print(f"DEBUG: Research query error: {str(e)}")
+                print(f"DEBUG: News query error: {str(e)}")
                 return {
-                    "output_text": f"An error occurred while researching your query: {str(e)}"
+                    "output_text": f"An error occurred while fetching news: {str(e)}",
+                    "source": "error"
                 }
         
         # Instead, use a more direct approach
@@ -928,3 +947,31 @@ def user_input(user_question):
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
         return {"output_text": "An error occurred while processing your request. Please try again."}
+
+def get_yahoo_finance_news(query: str, symbol: str = None):
+    try:
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-pro",
+            temperature=0
+        )
+        tools = [YahooFinanceNewsTool()]
+        agent_chain = initialize_agent(
+            tools,
+            llm,
+            agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+            verbose=False
+        )
+
+        # If symbol is provided, use it directly
+        if symbol:
+            response = agent_chain.run(f"Get the latest news for {symbol}")
+        else:
+            response = agent_chain.run(query)
+
+        if response and len(response.strip()) > 0:
+            return {"output_text": response, "source": "yahoo"}
+        return None
+
+    except Exception as e:
+        print(f"DEBUG: Yahoo Finance News error: {str(e)}")
+        return None
