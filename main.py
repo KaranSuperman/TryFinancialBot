@@ -489,7 +489,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
         ("human", """
-        Analyze this financial query/news:
+        Analyze this financial news:
         Query: {query}
         
         Context:
@@ -498,7 +498,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         Please provide a structured analysis in the following format:
 
         1. Summary:
-        [Provide a 2-3 sentence overview of the key findings]
+        [Provide a 2-3 sentence overview of the key findings] 
 
         2. Market Developments:
         - [Key point 1]
