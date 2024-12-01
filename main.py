@@ -968,7 +968,8 @@ def get_yahoo_finance_news(query: str, symbol: str = None):
         else:
             response = agent_chain.run(query)
 
-        if response and len(response.strip()) > 0:
+        # Check if response is meaningful
+        if response and len(response.strip()) > 0 and "I cannot find" not in response:
             return {"output_text": response, "source": "yahoo"}
         return None
 
