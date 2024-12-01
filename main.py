@@ -523,6 +523,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         - Use numbers for data points
         - Keep each point concise and clear
         - Use proper line breaks between sections
+        - Do not merge sections together
+        - Start each section on a new line
+        - Use simple dollar signs ($) for currency
+        - Use standard numbers (no fancy formatting)
+        - Separate each bullet point with a line break
+        - Do not use any markdown formatting
         """)
     ])
  
