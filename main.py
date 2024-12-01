@@ -762,6 +762,7 @@ def user_input(user_question):
         # Handle stock news/analysis query
         elif result.startswith("News "):
             try:
+                st.info("Exa logic")
                 # Remove "News " prefix to get the original research query
                 research_query = result[5:]
                 
@@ -780,7 +781,7 @@ def user_input(user_question):
                 
                 # Extract and clean the content
                 if hasattr(response, 'content'):
-                    content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
+                    # content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
                     return {"output_text": content}
                 else:
                     return {"output_text": "No valid content received from the response."}
