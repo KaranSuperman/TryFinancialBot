@@ -869,13 +869,29 @@ def user_input(user_question):
         # Process based on similarity scores
         if max_similarity < 0.65:
             st.info("Using LLM response")
-            prompt1 = user_question + """ In the context of Finance 
-            and response only finance terms (finance term example: what is pe ratio?, what is pb ratio? , etc)
-            (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
-                for example, 
-                - which are the best stocks to invest 
-                - which stock is worst
-                - Suggest me best stocks )"""
+            prompt1 = user_question + """\
+            Finance Term Query Guidelines:
+            1. Context: Finance domain
+            2. Response Requirements:
+            - Focus exclusively on defining finance-related terms
+            - Provide clear, concise explanations of financial terminology
+
+            Examples of Acceptable Queries:
+            - What is PE ratio?
+            - Define market capitalization
+            - Explain book value
+            - What does EBITDA mean?
+
+            STRICT RESTRICTIONS:
+            - NO stock recommendations
+            - NO investment advice
+            - AVOID statements like:
+            * "Best stocks to invest"
+            * "Worst performing stocks"
+            * "Recommended stocks/mutual funds"
+
+            Note: Responses must be purely informative and educational about financial terms.\
+            """
     
             response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
             return {"output_text": response.content} if response else {"output_text": "No response generated."}
