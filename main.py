@@ -497,22 +497,28 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
     Context: {context}
 
-    Please provide a well-structured analysis following this format:
+    Please provide a well-structured analysis with clear paragraph breaks following this format:
 
     **Executive Summary**
+
     [One concise paragraph summarizing key points]
 
     **Detailed Analysis**
+
     *Financial Performance*
+
     [Detailed paragraph about financial metrics and performance]
 
     *Market Dynamics*
+
     [Detailed paragraph about market conditions and competitive position]
 
     *Key Developments*
+
     [Detailed paragraph about recent significant events or changes]
 
     **Future Outlook**
+
     [Detailed paragraph about future prospects and potential challenges]
 
     **Sources**
@@ -520,7 +526,11 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     - [Source 2]
     - [Source 3]
 
-    Note: Use ** for bold and * for italics instead of markdown headers (#) to maintain consistent text size.
+    Note: 
+    1. Use double line breaks between sections
+    2. Each section should be its own paragraph with proper spacing
+    3. Use ** for bold and * for italics
+    4. Ensure each section is clearly separated from others
     """)
     ])
  
