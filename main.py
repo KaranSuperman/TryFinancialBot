@@ -475,6 +475,13 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             }
         )
 
+        # Ensure the API key is set in the headers
+        if hasattr(retriever, 'client'):
+            retriever.client.headers.update({
+                "x-api-key": exa_api_key,
+                "Content-Type": "application/json"
+            })
+        
         # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
@@ -483,16 +490,13 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         genai.configure(api_key=gemini_api_key)
         
         # Initialize LLM with proper error handling
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-pro",
-                temperature=0.1,
-                google_api_key=gemini_api_key,
-                max_output_tokens=2048,
-                convert_system_message_to_human=True
-            )
-        except Exception as e:
-            raise ValueError(f"Failed to initialize Gemini LLM: {str(e)}")
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-pro",
+            temperature=0.1,
+            google_api_key=gemini_api_key,
+            max_output_tokens=2048,
+            convert_system_message_to_human=True
+        )
 
         # Rest of the chain setup
         document_template = """
