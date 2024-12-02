@@ -498,6 +498,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         Context:
         {context}
 
+        Do not write Query in the response, only give the answer.
         Provide a clear and concise analysis focusing on.  
         Please respond to the following query using the provided context. 
         Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
