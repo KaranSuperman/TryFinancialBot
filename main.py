@@ -451,12 +451,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=7,
-            highlights=True,
-            extra_params={
-                "recency_days": 2,  # Limit to content from last 2 days
-                "sort": "date",     # Sort by date
-                "use_autoprompt": True  # Enable smart query expansion
-            }
+            highlights=True
         )
 
         if hasattr(retriever, 'client'):
@@ -471,8 +466,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
     # Create document formatting template
     document_template = """
-    [Source]({url})
-    {highlights}
+    <source>
+        <url>{url}</url>
+        <highlights>{highlights}</highlights>
+    </source>
     """
     document_prompt = PromptTemplate.from_template(document_template)
     
@@ -492,37 +489,25 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
 
-    # Improved generation prompt for Gemini with structured formatting
-    generation_prompt = ChatPromptTemplate.from_messages([
-        ("human", """
-        Please analyze the following financial query or company statistics inquiry:
-        
-        Query: {query}
+    # Simplified generation prompt for Gemini
+generation_prompt = ChatPromptTemplate.from_messages([
+    ("human", """
+    Analyze this financial query/news/ or company stats enquiry:
+    Query: {query}
 
-        Context:
-        {context}
-        
-        Format your response following these strict guidelines:
+    Context:
+    {context}
 
-        1. Start with a clear headline (e.g., "Amazon's Q3 2023 Financial Results")
-        
-        2. Break down the information into these sections:
-           - Key Figures: Present main numbers and statistics clearly
-           - Analysis: Explain the context and implications
-           - Additional Context: Include relevant background information
-        
-        3. Format numbers consistently:
-           - Use billion/million (e.g., "$143 billion" not "143billion")
-           - Include currency symbols
-           - Separate numbers with proper spacing
-        
-        4. End with sources in this format only:
-           Source: [Source](<URL>)
-        
-        Keep the response concise, factual, and well-structured.
-        Do not include the original URLs in plain text.
-        """)
-    ])
+    Do not write Query in the response, only give the answer.
+    Provide a clear and concise analysis focusing on.  
+    Please respond to the following query using the provided context. 
+    Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
+    aragraph every section in great sturctured format.
+    Cite your sources at the end of your response for verification.
+    Make sure always give up to date response .
+    NOTE: You only give the finacial stats and news that is mostly of current date or in prevoius. If someone ask for news give them up to date financial news.
+    """)
+])
  
     # Initialize LLM with Gemini
     llm = ChatGoogleGenerativeAI(
