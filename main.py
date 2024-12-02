@@ -492,7 +492,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
 
-    # Improved generation prompt for Gemini
+    # Improved generation prompt for Gemini with structured formatting
     generation_prompt = ChatPromptTemplate.from_messages([
         ("human", """
         Please analyze the following financial query or company statistics inquiry:
@@ -502,24 +502,25 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         Context:
         {context}
         
-        Provide a detailed analysis in the following structured format:
+        Format your response following these strict guidelines:
 
-        1. Summary:
-        - Provide a brief overview of the key findings
+        1. Start with a clear headline (e.g., "Amazon's Q3 2023 Financial Results")
         
-        2. Key Data Points:
-        - Present relevant statistics and data
-        - Include market trends and figures
+        2. Break down the information into these sections:
+           - Key Figures: Present main numbers and statistics clearly
+           - Analysis: Explain the context and implications
+           - Additional Context: Include relevant background information
         
-        3. Analysis:
-        - Break down the implications
-        - Discuss relevant market context
+        3. Format numbers consistently:
+           - Use billion/million (e.g., "$143 billion" not "143billion")
+           - Include currency symbols
+           - Separate numbers with proper spacing
         
-        4. Conclusion:
-        - Summarize the main takeaways
-        - Provide actionable insights if applicable
+        4. End with sources in this format only:
+           Source: [Source](<URL>)
         
-        Note: Ensure all information is current and properly sourced.
+        Keep the response concise, factual, and well-structured.
+        Do not include the original URLs in plain text.
         """)
     ])
  
