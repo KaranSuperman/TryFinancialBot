@@ -450,20 +450,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     try:
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,  # Increased to get more context
-            highlights=True,
-            extra_params={
-                "num_results": 5,
-                "use_autoprompt": True,
-                "include_domains": [
-                    "reuters.com", "bloomberg.com", "ft.com", "wsj.com",
-                    "cnbc.com", "marketwatch.com", "investing.com",
-                    "finance.yahoo.com", "seekingalpha.com","forbes.com"
-                ],
-                "exclude_domains": ["reddit.com", "medium.com", "wikipedia.org"],
-                "time_range": "1w",  # Limit to last week
-                "sort": "date"  # Sort by date to prioritize recent content
-            }
+            k=7,
+            highlights=True
         )
 
         if hasattr(retriever, 'client'):
@@ -476,21 +464,19 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         st.error(f"Error initializing retriever: {str(e)}")
         raise
 
-    # Update document template to include date
+    # Create document formatting template
     document_template = """
     <source>
-        <date>{date}</date>
         <url>{url}</url>
         <highlights>{highlights}</highlights>
     </source>
     """
     document_prompt = PromptTemplate.from_template(document_template)
     
-    # Update document chain to include date
+    # Create document processing chain
     document_chain = (
         RunnablePassthrough() | 
         RunnableLambda(lambda doc: {
-            "date": doc.metadata.get("published_date", "Date not available"),
             "highlights": doc.metadata.get("highlights", "No highlights available."),
             "url": doc.metadata.get("url", "No URL available.")
         }) | document_prompt
@@ -503,34 +489,23 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
 
-    # Updated generation prompt for better responses
+    # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a financial news analyst. Your task is to provide up-to-date, accurate analysis of financial news and market information.
-        Focus on recent developments and ensure all information is current."""),
         ("human", """
-        Analyze this financial query/news/company stats enquiry:
+        Analyze this financial query/news/ or company stats enquiry:
         Query: {query}
         
         Context:
         {context}
 
-        Guidelines:
-        1. Prioritize the most recent information from the context
-        2. Verify dates and mention them in your response
-        3. Structure your response with clear sections:
-           - Key Points
-           - Recent Developments
-           - Market Impact (if applicable)
-           - Analysis
-        4. Include specific numbers and data points when available
-        5. Cite sources with dates at the end
-
-        Remember:
-        - Focus only on factual, recent information
-        - Be concise but comprehensive
-        - Highlight time-sensitive information
-        - Do not include the original query in the response
-        - Format the response in a well-structured manner
+        Do not write Query in the response, only give the answer.
+        Provide a clear and concise analysis focusing on.  
+        Please respond to the following query using the provided context. 
+        Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
+        aragraph every section in great sturctured format.
+        Cite your sources at the end of your response for verification.
+        Make sure always give up to date response .
+        NOTE: You only give the finacial stats and news that is mostly of current date or in prevoius. If someone ask for news give them up to date financial news.
         """)
     ])
  
@@ -541,29 +516,14 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         google_api_key=gemini_api_key
     )
 
-    # Add error handling and validation to the final chain
-    def validate_response(response):
-        try:
-            if hasattr(response, 'content'):
-                content = response.content
-            else:
-                content = str(response)
-            
-            # Add timestamp to response
-            from datetime import datetime
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
-            return f"{content}\n\nResponse generated at: {timestamp}"
-        except Exception as e:
-            return f"Error processing response: {str(e)}"
-
+    # Final chain with error handling
     chain = (
         RunnableParallel({
-            "query": RunnablePassthrough(),
-            "context": retrieval_chain,
-        })
-        | generation_prompt
+            "query": RunnablePassthrough(),  
+            "context": retrieval_chain,  
+        }) 
+        | generation_prompt 
         | llm
-        | RunnableLambda(validate_response)
     )
     
     return chain
@@ -626,12 +586,9 @@ def plot_stock_graph(symbol):
             st.error(f"Invalid period. Choose from {', '.join(valid_periods)}")
             return False
         
-        # Get stock data with interval parameter for better date precision
+        # Get stock data
         stock = yf.Ticker(symbol)
-        hist = stock.history(period=period, interval="1d")  # Force daily interval
-        
-        # Convert timezone to local time if needed
-        hist.index = hist.index.tz_localize(None)  # Remove timezone info
+        hist = stock.history(period=period)
         
         if hist.empty:
             st.error(f"No data found for {symbol}")
@@ -660,14 +617,27 @@ def plot_stock_graph(symbol):
         }
         period_label = period_labels.get(period, period)
         
+        # Get stock data with interval parameter
+        stock = yf.Ticker(symbol)
+        hist = stock.history(period=period, interval="1d")
+        
+        if hist.empty:
+            st.error(f"No data found for {symbol}")
+            return False
+            
+        # Add warning about market hours
+        latest_date = hist.index[-1].strftime('%Y-%m-%d')
+        st.warning(f"""⚠️ Latest available data is from {latest_date}. Stock market data typically has a slight delay and 
+        depends on market trading hours. Markets are closed on weekends and holidays.""")
+        
         # Create Plotly figure
         fig = go.Figure()
         
-        # Add price line with updated date formatting
+        # Add price line
         fig.add_trace(go.Scatter(
             x=hist.index,
             y=hist['Close'],
-            mode='lines+markers',
+            mode='lines+markers',  # Add markers to show data points
             name='Close Price',
             line=dict(
                 color='#00C805' if is_positive else '#FF3E2E',
@@ -675,13 +645,13 @@ def plot_stock_graph(symbol):
             ),
             marker=dict(
                 size=8,
-                color='#ffffff',
+                color='#ffffff',  # Set marker color to white
                 line=dict(
                     color='#00C805' if is_positive else '#FF3E2E',
                     width=2
                 )
             ),
-            hovertemplate='Date: %{x|%Y-%m-%d}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
+            hovertemplate='Date: %{x}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
         ))
         
         # Update layout
@@ -703,16 +673,6 @@ def plot_stock_graph(symbol):
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
             margin=dict(l=50, r=50, t=50, b=80),  # Increased bottom margin for annotation
-        )
-        
-        # Update x-axis to show dates properly
-        fig.update_xaxes(
-            dtick="D1",  # Show daily ticks
-            tickformat="%Y-%m-%d",  # Format as YYYY-MM-DD
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='rgba(128,128,128,0.2)',
-            rangeslider_visible=(period != '1d')
         )
         
         # Adjust axis range for 1-day period
