@@ -499,6 +499,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         {context}
 
         Instructions:
+        NOTE: DONOT USE ITALLIC AND BOLD IN RESPONSE.
         1. Write in clear, concise paragraphs
         2. Format numbers with standard notation (e.g., "$89.5 billion" instead of "$89,498million")
         3. Each paragraph should focus on one main point
