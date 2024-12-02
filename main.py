@@ -624,11 +624,6 @@ def plot_stock_graph(symbol):
         if hist.empty:
             st.error(f"No data found for {symbol}")
             return False
-            
-        # Add warning about market hours
-        latest_date = hist.index[-1].strftime('%Y-%m-%d')
-        st.warning(f"""⚠️ Latest available data is from {latest_date}. Stock market data typically has a slight delay and 
-        depends on market trading hours. Markets are closed on weekends and holidays.""")
         
         # Create Plotly figure
         fig = go.Figure()
