@@ -716,7 +716,20 @@ def plot_stock_graph(symbol):
                 showgrid=True,
                 gridwidth=1,
                 gridcolor='rgba(128,128,128,0.2)',
-                rangeslider_visible=False
+                rangeslider_visible=False,
+                tickformat='%H:%M',  # Show only hours and minutes for 1-day view
+                dtick=3600000,  # Show hourly ticks (in milliseconds)
+                ticklabelmode='period'  # Use period mode for better label positioning
+            )
+            # Add a date annotation to show the current trading day
+            fig.add_annotation(
+                text=f"Trading Day: {hist.index[0].strftime('%Y-%m-%d')}",
+                xref='paper',
+                yref='paper',
+                x=0,
+                y=-0.15,
+                showarrow=False,
+                font=dict(size=12)
             )
             fig.update_yaxes(
                 showgrid=True,
