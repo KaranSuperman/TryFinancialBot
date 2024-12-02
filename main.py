@@ -492,19 +492,20 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
         ("human", """
-        Analyze this financial query/news/ or company stats enquiry:
+        Analyze this financial query/news/company stats and provide a clear response:
         Query: {query}
 
         Context:
         {context}
 
-        Do not write Query in the response, only give the answer.
-        Provide a clear and concise analysis focusing on.  
-        Please respond to the following query using the provided context. 
-        Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
-        Paragraph every section in great sturctured format.
-        Cite your sources at the end of your response for verification.
-        Make sure always give up to date response .
+        Instructions:
+        1. Provide a direct answer without restating the query
+        2. Present information in clear, readable paragraphs
+        3. Include relevant numbers and statistics when available
+        4. Keep formatting simple - use plain text only
+        5. Add source citations at the end
+
+        Note: Ensure the response is up-to-date and factual based on the provided context.
         """)
     ])
  
