@@ -499,13 +499,13 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         {context}
 
         Instructions:
-        1. Provide a direct answer without restating the query
-        2. Present information in clear, readable paragraphs
-        3. Include relevant numbers and statistics when available
-        4. Keep formatting simple - use plain text only
-        5. Add source citations at the end
+        1. Write in plain text paragraphs only
+        2. Use standard numbers and currency formatting (e.g., "$89.5 billion" not "89,498million")
+        3. Separate each major point into its own paragraph
+        4. Avoid any special characters or formatting
+        5. Include sources as plain text links at the end
 
-        Note: Ensure the response is up-to-date and factual based on the provided context.
+        Important: Keep all text clean and readable - no special formatting or symbols.
         """)
     ])
  
