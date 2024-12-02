@@ -859,7 +859,7 @@ def user_input(user_question):
         if max_similarity < 0.65:
             st.info("Using LLM response")
             prompt1 = user_question + """ In the context of Finance 
-            and response only on finance terms like (what is pe ratio?)
+            and response only finance terms (finance term example: what is pe ratio?, what is pb ratio? , etc)
             (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
                 for example, 
                 - which are the best stocks to invest 
