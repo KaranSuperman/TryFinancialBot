@@ -505,6 +505,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         aragraph every section in great sturctured format.
         Cite your sources at the end of your response for verification.
         Make sure always give up to date response .
+        NOTE: You only give the finacial stats and news.
         """)
     ])
  
