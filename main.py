@@ -498,39 +498,42 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     Context: {context}
 
     Analysis Guidelines:
-    1. Structure and Clarity
-    - Provide a clear, well-organized analysis
-    - Use a logical flow with distinct sections
-    - Write in professional, concise language
 
-    2. Key Analysis Components
-    - Identify primary factors influencing the financial situation
-    - Quantify impacts where possible
-    - Highlight both immediate and potential long-term implications
+    1. Narrative Structure Requirement
+    - Compose the analysis in full, coherent paragraphs
+    - Avoid bullet points or list-style formatting
+    - Ensure smooth, connected prose that flows logically
+    - Use transitions between sections to create a cohesive narrative
 
-    3. Detailed Analysis Requirements
-    - Executive Summary: Concise overview of key findings
-    - Detailed Breakdown: In-depth exploration of each significant factor
-    - Contextual Analysis: Broader market or industry implications
-    - Forward-Looking Perspective: Potential future developments
+    2. Detailed Analysis Specifications
+    - Begin with a comprehensive executive summary paragraph
+    - Develop each key insight into a full, substantive paragraph
+    - Explore nuances and interconnections between different factors
+    - Provide context that explains the significance of each finding
 
-    4. Formatting Specifications
-    - Use clear headings and subheadings
-    - Employ paragraph format for in-depth explanations
-    - Include bullet points for key statistics or critical insights
-    - Maintain professional, objective tone
+    3. Analytical Depth
+    - Explain the underlying reasons behind financial trends
+    - Interpret data with professional, insightful commentary
+    - Provide clear connections between individual factors
+    - Offer balanced perspectives on potential impacts
 
-    5. Source and Verification
-    - Explicitly cite sources for all significant claims
-    - Include publication names and dates where available
-    - Ensure sources are credible and recent
+    4. Formatting and Presentation
+    - Use clear, descriptive section headings
+    - Write in complete sentences with academic precision
+    - Maintain a professional, objective tone
+    - Ensure each paragraph contains multiple sentences with substantive analysis
+
+    5. Source Verification
+    - Cite sources within the text where specific claims are made
+    - Provide full source attribution at the end of the analysis
+    - Ensure sources are current and credible
 
     6. Comprehensive Reporting
-    - Cover multiple perspectives (financial, regulatory, market sentiment)
-    - Address both positive and potentially challenging aspects
-    - Provide balanced, data-driven insights
+    - Address multiple dimensions of the financial situation
+    - Provide both current state and potential future implications
+    - Offer nuanced, thoughtful analysis that goes beyond surface-level observations
 
-    Ensure the response is up-to-date, precise, and offers actionable intelligence for decision-makers.
+    Deliver a response that provides comprehensive, actionable insights in a fully paragraphed, professional format.
     """)
     ])
  
