@@ -491,58 +491,23 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
     # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
-        ("human", """\
-    Financial News and Analysis Query Protocol:
+        ("human", """
+        Analyze this financial query/news/ or company stats enquiry:
+        Query: {query}
 
-    Query Handling:
-    - Input: {query}
-    - Context: {context}
+        Context:
+        {context}
 
-    Response Guidelines:
-    1. News Coverage Scope:
-    - Focus on most recent financial events
-    - Prioritize news from the current date and previous week
-    - Emphasize real-time and breaking financial information
-
-    2. Response Composition:
-    - Deliver concise, structured analysis
-    - Include key details: 
-        * Major market movements
-        * Significant corporate announcements
-        * Economic indicators
-        * Noteworthy financial trends
-
-    3. Presentation Requirements:
-    - Eliminate redundant phrases like "Query:"
-    - Provide direct, informative responses
-    - Use clear paragraph structure
-    - Highlight critical information
-
-    4. Source and Verification:
-    - Cite credible financial sources
-    - Indicate data timestamp/recency
-    - Ensure information traceability
-
-    5. Special Instructions for "Today's News" Queries:
-    - Extract most recent financial headlines
-    - Cover:
-        * Stock market performance
-        * Global economic updates
-        * Major corporate news
-        * Significant policy changes
-        * Cryptocurrency and commodity trends
-
-    6. Accuracy Commitment:
-    - Rely on most current available information
-    - Prioritize verified, recent financial data
-    - Avoid speculative or unconfirmed reports
-
-    Mandatory Constraints:
-    - NO investment recommendations
-    - NO personal financial advice
-    - STRICTLY factual reporting
-    - FOCUS on informative, timely financial insights
-    """)
+        Do not write Query in the response, only give the answer.
+        Provide a clear and concise analysis focusing on.  
+        Please respond to the following query using the provided context. 
+        Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
+        aragraph every section in great sturctured format.
+        Cite your sources at the end of your response for verification.
+        Make sure always give up to date response .
+        If someone ask for today news, give  up-to-date financial news.
+        NOTE: You only give the finacial stats and news that is mostly of current date or in prevoius. 
+        """)
     ])
  
     # Initialize LLM with Gemini
