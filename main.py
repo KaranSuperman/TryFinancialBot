@@ -446,10 +446,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Enhanced retriever configuration
+        # Initialize retriever with error handling
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,  # Reduced for more focused results
+            k=5,
             highlights=True,
             extra_params={
                 "use_autoprompt": True,
@@ -470,106 +470,101 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                     "facebook.com",
                     "twitter.com"
                 ],
-                "recent_days": 7,  # Focus on recent news
+                "recent_days": 7,
                 "text_length": "medium"
             }
         )
 
-        if hasattr(retriever, 'client'):
-            retriever.client.headers.update({
-                "x-api-key": exa_api_key,
-                "Content-Type": "application/json"
-            })
+        # Verify Gemini API key
+        if not gemini_api_key or not isinstance(gemini_api_key, str):
+            raise ValueError("Valid Gemini API key is required")
+
+        # Configure Gemini
+        genai.configure(api_key=gemini_api_key)
+        
+        # Initialize LLM with proper error handling
+        try:
+            llm = ChatGoogleGenerativeAI(
+                model="gemini-pro",
+                temperature=0.1,
+                google_api_key=gemini_api_key,
+                max_output_tokens=2048,
+                convert_system_message_to_human=True
+            )
+        except Exception as e:
+            raise ValueError(f"Failed to initialize Gemini LLM: {str(e)}")
+
+        # Rest of the chain setup
+        document_template = """
+        <article>
+            <title>{title}</title>
+            <date>{date}</date>
+            <key_points>{highlights}</key_points>
+            <source>{url}</source>
+        </article>
+        """
+        document_prompt = PromptTemplate.from_template(document_template)
+        
+        document_chain = (
+            RunnablePassthrough() | 
+            RunnableLambda(lambda doc: {
+                "title": doc.metadata.get("title", "Untitled"),
+                "date": doc.metadata.get("published_date", "Recent"),
+                "highlights": doc.metadata.get("highlights", "No highlights available."),
+                "url": doc.metadata.get("url", "No URL available.")
+            }) | document_prompt
+        )
+        
+        retrieval_chain = (
+            retriever | 
+            document_chain.map() | 
+            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+        )
+
+        # Modified prompt to avoid system message issues
+        generation_prompt = ChatPromptTemplate.from_messages([
+            ("human", """You are a financial news analyst. Analyze and summarize this financial news query:
             
+            Query: {query}
+
+            Source Information:
+            {context}
+
+            Provide your response in this format:
+
+            SUMMARY:
+            [2-3 sentence overview of main news/development]
+
+            KEY POINTS:
+            1. [First major point]
+            2. [Second major point]
+            3. [Third major point]
+
+            MARKET IMPACT:
+            - [Market implications]
+            - [Notable market reactions]
+
+            ADDITIONAL CONTEXT:
+            - [Background information]
+            - [Related developments]
+
+            Sources: [List sources with dates]""")
+        ])
+
+        chain = (
+            RunnableParallel({
+                "query": RunnablePassthrough(),  
+                "context": retrieval_chain,  
+            }) 
+            | generation_prompt 
+            | llm
+        )
+        
+        return chain
+
     except Exception as e:
-        st.error(f"Error initializing retriever: {str(e)}")
+        st.error(f"Error in create_research_chain: {str(e)}")
         raise
-
-    # Enhanced document template
-    document_template = """
-    <article>
-        <title>{title}</title>
-        <date>{date}</date>
-        <key_points>{highlights}</key_points>
-        <source>{url}</source>
-    </article>
-    """
-    document_prompt = PromptTemplate.from_template(document_template)
-    
-    # Enhanced document processing
-    document_chain = (
-        RunnablePassthrough() | 
-        RunnableLambda(lambda doc: {
-            "title": doc.metadata.get("title", "Untitled"),
-            "date": doc.metadata.get("published_date", "Recent"),
-            "highlights": doc.metadata.get("highlights", "No highlights available."),
-            "url": doc.metadata.get("url", "No URL available.")
-        }) | document_prompt
-    )
-    
-    retrieval_chain = (
-        retriever | 
-        document_chain.map() | 
-        RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
-    )
-
-    # Enhanced generation prompt
-    generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a financial news analyst. Your task is to analyze and summarize financial news in a clear, structured format."""),
-        ("human", """
-        Analyze and summarize this financial news query and provide a well-structured response:
-        Query: {query}
-
-        Source Information:
-        {context}
-
-        Please structure your response in the following format:
-
-        SUMMARY:
-        - Provide a 2-3 sentence overview of the main news/development
-
-        KEY POINTS:
-        1. [First major point]
-        2. [Second major point]
-        3. [Third major point]
-
-        MARKET IMPACT (if applicable):
-        - Brief analysis of potential market implications
-        - Any notable market reactions
-
-        ADDITIONAL CONTEXT:
-        - Relevant background information
-        - Related developments
-
-        Sources: [List primary sources with dates]
-
-        Guidelines:
-        1. Use clear, professional language
-        2. Present facts objectively
-        3. Format numbers consistently (e.g., "$1.2 billion")
-        4. Highlight time-sensitive information
-        5. Avoid speculation and personal opinions
-        6. Include source attribution
-        """)
-    ])
- 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-pro",
-        temperature=0.1,  # Slightly increased for better narrative flow
-        google_api_key=gemini_api_key,
-        max_output_tokens=2048  # Increased for comprehensive responses
-    )
-
-    chain = (
-        RunnableParallel({
-            "query": RunnablePassthrough(),  
-            "context": retrieval_chain,  
-        }) 
-        | generation_prompt 
-        | llm
-    )
-    
-    return chain
 
 
 def execute_research_query(question: str):
