@@ -471,10 +471,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
     # Create document formatting template
     document_template = """
-    <source>
-        <url>{url}</url>
-        <highlights>{highlights}</highlights>
-    </source>
+    [Source]({url})
+    {highlights}
     """
     document_prompt = PromptTemplate.from_template(document_template)
     
@@ -504,10 +502,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         Context:
         {context}
         
-        Provide a clear and concise analysis focusing on the key points. 
-        Ensure your answer is well-structured, includes relevant data or statistics, and is formatted in paragraphs.
-        Cite your sources at the end of your response for verification.
-        Always provide the most up-to-date information.
+        Provide a detailed analysis in the following structured format:
+
+        1. Summary:
+        - Provide a brief overview of the key findings
+        
+        2. Key Data Points:
+        - Present relevant statistics and data
+        - Include market trends and figures
+        
+        3. Analysis:
+        - Break down the implications
+        - Discuss relevant market context
+        
+        4. Conclusion:
+        - Summarize the main takeaways
+        - Provide actionable insights if applicable
+        
+        Note: Ensure all information is current and properly sourced.
         """)
     ])
  
