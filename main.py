@@ -502,7 +502,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         Provide a clear and concise analysis focusing on.  
         Please respond to the following query using the provided context. 
         Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
-        aragraph every section in great sturctured format.
+        Paragraph every section in great sturctured format.
         Cite your sources at the end of your response for verification.
         Make sure always give up to date response .
         """)
