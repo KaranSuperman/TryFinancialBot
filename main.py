@@ -497,30 +497,30 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
     Context: {context}
 
-    Please provide a well-structured analysis following this exact format:
+    Please provide a well-structured analysis following this format:
 
-    # Executive Summary
+    **Executive Summary**
     [One concise paragraph summarizing key points]
 
-    # Detailed Analysis
-    ## Financial Performance
+    **Detailed Analysis**
+    *Financial Performance*
     [Detailed paragraph about financial metrics and performance]
 
-    ## Market Dynamics
+    *Market Dynamics*
     [Detailed paragraph about market conditions and competitive position]
 
-    ## Key Developments
+    *Key Developments*
     [Detailed paragraph about recent significant events or changes]
 
-    # Future Outlook
+    **Future Outlook**
     [Detailed paragraph about future prospects and potential challenges]
 
-    # Sources
+    **Sources**
     - [Source 1]
     - [Source 2]
     - [Source 3]
 
-    Note: Each section should be properly formatted with markdown headers and contain well-structured paragraphs. Avoid using bullet points in the main content sections.
+    Note: Use ** for bold and * for italics instead of markdown headers (#) to maintain consistent text size.
     """)
     ])
  
