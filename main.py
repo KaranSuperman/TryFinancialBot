@@ -497,43 +497,30 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
     Context: {context}
 
-    Analysis Guidelines:
+    Please provide a well-structured analysis following this exact format:
 
-    1. Narrative Structure Requirement
-    - Compose the analysis in full, coherent paragraphs
-    - Avoid bullet points or list-style formatting
-    - Ensure smooth, connected prose that flows logically
-    - Use transitions between sections to create a cohesive narrative
+    # Executive Summary
+    [One concise paragraph summarizing key points]
 
-    2. Detailed Analysis Specifications
-    - Begin with a comprehensive executive summary paragraph
-    - Develop each key insight into a full, substantive paragraph
-    - Explore nuances and interconnections between different factors
-    - Provide context that explains the significance of each finding
+    # Detailed Analysis
+    ## Financial Performance
+    [Detailed paragraph about financial metrics and performance]
 
-    3. Analytical Depth
-    - Explain the underlying reasons behind financial trends
-    - Interpret data with professional, insightful commentary
-    - Provide clear connections between individual factors
-    - Offer balanced perspectives on potential impacts
+    ## Market Dynamics
+    [Detailed paragraph about market conditions and competitive position]
 
-    4. Formatting and Presentation
-    - Use clear, descriptive section headings
-    - Write in complete sentences with academic precision
-    - Maintain a professional, objective tone
-    - Ensure each paragraph contains multiple sentences with substantive analysis
+    ## Key Developments
+    [Detailed paragraph about recent significant events or changes]
 
-    5. Source Verification
-    - Cite sources within the text where specific claims are made
-    - Provide full source attribution at the end of the analysis
-    - Ensure sources are current and credible
+    # Future Outlook
+    [Detailed paragraph about future prospects and potential challenges]
 
-    6. Comprehensive Reporting
-    - Address multiple dimensions of the financial situation
-    - Provide both current state and potential future implications
-    - Offer nuanced, thoughtful analysis that goes beyond surface-level observations
+    # Sources
+    - [Source 1]
+    - [Source 2]
+    - [Source 3]
 
-    Deliver a response that provides comprehensive, actionable insights in a fully paragraphed, professional format.
+    Note: Each section should be properly formatted with markdown headers and contain well-structured paragraphs. Avoid using bullet points in the main content sections.
     """)
     ])
  
