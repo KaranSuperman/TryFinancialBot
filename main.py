@@ -32,6 +32,7 @@ import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+import pandas as pd
 
 
 load_dotenv() 
@@ -458,7 +459,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "include_domains": [
                     "reuters.com", "bloomberg.com", "ft.com", "wsj.com",
                     "cnbc.com", "marketwatch.com", "investing.com",
-                    "finance.yahoo.com", "seekingalpha.com"
+                    "finance.yahoo.com", "seekingalpha.com","forbes.com"
                 ],
                 "exclude_domains": ["reddit.com", "medium.com", "wikipedia.org"],
                 "time_range": "1w",  # Limit to last week
@@ -633,6 +634,12 @@ def plot_stock_graph(symbol):
         if hist.empty:
             st.error(f"No data found for {symbol}")
             return False
+            
+        # Add data freshness warning
+        latest_date = hist.index[-1].strftime('%Y-%m-%d')
+        current_date = pd.Timestamp.now().strftime('%Y-%m-%d')
+        if latest_date != current_date:
+            st.warning(f"⚠️ Latest available data is from {latest_date}. Stock market data typically has a slight delay and depends on market trading hours.")
             
         # Determine currency symbol based on exchange
         currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
