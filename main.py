@@ -489,45 +489,22 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
 
-    # Updated generation prompt with better formatting
+    # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
-        ("human", """Analyze the following financial query and provide a well-structured response:
+        ("human", """
+        Analyze this financial query/news/ or company stats enquiry:
+        Query: {query}
+        
+        Context:
+        {context}
 
-    Query: {query}
-
-    Context: {context}
-
-    Format your response using the following structure:
-
-    **Executive Summary**
-    • Provide a brief overview of the key points
-    • Keep this section to 2-3 bullet points
-    \n\n-------\n\n
-    **Market Analysis**
-    • Current market conditions
-    • Key market drivers
-    • Relevant market indicators
-    \n\n-------\n\n
-    **Company Performance**
-    • Financial metrics
-    • Recent developments
-    • Competitive position
-    \n\n-------\n\n
-    **Future Outlook**
-    • Expected trends
-    • Potential challenges
-    • Growth opportunities
-    \n\n-------\n\n
-    **Sources**
-    • List key sources used
-
-    Guidelines:
-    1. Use bullet points (•) for better readability
-    2. Keep paragraphs short (2-3 sentences)
-    3. Use bold (**) for section headers
-    4. Add line breaks between sections
-    5. Highlight important numbers or metrics
-    """)
+        Provide a clear and concise analysis focusing on.  
+        Please respond to the following query using the provided context. 
+        Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
+        aragraph every section in great sturctured format.
+        Cite your sources at the end of your response for verification.
+        Make sure always give up to date response .
+        """)
     ])
  
     # Initialize LLM with Gemini
@@ -787,6 +764,7 @@ def user_input(user_question):
         elif result.startswith("News "):
             try:
                 st.info("Exa logic")
+                # Remove "News " prefix to get the original research query
                 research_query = result[5:]
                 
                 # Retrieve API keys from Streamlit secrets or environment variables
@@ -802,12 +780,9 @@ def user_input(user_question):
                 # Execute the research query
                 response = research_chain.invoke(research_query)
                 
-                # Updated content handling for better formatting
+                # Extract and clean the content
                 if hasattr(response, 'content'):
-                    # Preserve line breaks and formatting
-                    content = response.content.strip()
-                    # Replace double spaces but preserve line breaks
-                    content = ' '.join(line.strip() for line in content.split('\n'))
+                    content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
                     return {"output_text": content}
                 else:
                     return {"output_text": "No valid content received from the response."}
