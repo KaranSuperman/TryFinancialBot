@@ -443,15 +443,36 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
         
-    # Clean the API key
     exa_api_key = exa_api_key.strip()
     
-    # Initialize retriever with comprehensive stock market sources
     try:
+        # Enhanced retriever configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=7,
-            highlights=True
+            k=5,  # Reduced for more focused results
+            highlights=True,
+            extra_params={
+                "use_autoprompt": True,
+                "num_results": 5,
+                "include_domains": [
+                    "bloomberg.com",
+                    "reuters.com",
+                    "ft.com",
+                    "wsj.com",
+                    "cnbc.com",
+                    "marketwatch.com",
+                    "investing.com",
+                    "finance.yahoo.com",
+                    "seekingalpha.com"
+                ],
+                "exclude_domains": [
+                    "youtube.com",
+                    "facebook.com",
+                    "twitter.com"
+                ],
+                "recent_days": 7,  # Focus on recent news
+                "text_length": "medium"
+            }
         )
 
         if hasattr(retriever, 'client'):
@@ -464,65 +485,81 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         st.error(f"Error initializing retriever: {str(e)}")
         raise
 
-    # Create document formatting template
+    # Enhanced document template
     document_template = """
-    <source>
-        <url>{url}</url>
-        <highlights>{highlights}</highlights>
-    </source>
+    <article>
+        <title>{title}</title>
+        <date>{date}</date>
+        <key_points>{highlights}</key_points>
+        <source>{url}</source>
+    </article>
     """
     document_prompt = PromptTemplate.from_template(document_template)
     
-    # Create document processing chain
+    # Enhanced document processing
     document_chain = (
         RunnablePassthrough() | 
         RunnableLambda(lambda doc: {
+            "title": doc.metadata.get("title", "Untitled"),
+            "date": doc.metadata.get("published_date", "Recent"),
             "highlights": doc.metadata.get("highlights", "No highlights available."),
             "url": doc.metadata.get("url", "No URL available.")
         }) | document_prompt
     )
     
-    # Create retrieval chain
     retrieval_chain = (
         retriever | 
         document_chain.map() | 
-        RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
+        RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
     )
 
-    # Simplified generation prompt for Gemini
+    # Enhanced generation prompt
     generation_prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a financial news analyst. Your task is to analyze and summarize financial news in a clear, structured format."""),
         ("human", """
-        Analyze this financial query/news/company stats and provide a clear response:
+        Analyze and summarize this financial news query and provide a well-structured response:
         Query: {query}
 
-        Context:
+        Source Information:
         {context}
 
-        Instructions:
-        NOTE: DONOT USE ITALLIC AND BOLD IN RESPONSE.
-        1. Write in clear, concise paragraphs
-        2. Format numbers with standard notation (e.g., "$89.5 billion" instead of "$89,498million")
-        3. Each paragraph should focus on one main point
-        4. Remove any special characters or symbols
-        5. For sources, list them at the end as:
-           Source: [URL]
+        Please structure your response in the following format:
 
-        Response Format:
-        [Main content paragraphs]
+        SUMMARY:
+        - Provide a 2-3 sentence overview of the main news/development
 
-        Source: [Primary URL]
-        Additional sources: [Other URLs if needed]
+        KEY POINTS:
+        1. [First major point]
+        2. [Second major point]
+        3. [Third major point]
+
+        MARKET IMPACT (if applicable):
+        - Brief analysis of potential market implications
+        - Any notable market reactions
+
+        ADDITIONAL CONTEXT:
+        - Relevant background information
+        - Related developments
+
+        Sources: [List primary sources with dates]
+
+        Guidelines:
+        1. Use clear, professional language
+        2. Present facts objectively
+        3. Format numbers consistently (e.g., "$1.2 billion")
+        4. Highlight time-sensitive information
+        5. Avoid speculation and personal opinions
+        6. Include source attribution
         """)
     ])
  
-    # Initialize LLM with Gemini
     llm = ChatGoogleGenerativeAI(
         model="gemini-pro",
-        temperature=0,
-        google_api_key=gemini_api_key
+        temperature=0.1,  # Slightly increased for better narrative flow
+        google_api_key=gemini_api_key,
+        max_output_tokens=2048  # Increased for comprehensive responses
     )
 
-    # Final chain with error handling
     chain = (
         RunnableParallel({
             "query": RunnablePassthrough(),  
