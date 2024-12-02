@@ -499,11 +499,11 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         {context}
 
         Instructions:
-        1. Write in plain text paragraphs only, don't use any special boldness or itallic in response
-        2. Use standard numbers and currency formatting (e.g., "$89.5 billion" not "89,498million")
+        1. Write in plain text paragraphs only
+        2. Use standard numbers and currency formatting 
         3. Separate each major point into its own paragraph
         4. Avoid any special characters or formatting
-        5. Include sources as plain text links at the end like (source1-link, source2-link)
+        5. Include sources as plain text links at the end in source
 
         Important: Keep all text clean and readable - no special formatting or symbols.
         """)
