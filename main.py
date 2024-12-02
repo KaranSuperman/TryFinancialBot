@@ -541,34 +541,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             4. Ensure each section is clearly separated
             5. Keep sentences properly spaced and readable
 
-            Present your response in this exact format:
-
-            SUMMARY:
-            • [Write a clear 2-3 sentence overview with proper spacing and formatting]
-
-            KEY HIGHLIGHTS:
-            1. [First key point with proper formatting]
-            2. [Second key point with proper formatting]
-            3. [Third key point with proper formatting]
-
-            FINANCIAL METRICS:
-            • Revenue: [Include specific numbers with proper formatting]
-            • Growth: [Include percentage changes]
-            • Other relevant metrics: [Include if applicable]
-
-            MARKET IMPACT:
-            • Stock Performance: [Include specific details]
-            • Market Reception: [Include analyst views]
-
-            CONTEXT & OUTLOOK:
-            • [Include relevant background information]
-            • [Include future expectations or guidance]
-
-            SOURCES:
-            • [Source 1 with date]
-            • [Source 2 with date]
-
-            Remember to maintain proper spacing and formatting throughout the response.""")
+   """)
         ])
 
         chain = (
