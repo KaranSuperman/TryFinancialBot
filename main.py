@@ -489,48 +489,44 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
 
-    # Simplified generation prompt for Gemini
+    # Updated generation prompt with better formatting
     generation_prompt = ChatPromptTemplate.from_messages([
-        ("human", """Comprehensive Financial Analysis Request
+        ("human", """Analyze the following financial query and provide a well-structured response:
 
     Query: {query}
 
     Context: {context}
 
-    Please provide a well-structured analysis with clear paragraph breaks following this format:
+    Format your response using the following structure:
 
     **Executive Summary**
+    • Provide a brief overview of the key points
+    • Keep this section to 2-3 bullet points
 
-    [One concise paragraph summarizing key points]
+    **Market Analysis**
+    • Current market conditions
+    • Key market drivers
+    • Relevant market indicators
 
-    **Detailed Analysis**
-
-    *Financial Performance*
-
-    [Detailed paragraph about financial metrics and performance]
-
-    *Market Dynamics*
-
-    [Detailed paragraph about market conditions and competitive position]
-
-    *Key Developments*
-
-    [Detailed paragraph about recent significant events or changes]
+    **Company Performance**
+    • Financial metrics
+    • Recent developments
+    • Competitive position
 
     **Future Outlook**
-
-    [Detailed paragraph about future prospects and potential challenges]
+    • Expected trends
+    • Potential challenges
+    • Growth opportunities
 
     **Sources**
-    - [Source 1]
-    - [Source 2]
-    - [Source 3]
+    • List key sources used
 
-    Note: 
-    1. Use double line breaks between sections
-    2. Each section should be its own paragraph with proper spacing
-    3. Use ** for bold and * for italics
-    4. Ensure each section is clearly separated from others
+    Guidelines:
+    1. Use bullet points (•) for better readability
+    2. Keep paragraphs short (2-3 sentences)
+    3. Use bold (**) for section headers
+    4. Add line breaks between sections
+    5. Highlight important numbers or metrics
     """)
     ])
  
@@ -791,7 +787,6 @@ def user_input(user_question):
         elif result.startswith("News "):
             try:
                 st.info("Exa logic")
-                # Remove "News " prefix to get the original research query
                 research_query = result[5:]
                 
                 # Retrieve API keys from Streamlit secrets or environment variables
@@ -807,9 +802,12 @@ def user_input(user_question):
                 # Execute the research query
                 response = research_chain.invoke(research_query)
                 
-                # Extract and clean the content
+                # Updated content handling for better formatting
                 if hasattr(response, 'content'):
-                    content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
+                    # Preserve line breaks and formatting
+                    content = response.content.strip()
+                    # Replace double spaces but preserve line breaks
+                    content = ' '.join(line.strip() for line in content.split('\n'))
                     return {"output_text": content}
                 else:
                     return {"output_text": "No valid content received from the response."}
