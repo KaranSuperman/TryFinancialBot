@@ -491,20 +491,47 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
     # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
-        ("human", """
-        Analyze this financial query/news/ or company stats enquiry:
-        Query: {query}
-        
-        Context:
-        {context}
+        ("human", """Comprehensive Financial Analysis Request
 
-        Provide a clear and concise analysis focusing on.  
-        Please respond to the following query using the provided context. 
-        Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
-        Paragraph every section in great sturctured format.
-        Cite your sources at the end of your response for verification.
-        Make sure always give up to date response .
-        """)
+    Query: {query}
+
+    Context: {context}
+
+    Analysis Guidelines:
+    1. Structure and Clarity
+    - Provide a clear, well-organized analysis
+    - Use a logical flow with distinct sections
+    - Write in professional, concise language
+
+    2. Key Analysis Components
+    - Identify primary factors influencing the financial situation
+    - Quantify impacts where possible
+    - Highlight both immediate and potential long-term implications
+
+    3. Detailed Analysis Requirements
+    - Executive Summary: Concise overview of key findings
+    - Detailed Breakdown: In-depth exploration of each significant factor
+    - Contextual Analysis: Broader market or industry implications
+    - Forward-Looking Perspective: Potential future developments
+
+    4. Formatting Specifications
+    - Use clear headings and subheadings
+    - Employ paragraph format for in-depth explanations
+    - Include bullet points for key statistics or critical insights
+    - Maintain professional, objective tone
+
+    5. Source and Verification
+    - Explicitly cite sources for all significant claims
+    - Include publication names and dates where available
+    - Ensure sources are credible and recent
+
+    6. Comprehensive Reporting
+    - Cover multiple perspectives (financial, regulatory, market sentiment)
+    - Address both positive and potentially challenging aspects
+    - Provide balanced, data-driven insights
+
+    Ensure the response is up-to-date, precise, and offers actionable intelligence for decision-makers.
+    """)
     ])
  
     # Initialize LLM with Gemini
