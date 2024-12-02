@@ -450,8 +450,20 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     try:
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=7,
-            highlights=True
+            k=5,  # Increased to get more context
+            highlights=True,
+            extra_params={
+                "num_results": 5,
+                "use_autoprompt": True,
+                "include_domains": [
+                    "reuters.com", "bloomberg.com", "ft.com", "wsj.com",
+                    "cnbc.com", "marketwatch.com", "investing.com",
+                    "finance.yahoo.com", "seekingalpha.com"
+                ],
+                "exclude_domains": ["reddit.com", "medium.com", "wikipedia.org"],
+                "time_range": "1w",  # Limit to last week
+                "sort": "date"  # Sort by date to prioritize recent content
+            }
         )
 
         if hasattr(retriever, 'client'):
@@ -464,19 +476,21 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         st.error(f"Error initializing retriever: {str(e)}")
         raise
 
-    # Create document formatting template
+    # Update document template to include date
     document_template = """
     <source>
+        <date>{date}</date>
         <url>{url}</url>
         <highlights>{highlights}</highlights>
     </source>
     """
     document_prompt = PromptTemplate.from_template(document_template)
     
-    # Create document processing chain
+    # Update document chain to include date
     document_chain = (
         RunnablePassthrough() | 
         RunnableLambda(lambda doc: {
+            "date": doc.metadata.get("published_date", "Date not available"),
             "highlights": doc.metadata.get("highlights", "No highlights available."),
             "url": doc.metadata.get("url", "No URL available.")
         }) | document_prompt
@@ -489,22 +503,34 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
 
-    # Simplified generation prompt for Gemini
+    # Updated generation prompt for better responses
     generation_prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a financial news analyst. Your task is to provide up-to-date, accurate analysis of financial news and market information.
+        Focus on recent developments and ensure all information is current."""),
         ("human", """
-        Analyze this financial query/news/ or company stats enquiry:
+        Analyze this financial query/news/company stats enquiry:
         Query: {query}
         
         Context:
         {context}
 
-        Do not write Query in the response, only give the answer.
-        Provide a clear and concise analysis focusing on.  
-        Please respond to the following query using the provided context. 
-        Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
-        aragraph every section in great sturctured format.
-        Cite your sources at the end of your response for verification.
-        Make sure always give up to date response .
+        Guidelines:
+        1. Prioritize the most recent information from the context
+        2. Verify dates and mention them in your response
+        3. Structure your response with clear sections:
+           - Key Points
+           - Recent Developments
+           - Market Impact (if applicable)
+           - Analysis
+        4. Include specific numbers and data points when available
+        5. Cite sources with dates at the end
+
+        Remember:
+        - Focus only on factual, recent information
+        - Be concise but comprehensive
+        - Highlight time-sensitive information
+        - Do not include the original query in the response
+        - Format the response in a well-structured manner
         """)
     ])
  
@@ -515,14 +541,29 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         google_api_key=gemini_api_key
     )
 
-    # Final chain with error handling
+    # Add error handling and validation to the final chain
+    def validate_response(response):
+        try:
+            if hasattr(response, 'content'):
+                content = response.content
+            else:
+                content = str(response)
+            
+            # Add timestamp to response
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+            return f"{content}\n\nResponse generated at: {timestamp}"
+        except Exception as e:
+            return f"Error processing response: {str(e)}"
+
     chain = (
         RunnableParallel({
-            "query": RunnablePassthrough(),  
-            "context": retrieval_chain,  
-        }) 
-        | generation_prompt 
+            "query": RunnablePassthrough(),
+            "context": retrieval_chain,
+        })
+        | generation_prompt
         | llm
+        | RunnableLambda(validate_response)
     )
     
     return chain
