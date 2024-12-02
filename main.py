@@ -505,7 +505,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         aragraph every section in great sturctured format.
         Cite your sources at the end of your response for verification.
         Make sure always give up to date response .
-        NOTE: You only give the finacial stats and news that is mostly of current date or in prevoius 7 days. If someone ask for news give them up to date financial news.
         """)
     ])
  
