@@ -519,7 +519,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         2. If no information is available from the last 24 hours, explicitly state that
         3. Include exact publication timestamps for all information
         4. Prioritize information from major financial news sources
-        5. Format dates with exact times when available (e.g., "March 21, 2024 at 14:30 EST")
         
         Response Guidelines:
         - Start with the most recent information first
