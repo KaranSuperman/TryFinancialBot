@@ -450,23 +450,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     try:
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,
+            k=7,
             highlights=True,
             extra_params={
-                "recency_days": 1,
-                "sort": "date",
-                "use_autoprompt": True,
-                "num_results": 5,
-                "include_domains": [
-                    "reuters.com",
-                    "bloomberg.com", 
-                    "cnbc.com",
-                    "wsj.com",
-                    "ft.com",
-                    "marketwatch.com",
-                    "investing.com",
-                    "finance.yahoo.com"
-                ]
+                "recency_days": 2,  # Limit to content from last 2 days
+                "sort": "date",     # Sort by date
+                "use_autoprompt": True  # Enable smart query expansion
             }
         )
 
@@ -505,28 +494,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
 
-    # Updated generation prompt with date validation and real-time emphasis
+    # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
         ("human", """
-        Analyze this financial query/news/company stats enquiry:
+        Analyze this financial query/news/ or company stats enquiry:
         Query: {query}
 
         Context:
         {context}
         
-        IMPORTANT INSTRUCTIONS:
-        1. ONLY provide information from the last 24 hours
-        2. If no information is available from the last 24 hours, explicitly state that
-        3. Include exact publication timestamps for all information
-        4. Prioritize information from major financial news sources
-        
-        Response Guidelines:
-        - Start with the most recent information first
-        - Only include verified information from reputable sources
-        - If information is older than 24 hours, explicitly state: "This information may be outdated. Please check real-time sources."
-        - Include direct source citations with timestamps
-        
-        NOTE: Real-time accuracy is crucial. Only use the most recent sources.
+        Only gives finance related news and stats with most accuracy.
+        Do not write Query in the response, only give the answer.
+        Provide a clear and concise analysis focusing on.  
+        Please respond to the following query using the provided context. 
+        Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
+        aragraph every section in great sturctured format.
+        Cite your sources at the end of your response for verification.
+        Make sure always give up to date response .
+        NOTE: You only give the finacial stats and news that is mostly of current date or in prevoius. If someone ask for news give them up to date financial news.
         """)
     ])
  
