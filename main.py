@@ -451,7 +451,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=7,
-            highlights=True
+            highlights=True,
+            extra_params={
+                "recency_days": 2,  # Limit to content from last 2 days
+                "sort": "date",     # Sort by date
+                "use_autoprompt": True  # Enable smart query expansion
+            }
         )
 
         if hasattr(retriever, 'client'):
@@ -489,24 +494,30 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
     )
 
-    # Simplified generation prompt for Gemini
+    # Updated generation prompt with date validation and real-time emphasis
     generation_prompt = ChatPromptTemplate.from_messages([
         ("human", """
-        Analyze this financial query/news/ or company stats enquiry:
+        Analyze this financial query/news/company stats enquiry:
         Query: {query}
 
         Context:
         {context}
         
-        Only gives finance related news and stats with most accuracy.
-        Do not write Query in the response, only give the answer.
-        Provide a clear and concise analysis focusing on.  
-        Please respond to the following query using the provided context. 
-        Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
-        aragraph every section in great sturctured format.
-        Cite your sources at the end of your response for verification.
-        Make sure always give up to date response .
-        NOTE: You only give the finacial stats and news that is mostly of current date or in prevoius. If someone ask for news give them up to date financial news.
+        IMPORTANT INSTRUCTIONS:
+        1. Only provide the most recent financial news and stats (within the last 24-48 hours)
+        2. Verify and include the publication date of each source
+        3. If the information is older than 48 hours, explicitly search for more recent updates
+        4. Do not include outdated information from previous months or years
+        5. Format dates in a clear, standardized way (e.g., "March 21, 2024")
+        
+        Response Guidelines:
+        - Focus on the most recent developments and current market conditions
+        - Include timestamps or publication dates for all information
+        - If no recent information is available, explicitly state that and suggest checking real-time sources
+        - Organize information chronologically, with newest first
+        - Cite sources with their publication dates
+        
+        NOTE: Ensure all financial data and news are current as of the actual present date. Do not use cached or outdated information.
         """)
     ])
  
