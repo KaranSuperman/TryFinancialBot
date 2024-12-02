@@ -502,22 +502,22 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     **Executive Summary**
     • Provide a brief overview of the key points
     • Keep this section to 2-3 bullet points
-
+    ---------------------------------------
     **Market Analysis**
     • Current market conditions
     • Key market drivers
     • Relevant market indicators
-
+    ---------------------------------------
     **Company Performance**
     • Financial metrics
     • Recent developments
     • Competitive position
-
+    ---------------------------------------
     **Future Outlook**
     • Expected trends
     • Potential challenges
     • Growth opportunities
-
+    ---------------------------------------
     **Sources**
     • List key sources used
 
