@@ -450,12 +450,23 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     try:
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=7,
+            k=5,
             highlights=True,
             extra_params={
-                "recency_days": 2,  # Limit to content from last 2 days
-                "sort": "date",     # Sort by date
-                "use_autoprompt": True  # Enable smart query expansion
+                "recency_days": 1,
+                "sort": "date",
+                "use_autoprompt": True,
+                "num_results": 5,
+                "include_domains": [
+                    "reuters.com",
+                    "bloomberg.com", 
+                    "cnbc.com",
+                    "wsj.com",
+                    "ft.com",
+                    "marketwatch.com",
+                    "investing.com",
+                    "finance.yahoo.com"
+                ]
             }
         )
 
@@ -504,20 +515,19 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         {context}
         
         IMPORTANT INSTRUCTIONS:
-        1. Only provide the most recent financial news and stats (within the last 24-48 hours)
-        2. Verify and include the publication date of each source
-        3. If the information is older than 48 hours, explicitly search for more recent updates
-        4. Do not include outdated information from previous months or years
-        5. Format dates in a clear, standardized way (e.g., "March 21, 2024")
+        1. ONLY provide information from the last 24 hours
+        2. If no information is available from the last 24 hours, explicitly state that
+        3. Include exact publication timestamps for all information
+        4. Prioritize information from major financial news sources
+        5. Format dates with exact times when available (e.g., "March 21, 2024 at 14:30 EST")
         
         Response Guidelines:
-        - Focus on the most recent developments and current market conditions
-        - Include timestamps or publication dates for all information
-        - If no recent information is available, explicitly state that and suggest checking real-time sources
-        - Organize information chronologically, with newest first
-        - Cite sources with their publication dates
+        - Start with the most recent information first
+        - Only include verified information from reputable sources
+        - If information is older than 24 hours, explicitly state: "This information may be outdated. Please check real-time sources."
+        - Include direct source citations with timestamps
         
-        NOTE: Ensure all financial data and news are current as of the actual present date. Do not use cached or outdated information.
+        NOTE: Real-time accuracy is crucial. Only use the most recent sources.
         """)
     ])
  
