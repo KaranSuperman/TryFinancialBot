@@ -490,26 +490,25 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     )
 
     # Simplified generation prompt for Gemini
-    generation_prompt = ChatPromptTemplate.from_messages([
-        ("human", """
-        Analyze this financial query, news, or company stats enquiry:
-        
-        Query: {query}
-        Context: {context}
-        
-        Response Guidelines:
-        1. Do not repeat the query in your response, only provide the answer.
-        2. Provide a clear, concise analysis focused on the key points.
-        3. Ensure your response is well-structured, with relevant data and statistics where applicable.
-        4. Format your response in clear, structured paragraphs.
-        5. Cite your sources at the end of the response for verification.
-        6. Prioritize providing the most up-to-date financial information available.
-        7. If the query is specifically about "what is today's news," extract and summarize the latest financial headlines, market movements, and other key updates.
-        8. Avoid speculation or unsupported claims. Stick to factual, verifiable information.
-        NOTE: Only give the response in the term of finance expert.
-        """)
-    ])
-    
+generation_prompt = ChatPromptTemplate.from_messages([
+    ("human", """
+    Analyze this financial query/news/ or company stats enquiry:
+    Query: {query}
+
+    Context:
+    {context}
+
+    Do not write Query in the response, only give the answer.
+    Provide a clear and concise analysis focusing on.  
+    Please respond to the following query using the provided context. 
+    Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. 
+    aragraph every section in great sturctured format.
+    Cite your sources at the end of your response for verification.
+    Make sure always give up to date response .
+    NOTE: You only give the finacial stats and news that is mostly of current date or in prevoius. If someone ask for news give them up to date financial news.
+    """)
+])
+ 
     # Initialize LLM with Gemini
     llm = ChatGoogleGenerativeAI(
         model="gemini-pro",
