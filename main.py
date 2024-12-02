@@ -492,7 +492,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     # Simplified generation prompt for Gemini
     generation_prompt = ChatPromptTemplate.from_messages([
         ("human", """
-        Analyze this financial query/news:
+        Analyze this financial query/news/ or company stats enquiry:
         Query: {query}
         
         Context:
