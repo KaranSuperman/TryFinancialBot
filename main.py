@@ -32,7 +32,6 @@ import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-import pandas as pd
 
 
 load_dotenv() 
@@ -627,19 +626,16 @@ def plot_stock_graph(symbol):
             st.error(f"Invalid period. Choose from {', '.join(valid_periods)}")
             return False
         
-        # Get stock data
+        # Get stock data with interval parameter for better date precision
         stock = yf.Ticker(symbol)
-        hist = stock.history(period=period)
+        hist = stock.history(period=period, interval="1d")  # Force daily interval
+        
+        # Convert timezone to local time if needed
+        hist.index = hist.index.tz_localize(None)  # Remove timezone info
         
         if hist.empty:
             st.error(f"No data found for {symbol}")
             return False
-            
-        # Add data freshness warning
-        latest_date = hist.index[-1].strftime('%Y-%m-%d')
-        current_date = pd.Timestamp.now().strftime('%Y-%m-%d')
-        if latest_date != current_date:
-            st.warning(f"⚠️ Latest available data is from {latest_date}. Stock market data typically has a slight delay and depends on market trading hours.")
             
         # Determine currency symbol based on exchange
         currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
@@ -667,11 +663,11 @@ def plot_stock_graph(symbol):
         # Create Plotly figure
         fig = go.Figure()
         
-        # Add price line
+        # Add price line with updated date formatting
         fig.add_trace(go.Scatter(
             x=hist.index,
             y=hist['Close'],
-            mode='lines+markers',  # Add markers to show data points
+            mode='lines+markers',
             name='Close Price',
             line=dict(
                 color='#00C805' if is_positive else '#FF3E2E',
@@ -679,13 +675,13 @@ def plot_stock_graph(symbol):
             ),
             marker=dict(
                 size=8,
-                color='#ffffff',  # Set marker color to white
+                color='#ffffff',
                 line=dict(
                     color='#00C805' if is_positive else '#FF3E2E',
                     width=2
                 )
             ),
-            hovertemplate='Date: %{x}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
+            hovertemplate='Date: %{x|%Y-%m-%d}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
         ))
         
         # Update layout
@@ -709,6 +705,16 @@ def plot_stock_graph(symbol):
             margin=dict(l=50, r=50, t=50, b=80),  # Increased bottom margin for annotation
         )
         
+        # Update x-axis to show dates properly
+        fig.update_xaxes(
+            dtick="D1",  # Show daily ticks
+            tickformat="%Y-%m-%d",  # Format as YYYY-MM-DD
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128,128,128,0.2)',
+            rangeslider_visible=(period != '1d')
+        )
+        
         # Adjust axis range for 1-day period
         if period == '1d':
             fig.update_xaxes(
@@ -716,20 +722,7 @@ def plot_stock_graph(symbol):
                 showgrid=True,
                 gridwidth=1,
                 gridcolor='rgba(128,128,128,0.2)',
-                rangeslider_visible=False,
-                tickformat='%H:%M',  # Show only hours and minutes for 1-day view
-                dtick=3600000,  # Show hourly ticks (in milliseconds)
-                ticklabelmode='period'  # Use period mode for better label positioning
-            )
-            # Add a date annotation to show the current trading day
-            fig.add_annotation(
-                text=f"Trading Day: {hist.index[0].strftime('%Y-%m-%d')}",
-                xref='paper',
-                yref='paper',
-                x=0,
-                y=-0.15,
-                showarrow=False,
-                font=dict(size=12)
+                rangeslider_visible=False
             )
             fig.update_yaxes(
                 showgrid=True,
