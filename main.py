@@ -525,34 +525,50 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Modified prompt to avoid system message issues
+        # Modified generation prompt with better formatting instructions
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("human", """You are a financial news analyst. Analyze and summarize this financial news query:
-            
+            ("human", """You are a professional financial news analyst. Analyze and present the following query with clear formatting and structure:
+
             Query: {query}
 
             Source Information:
             {context}
 
-            Provide your response in this format:
+            Follow these strict formatting rules:
+            1. Use proper spacing and line breaks between sections
+            2. Format numbers consistently (e.g., "$89.5 billion" not "89.5billion")
+            3. Use bullet points and numbers with proper spacing
+            4. Ensure each section is clearly separated
+            5. Keep sentences properly spaced and readable
+
+            Present your response in this exact format:
 
             SUMMARY:
-            [2-3 sentence overview of main news/development]
+            • [Write a clear 2-3 sentence overview with proper spacing and formatting]
 
-            KEY POINTS:
-            1. [First major point]
-            2. [Second major point]
-            3. [Third major point]
+            KEY HIGHLIGHTS:
+            1. [First key point with proper formatting]
+            2. [Second key point with proper formatting]
+            3. [Third key point with proper formatting]
+
+            FINANCIAL METRICS:
+            • Revenue: [Include specific numbers with proper formatting]
+            • Growth: [Include percentage changes]
+            • Other relevant metrics: [Include if applicable]
 
             MARKET IMPACT:
-            - [Market implications]
-            - [Notable market reactions]
+            • Stock Performance: [Include specific details]
+            • Market Reception: [Include analyst views]
 
-            ADDITIONAL CONTEXT:
-            - [Background information]
-            - [Related developments]
+            CONTEXT & OUTLOOK:
+            • [Include relevant background information]
+            • [Include future expectations or guidance]
 
-            Sources: [List sources with dates]""")
+            SOURCES:
+            • [Source 1 with date]
+            • [Source 2 with date]
+
+            Remember to maintain proper spacing and formatting throughout the response.""")
         ])
 
         chain = (
