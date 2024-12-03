@@ -527,30 +527,35 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Modified generation prompt with better formatting instructions
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("human", """You are a professional financial news analyst. Analyze and present the following query with clear formatting and structure:
+            ("human", """You are a professional financial news analyst. Present your analysis in clear, plain text format:
 
             Query: {query}
 
             Source Information:
             {context}
 
-            Please provide a comprehensive analysis following this structure:
-            1. Key Points:
-               - Main findings and important updates
-               - Relevant statistics and data
-               - Market impact or significance
+            Format your response exactly like this:
 
-            2. Market Context:
-               - Current market conditions
-               - Related industry trends
-               - Comparative analysis (if applicable)
+            1. **Key Points:**
+               - [Plain text bullet point]
+               - [Plain text bullet point]
+               - [Plain text bullet point]
 
-            3. Outlook:
-               - Future implications
-               - Expert opinions
-               - Potential developments
+            2. **Market Context:**
+               - [Plain text bullet point]
+               - [Plain text bullet point]
+               - [Plain text bullet point]
 
-            Note: Focus on factual information from reliable sources. Present data clearly and avoid speculation. Give every information in simple and clean format or simple text.
+            3. **Outlook:**
+               - [Plain text bullet point]
+               - [Plain text bullet point]
+               - [Plain text bullet point]
+
+            Important:
+            - Use only standard characters and plain text
+            - Ensure all numbers and text are properly spaced
+            - Do not use special formatting or unusual characters
+            - Keep all text in a single, consistent style
             """)
         ])
 
