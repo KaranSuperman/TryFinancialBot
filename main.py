@@ -533,13 +533,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
             Source Information:
             {context}
-
-            Follow these strict formatting rules:
-            1. Use proper spacing and line breaks between sections
-            2. Format numbers consistently (e.g., "$89.5 billion" not "89.5billion")
-            3. Use bullet points and numbers with proper spacing
-            4. Ensure each section is clearly separated
-            5. Keep sentences properly spaced and readable
+            Answer in simple and clean format.
 
    """)
         ])
