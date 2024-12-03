@@ -535,6 +535,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             {context}
 
             Format your response in plain text with proper spacing between all words and numbers.
+            Seperate each point with a new line.
             Also give the cite of the information.
             """)
         ])
