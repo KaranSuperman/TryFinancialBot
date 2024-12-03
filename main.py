@@ -533,10 +533,25 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
             Source Information:
             {context}
-            Answer in simple and clean format summary.
-            
 
-   """)
+            Please provide a comprehensive analysis following this structure:
+            1. Key Points:
+               - Main findings and important updates
+               - Relevant statistics and data
+               - Market impact or significance
+
+            2. Market Context:
+               - Current market conditions
+               - Related industry trends
+               - Comparative analysis (if applicable)
+
+            3. Outlook:
+               - Future implications
+               - Expert opinions
+               - Potential developments
+
+            Note: Focus on factual information from reliable sources. Present data clearly and avoid speculation.
+            """)
         ])
 
         chain = (
