@@ -534,28 +534,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Source Information:
             {context}
 
-            Format your response exactly like this:
-
-            1. **Key Points:**
-               - [Plain text bullet point]
-               - [Plain text bullet point]
-               - [Plain text bullet point]
-
-            2. **Market Context:**
-               - [Plain text bullet point]
-               - [Plain text bullet point]
-               - [Plain text bullet point]
-
-            3. **Outlook:**
-               - [Plain text bullet point]
-               - [Plain text bullet point]
-               - [Plain text bullet point]
-
-            Important:
-            - Use only standard characters and plain text
-            - Ensure all numbers and text are properly spaced
-            - Do not use special formatting or unusual characters
-            - Keep all text in a single, consistent style
+            Format your response in plain text with proper spacing between all words and numbers.
             """)
         ])
 
