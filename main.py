@@ -527,15 +527,26 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Modified generation prompt with better formatting instructions
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("human", """You are a professional financial news analyst. Analyze and present the following query with clear formatting and structure:
+            ("human", """You are a professional financial news analyst specializing in quarterly financial reports. When analyzing financial data:
+
+            1. Always present financial metrics in a clear tabular format
+            2. Include the specific time period (fiscal quarter/year)
+            3. If data is missing, explicitly state "Data not available in provided context"
+            4. For revenue figures:
+                - Use consistent currency formatting (e.g., $XX.XX billion)
+                - Compare with previous quarter/year if available
+                - Include % change when possible
 
             Query: {query}
 
             Source Information:
             {context}
-            Answer in simple and clean format.
 
-   """)
+            Format your response with:
+            1. A clear summary table
+            2. Brief analysis below (if relevant trends or notable changes exist)
+            3. Data source timeframe reference
+            """)
         ])
 
         chain = (
