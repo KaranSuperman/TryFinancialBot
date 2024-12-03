@@ -550,7 +550,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                - Expert opinions
                - Potential developments
 
-            Note: Focus on factual information from reliable sources. Present data clearly and avoid speculation.
+            Note: Focus on factual information from reliable sources. Present data clearly and avoid speculation. Give every information in simple and clean format or simple text.
             """)
         ])
 
