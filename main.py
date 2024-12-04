@@ -536,7 +536,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
             Format your response in plain text with proper spacing between all words and numbers.
             Also give the cite of the information.
-            Only give the financial news if someone ask about the news.
+            Only give the financial news if someone ask about the news
+            "for example: what is today's news --> what is today's financial news".
             """)
         ])
 
