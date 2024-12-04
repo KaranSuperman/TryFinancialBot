@@ -527,19 +527,29 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Modified generation prompt with better formatting instructions
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("human", """You are a professional financial news analyst who have up to date information and news of finance and companies. Present your analysis in clear, plain text format:
+            ("human", """You are a professional financial news analyst with up-to-date information on finance and companies. Present your analysis in a clear, structured format:
 
             Query: {query}
 
             Source Information:
             {context}
 
-            Format your response in plain text with proper spacing between all words and numbers.
-            Response in term of finance .
-            Also give the cite of the information.
-            NOTE: Always response everything in plain text with proper spacing between all words and numbers.
-            <Keep in mind :proper spacing between all words and numbers with plain text and numbers is neccesary>
+            Instructions for response:
+            1. Use clear paragraphs with proper spacing
+            2. Format all numbers with appropriate commas and decimal points (e.g., "$22.1 billion" not "22.1billion")
+            3. Include percentage changes with proper spacing (e.g., "up 126%" not "up126%")
+            4. Break down key financial metrics into separate lines for readability
+            5. Always cite your sources at the end
             
+            Example format:
+            In Q4 FY2024, Nvidia reported record revenue of $22.1 billion, representing a 126% increase from the previous fiscal year.
+            
+            Key metrics:
+            - Revenue: $22.1 billion
+            - Year-over-year growth: 126%
+            - Quarter-over-quarter growth: 41%
+
+            Source: [Publication Name, Date]
             """)
         ])
 
