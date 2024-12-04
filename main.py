@@ -538,7 +538,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Response in term of finance .
             Also give the cite of the information.
             NOTE: Always response everything in plain text with proper spacing between all words and numbers.
-            < Keep in mind : proper spacing between all words and numbers with plain text and numbers is neccesary >
+            < Keep in mind : Proper spacing between all words and numbers with plain text & numbers is neccesary (always follow the this rule) >
             
             """)
         ])
