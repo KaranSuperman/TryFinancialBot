@@ -527,7 +527,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Modified generation prompt with better formatting instructions
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("human", """You are a professional financial news analyst. Present your analysis in clear, plain text format:
+            ("human", """You are a professional financial news analyst who have up to date information and news of finance and companies. Present your analysis in clear, plain text format:
 
             Query: {query}
 
@@ -536,8 +536,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
             Format your response in plain text with proper spacing between all words and numbers.
             Response in term of finance .
-            Response everything in plain text with proper spacing between all words and numbers.
             Also give the cite of the information.
+            NOTE: Always response everything in plain text with proper spacing between all words and numbers.
             
             """)
         ])
