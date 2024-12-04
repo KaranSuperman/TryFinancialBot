@@ -527,14 +527,13 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Modified generation prompt with better formatting instructions
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("human", """You are a professional financial news analyst and research analyst. Present your analysis in clear, plain text format:
+            ("human", """You are a professional financial news analyst. Present your analysis in clear, plain text format:
 
             Query: {query}
 
             Source Information:
             {context}
 
-            Only give the news and information regards economics and finance. If someone ask for today news then give them today trending financial news in plain text try to give up to date news and research.
             Format your response in plain text with proper spacing between all words and numbers.
             Also give the cite of the information.
             """)
