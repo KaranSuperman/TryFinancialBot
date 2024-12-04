@@ -474,7 +474,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "text_length": "medium"
             }
         )
-
+        st.info(f"retreiver: {retriever}")
         # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
@@ -538,6 +538,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Response in term of finance .
             Also give the cite of the information.
             NOTE: Always response everything in plain text with proper spacing between all words and numbers.
+            < plain text of font and number is neccesary >
             
             """)
         ])
