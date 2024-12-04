@@ -534,7 +534,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Source Information:
             {context}
 
-            Only give the news and information regards economics and finance. If someone ask for today news then give them today trending financial news.
+            Only give the news and information regards economics and finance. If someone ask for today news then give them today trending financial news in plain text try to give up to date news and research.
             Format your response in plain text with proper spacing between all words and numbers.
             Also give the cite of the information.
             """)
