@@ -518,10 +518,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         chain = (
             RunnableParallel({
-                "query": RunnablePassthrough(),  
-                "context": retrieval_chain,  
-            }) 
-            | generation_prompt 
+                "query": RunnablePassthrough(),
+                "context": retrieval_chain,
+            })
+            | generation_prompt
             | llm
             | output_parser
         )
