@@ -477,9 +477,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "recent_days": 1,  # Focus on most recent news
                 "max_publish_year": 2024, 
                 "text_length": "medium",
-                "recency": "latest",  # If the API supports a recency filter
-                "sort_by": "date",    # Sort results by most recent date
-                "time_range": "last_24h"  
+                    "recency": "latest",  # If the API supports a recency filter
+                    "sort_by": "date",    # Sort results by most recent date
             }
         )
 
@@ -565,9 +564,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Financial Market Briefing: 
             - Headline 1: Concise description with key financial metrics 
             - Headline 2: Concise description with key financial metrics 
-            - Headline 3: Concise description with key financial metrics
-
-            Source:[source1, source2 ....] 
+            - Headline 3: Concise description with key financial metrics 
 
             Provide insights that a professional investor or financial analyst would find valuable.""")
         ])
