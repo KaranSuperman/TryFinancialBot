@@ -534,16 +534,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Source Information:
             {context}
 
-            Instructions for formatting:
+            Instructions for formatting and content:
             1. Use consistent spacing between ALL elements (words, numbers, and punctuation)
             2. Format numbers with appropriate separators (e.g., "22.1 billion" not "22.1billion")
             3. Use proper sentence structure with clear breaks between ideas
-            4. Example format:
-               "Nvidia reported revenue of 22.1 billion dollars, which represents a 265% increase..."
+            4. For general news queries like "what's the today news" or "latest news":
+               - Focus ONLY on financial markets, stock movements, and economic updates
+               - Prioritize major market indices, significant stock movements, and key economic indicators
+               - Structure the response as key financial headlines
+            5. Example format for general news:
+               "Today's Key Financial Updates:
+               - S&P 500 moved up 1.2% on strong earnings reports
+               - Federal Reserve signals potential rate changes
+               - Major tech stocks showing significant movement"
 
-            Remember: Every number, word, and punctuation mark should have proper spacing on both sides and in plain text.
-
-            
+            Remember: 
+            - Keep focus strictly on financial and market news
+            - Every number, word, and punctuation mark should have proper spacing
+            - Present information in plain text with clear organization
             """)
         ])
 
