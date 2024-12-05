@@ -512,7 +512,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         """
         document_prompt = PromptTemplate.from_template(document_template)
 
-        output_parser = StrOutputParser()
 
         
         document_chain = (
@@ -575,7 +574,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             }) 
             | generation_prompt 
             | llm
-            | output_parser 
 
         )
         
