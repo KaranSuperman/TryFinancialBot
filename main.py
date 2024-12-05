@@ -558,9 +558,9 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
             Output Format:
             Financial Market Briefing: 
-            - Headline 1: Concise description with key financial metrics
-            - Headline 2: Concise description with key financial metrics
-            - Headline 3: Concise description with key financial metrics
+            - Headline 1: Concise description with key financial metrics \n
+            - Headline 2: Concise description with key financial metrics \n
+            - Headline 3: Concise description with key financial metrics \n
 
             Provide insights that a professional investor or financial analyst would find valuable.""")
         ])
