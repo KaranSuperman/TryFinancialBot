@@ -441,10 +441,22 @@ def get_stock_price(symbol):
         return None, None, None, None, None, None
 
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
+    """
+    Create an enhanced research chain for financial news retrieval and analysis.
+    
+    Args:
+        exa_api_key (str): API key for Exa search
+        gemini_api_key (str): API key for Google Gemini
+    
+    Returns:
+        A configured research chain for financial news analysis
+    """
+    # Input validation
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
     
-    exa_api_key = exa_api_key.strip()
+    if not gemini_api_key or not isinstance(gemini_api_key, str):
+        raise ValueError("Valid Gemini API key is required")
     
     try:
         # Enhanced Retriever Configuration
@@ -456,23 +468,15 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "use_autoprompt": True,
                 "num_results": 7,
                 "include_domains": [
-                    "bloomberg.com",
-                    "reuters.com", 
-                    "ft.com", 
-                    "wsj.com", 
-                    "cnbc.com", 
-                    "marketwatch.com", 
-                    "investing.com", 
-                    "finance.yahoo.com", 
-                    "seekingalpha.com",
-                    "reuters.com/markets",
+                    "bloomberg.com", "reuters.com", "ft.com", 
+                    "wsj.com", "cnbc.com", "marketwatch.com", 
+                    "investing.com", "finance.yahoo.com", 
+                    "seekingalpha.com", "reuters.com/markets", 
                     "businesswire.com"
                 ],
                 "exclude_domains": [
-                    "youtube.com",
-                    "facebook.com", 
-                    "twitter.com", 
-                    "reddit.com"
+                    "youtube.com", "facebook.com", 
+                    "twitter.com", "reddit.com"
                 ],
                 "recent_days": 1,  # Focus on most recent news
                 "text_length": "medium"
@@ -486,10 +490,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "Content-Type": "application/json"
             })
         
-        # Verify Gemini API key
-        if not gemini_api_key or not isinstance(gemini_api_key, str):
-            raise ValueError("Valid Gemini API key is required")
-
         # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
@@ -502,40 +502,64 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
-        document_template = """
-        <financial_news>
-            <headline>{title}</headline>
-            <date>{date}</date>
-            <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
-        </financial_news>
-        """
-        document_prompt = PromptTemplate.from_template(document_template)
-        
-        document_chain = (
-            RunnablePassthrough() | 
-            RunnableLambda(lambda doc: {
+        # Refined Document Parsing Function
+        def parse_document(doc: Dict[str, Any]) -> Dict[str, str]:
+            """
+            Parse and extract key information from a document.
+            
+            Args:
+                doc (Dict): Document metadata and content
+            
+            Returns:
+                Dict with extracted document information
+            """
+            return {
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
                 "url": doc.metadata.get("url", "No source URL")
-            }) | document_prompt
-        )
+            }
+
+        # Detailed Document Template
+        document_template = """
+        Financial News Item:
+        - Headline: {title}
+        - Date: {date}
+        - Key Insights: {highlights}
+        - Source: {url}
+        """
+        document_prompt = PromptTemplate.from_template(document_template)
         
+        # Improved Retrieval Chain
+        def format_documents(docs: List[Dict]) -> str:
+            """
+            Format multiple documents into a single string.
+            
+            Args:
+                docs (List[Dict]): List of parsed documents
+            
+            Returns:
+                str: Formatted document string
+            """
+            parsed_docs = [parse_document(doc) for doc in docs]
+            return "\n\n".join(
+                document_prompt.format(**doc) for doc in parsed_docs
+            )
+
         retrieval_chain = (
             retriever | 
-            document_chain.map() | 
-            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+            RunnableLambda(format_documents)
         )
 
         # Professional Financial News Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
+            ("system", """You are a professional financial analyst with deep expertise in current market trends, 
+            company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable 
+            financial insights.
 
             Key Priorities:
             - Focus exclusively on verified financial and market news
-            - Prioritize significant market movements, corporate earnings, economic reports
+            - Prioritize the most recent and significant market updates
             - Provide clear, professional analysis with context
             - Use precise financial terminology
             - Highlight potential market implications"""),
@@ -547,25 +571,23 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             {context}
 
             Analysis Requirements:
-            1. Structure as professional financial briefing
-            2. Include specific details about:
-            - Major stock index movements
-            - Significant company news
-            - Notable economic indicators
-            - Potential market impacts
-            3. Use precise numerical data
-            4. Maintain a professional, objective tone
-            5. Prioritize the most impactful financial news
+            1. Structure as a professional financial market briefing
+            2. Prioritize the MOST RECENT updates
+            3. Include specific details about:
+               - Immediate market movements
+               - Breaking financial news
+               - Urgent economic indicators
+            4. Use clear, concise language
+            5. Emphasize recent developments
 
             Output Format:
-            Financial Market Briefing: 
-            - Headline 1: Concise description with key financial metrics 
-            - Headline 2: Concise description with key financial metrics 
-            - Headline 3: Concise description with key financial metrics 
-
-            Provide insights that a professional investor or financial analyst would find valuable.""")
+            🔥 LATEST FINANCIAL UPDATES 🔥
+            1. Most Recent Update: [Concise, high-impact description]
+            2. Secondary Key Update: [Significant market insight]
+            3. Emerging Trend: [Potential market impact]""")
         ])
 
+        # Final Chain Configuration
         chain = (
             RunnableParallel({
                 "query": RunnablePassthrough(),  
@@ -580,8 +602,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
-
-
+    
 def execute_research_query(question: str):
     try:
         # Get API keys
