@@ -1,5 +1,5 @@
 import streamlit as st
-from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, extract_questions_from_json, get_vector_store_faq, user_input
+from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, extract_questions_from_json, get_vector_store_faq, user_input, get_vector_store_news
 
 #changes
 # ---------------------------------------------------------
@@ -78,12 +78,8 @@ vector_store_faq = get_vector_store_faq(faq_chunks)
 # -----------------------------------------------------
 # For News
 news_items, metadata = extract_questions_from_json("./news.json")
-
-# Use the news content for creating embeddings
 news_chunks = news_items
-
-# Create the vector store for news
-vector_store_news = get_vector_store_faq(news_chunks)
+vector_store_news = get_vector_store_news(news_chunks)
 
 # -------------------------------------------------------
 # User input for question
