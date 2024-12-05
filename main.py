@@ -641,12 +641,16 @@ def plot_stock_graph(symbol):
         
         # Get stock data
         stock = yf.Ticker(symbol)
-        hist = stock.history(period=period, tz="Asia/Kolkata")
+        hist = stock.history(period=period)
         
         if hist.empty:
             st.error(f"No data found for {symbol}")
             return False
-            
+        
+        # Convert the index to IST timezone
+        ist = pytz.timezone('Asia/Kolkata')
+        hist.index = hist.index.tz_localize('UTC').tz_convert(ist)
+        
         # Determine currency symbol based on exchange
         currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
         
