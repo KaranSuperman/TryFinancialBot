@@ -959,14 +959,15 @@ def user_input(user_question):
                     prompt_template = """
                     Question: {question}
 
-                    Answer:
+                    The provided answer is:
                     {answer}
 
-                    Additional Details:
+                    Based on this information, let me expand on the response within 100 words:
+
                     {context}
 
-                    Feel free to ask if you'd like further clarification or more information about Paasa or its services.
-                   
+                    Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
+                    
                     """
                     prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
                     chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
