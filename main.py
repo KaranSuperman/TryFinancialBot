@@ -474,7 +474,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                     "twitter.com", 
                     "reddit.com"
                 ],
-                "recent_days": 1,  # Focus on most recent news
                 "max_publish_year": 2024, 
                 "text_length": "medium",
                     "recency": "latest",  # If the API supports a recency filter
