@@ -489,15 +489,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
-        document_chain = (
-            RunnablePassthrough() | 
-            RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
-                "date": doc.metadata.get("published_date", "Today"),
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
-            }) | document_prompt
-        )
+        document_chain = RunnableLambda(
+            lambda document: {
+                "highlights": document.metadata["highlights"],
+                "url": document.metadata["url"]
+            }
+        ) | document_prompt
         
         retrieval_chain = (
             retriever | 
