@@ -32,6 +32,7 @@ import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+import pytz
 
 
 load_dotenv() 
