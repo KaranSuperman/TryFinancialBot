@@ -32,7 +32,6 @@ import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-import pytz
 
 
 load_dotenv() 
@@ -647,11 +646,7 @@ def plot_stock_graph(symbol):
         if hist.empty:
             st.error(f"No data found for {symbol}")
             return False
-        
-        # Convert the index to IST timezone
-        ist = pytz.timezone('Asia/Kolkata')
-        hist.index = hist.index.tz_localize('UTC').tz_convert(ist)
-        
+            
         # Determine currency symbol based on exchange
         currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
         
