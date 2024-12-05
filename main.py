@@ -540,7 +540,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             3. Use proper sentence structure with clear breaks between ideas
             4. Example format:
                "Nvidia reported revenue of 22.1 billion dollars, which represents a 265% increase..."
-            5. Response in points for better reading.
+            5. Response in points for better reading with plain text.
+            6. Do not use bold or italic fonts in response.
 
             Remember: Every number, word, and punctuation mark should have proper spacing on both sides and in plain text.
 
