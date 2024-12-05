@@ -525,7 +525,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             | llm
             | output_parser
         )
-        st.write(chain)
+        
+        # Debugging: Log the chain structure
+        st.write("DEBUG: Chain structure created successfully.")
+        
         return chain
     
 
