@@ -1006,3 +1006,87 @@ def user_input(user_question):
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
         return {"output_text": "An error occurred while processing your request. Please try again."}
+
+def extract_news_from_json(json_path):
+    with open(json_path, "r") as f:
+        news_data = json.load(f)
+    
+    news_items = []
+    metadata = []
+    
+    for entry in news_data:
+        news_items.append(entry["Title"])  # Use the "Title" key from your JSON
+        metadata.append({
+            "content": entry["Content"],  # Use the "Content" key from your JSON
+            # Add any other metadata fields you want to store
+        }) 
+    
+    return news_items, metadata
+
+def get_vector_store_news(news_chunks, batch_size=1):
+    try:
+        # Load the GCP credentials from Streamlit secrets
+        gcp_credentials = st.secrets["gcp_service_account"]
+        
+        # Convert credentials to dictionary if needed
+        if not isinstance(gcp_credentials, dict):
+            gcp_credentials_dict = json.loads(gcp_credentials) if isinstance(gcp_credentials, str) else dict(gcp_credentials)
+        else:
+            gcp_credentials_dict = gcp_credentials
+
+        # Create a temporary credentials file
+        credentials_path = "temp_service_account.json"
+        with open(credentials_path, "w") as f:
+            json.dump(gcp_credentials_dict, f)
+
+        # Set environment variable for authentication
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path 
+
+        # Initialize credentials
+        credentials = service_account.Credentials.from_service_account_file(credentials_path)
+        
+        # Initialize AI Platform
+        aiplatform.init(
+            project=gcp_credentials_dict["project_id"],
+            credentials=credentials
+        )
+
+        # Configure Gemini API
+        gemini_api_key = st.secrets["gemini"]["api_key"]
+        genai.configure(api_key=gemini_api_key)
+
+        # Create embeddings model
+        embeddings = GoogleGenerativeAIEmbeddings(
+            model="models/embedding-001",
+            google_api_key=gemini_api_key,
+            credentials=credentials
+        )
+
+        # Process text chunks in batches
+        text_embeddings = []
+        for i in range(0, len(news_chunks), batch_size):
+            batch = news_chunks[i:i + batch_size]
+            try:
+                batch_embeddings = embeddings.embed_documents(batch)
+                text_embeddings.extend([(text, emb) for text, emb in zip(batch, batch_embeddings)])
+            except Exception as e:
+                st.error(f"Error processing batch {i//batch_size}: {str(e)}")
+                continue
+
+        # Create and save vector store
+        if text_embeddings:
+            vector_store_news = FAISS.from_embeddings(
+                text_embeddings,
+                embedding=embeddings
+            )
+            vector_store_news.save_local("faiss_index_news")
+            return vector_store_news
+        else:
+            raise ValueError("No embeddings were successfully created")
+
+    except Exception as e:
+        st.error(f"Error in get_vector_store: {str(e)}")
+        st.error("Please check your credentials and permissions")
+        raise
+
+    return None
