@@ -442,35 +442,38 @@ def get_stock_price(symbol):
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
-        
+    
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Initialize retriever with error handling
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,
+            k=7,  # Increased number of results
             highlights=True,
             extra_params={
                 "use_autoprompt": True,
-                "num_results": 5,
+                "num_results": 7,
                 "include_domains": [
                     "bloomberg.com",
-                    "reuters.com",
-                    "ft.com",
-                    "wsj.com",
-                    "cnbc.com",
-                    "marketwatch.com",
-                    "investing.com",
-                    "finance.yahoo.com",
-                    "seekingalpha.com"
+                    "reuters.com", 
+                    "ft.com", 
+                    "wsj.com", 
+                    "cnbc.com", 
+                    "marketwatch.com", 
+                    "investing.com", 
+                    "finance.yahoo.com", 
+                    "seekingalpha.com",
+                    "reuters.com/markets",
+                    "businesswire.com"
                 ],
                 "exclude_domains": [
                     "youtube.com",
-                    "facebook.com",
-                    "twitter.com"
+                    "facebook.com", 
+                    "twitter.com", 
+                    "reddit.com"
                 ],
-                "recent_days": 7,
+                "recent_days": 1,  # Focus on most recent news
                 "text_length": "medium"
             }
         )
@@ -489,7 +492,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Initialize LLM with proper error handling
+        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0.1,
@@ -498,24 +501,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Rest of the chain setup
+        # Detailed Document Template
         document_template = """
-        <article>
-            <title>{title}</title>
+        <financial_news>
+            <headline>{title}</headline>
             <date>{date}</date>
-            <key_points>{highlights}</key_points>
-            <source>{url}</source>
-        </article>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
+        </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled"),
-                "date": doc.metadata.get("published_date", "Recent"),
-                "highlights": doc.metadata.get("highlights", "No highlights available."),
-                "url": doc.metadata.get("url", "No URL available.")
+                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "date": doc.metadata.get("published_date", "Today"),
+                "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
         
@@ -525,35 +528,41 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Modified generation prompt with better formatting instructions
+        # Professional Financial News Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("human", """You are a professional financial news analyst who has up-to-date information and news of finance and companies [specially for news only give current date news with plain text]. Present your analysis in clear, plain text format:
+            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
 
-            Query: {query}
+Key Priorities:
+- Focus exclusively on verified financial and market news
+- Prioritize significant market movements, corporate earnings, economic reports
+- Provide clear, professional analysis with context
+- Use precise financial terminology
+- Highlight potential market implications"""),
+            ("human", """Generate a comprehensive financial news summary based on the following query and contextual information:
 
-            Source Information:
-            {context}
+Query: {query}
 
-            Instructions for formatting and content:
-            1. Use consistent spacing between ALL elements (words, numbers, and punctuation)
-            2. Format numbers with appropriate separators (e.g., "22.1 billion" not "22.1billion")
-            3. Use proper sentence structure with clear breaks between ideas
-            4. For general news queries like "what's the today news" or "latest news" :
-               - Focus ONLY on financial markets, stock movements, and economic updates
-               - Prioritize major market indices, significant stock movements, and key economic indicators
-               - Structure the response as key financial headlines
-               - only with plain text
-            5. Example format for general news:
-               "Today's Key Financial Updates:
-               - financial news 1 only with plain text
-               - financial news 2 only with plain text
-               - financial news 3 only with plain text
+Available Financial Context:
+{context}
 
-            Remember: 
-            - Keep focus strictly on financial and market news
-            - Every number, word, and punctuation mark should have proper spacing
-            - Present information in plain text with clear organization
-            """)
+Analysis Requirements:
+1. Structure as professional financial briefing
+2. Include specific details about:
+   - Major stock index movements
+   - Significant company news
+   - Notable economic indicators
+   - Potential market impacts
+3. Use precise numerical data
+4. Maintain a professional, objective tone
+5. Prioritize the most impactful financial news
+
+Output Format:
+Financial Market Briefing: [Current Date]
+- Headline 1: Concise description with key financial metrics
+- Headline 2: Concise description with key financial metrics
+- Headline 3: Concise description with key financial metrics
+
+Provide insights that a professional investor or financial analyst would find valuable.""")
         ])
 
         chain = (
