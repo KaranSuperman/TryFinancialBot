@@ -446,10 +446,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Retriever Configuration (similar to previous version)
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=7,
+            k=7,  # Increased number of results
             highlights=True,
             extra_params={
                 "use_autoprompt": True,
@@ -463,20 +463,22 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                     "marketwatch.com", 
                     "investing.com", 
                     "finance.yahoo.com", 
-                    "seekingalpha.com"
+                    "seekingalpha.com",
+                    "reuters.com/markets",
+                    "businesswire.com"
                 ],
                 "exclude_domains": [
                     "youtube.com",
                     "facebook.com", 
-                    "twitter.com"
+                    "twitter.com", 
+                    "reddit.com"
                 ],
-                "recent_days": 1,
-                "text_length": "long"
+                "recent_days": 1,  # Focus on most recent news
+                "text_length": "medium"
             }
         )
 
-
-                # Ensure the API key is set in the headers
+        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
@@ -487,9 +489,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-
-        # Gemini LLM Configuration
+        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
+        
+        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0.1,
@@ -498,36 +501,69 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Enhanced Prompt for Structured Output
-        generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are well-versed in finance and stock-related topics, particularly within the Indian tax framework. Your role is to provide the latest news, trends, and insights related to finance and stock markets. You also give the up to date inforamtion of stock price and finance. Use the XML-formatted context to ensure your responses are accurate and informative."),
-        ("human", """
-        Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
-
-        Query: {query}
-        ---
-        <context>
-        {context}
-        </context>
-        """)
-        ])
-
-
-        # Retrieval and Generation Chain (similar to previous implementation)
+        # Detailed Document Template
+        document_template = """
+        <financial_news>
+            <headline>{title}</headline>
+            <date>{date}</date>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
+        </financial_news>
+        """
+        document_prompt = PromptTemplate.from_template(document_template)
+        
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
-                "highlights": doc.metadata.get("highlights", "No key insights available.")
-            })
+                "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "url": doc.metadata.get("url", "No source URL")
+            }) | document_prompt
         )
         
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
-            RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
+            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
+
+        # Professional Financial News Prompt
+        generation_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
+
+            Key Priorities:
+            - Focus exclusively on verified financial and market news
+            - Prioritize significant market movements, corporate earnings, economic reports
+            - Provide clear, professional analysis with context
+            - Use precise financial terminology
+            - Highlight potential market implications"""),
+            ("human", """Generate a comprehensive financial news summary based on the following query and contextual information:
+
+            Query: {query}
+
+            Available Financial Context:
+            {context}
+
+            Analysis Requirements:
+            1. Structure as professional financial briefing
+            2. Include specific details about:
+            - Major stock index movements
+            - Significant company news
+            - Notable economic indicators
+            - Potential market impacts
+            3. Use precise numerical data
+            4. Maintain a professional, objective tone
+            5. Prioritize the most impactful financial news
+
+            Output Format:
+            Financial Market Briefing: [Current Date]
+            - Headline 1: Concise description with key financial metrics
+            - Headline 2: Concise description with key financial metrics
+            - Headline 3: Concise description with key financial metrics
+
+            Provide insights that a professional investor or financial analyst would find valuable.""")
+        ])
 
         chain = (
             RunnableParallel({
