@@ -75,6 +75,15 @@ faq_chunks = questions
 # Create the vector store
 vector_store_faq = get_vector_store_faq(faq_chunks)
 
+# -----------------------------------------------------
+# For News
+news_content, news_metadata = extract_questions_from_json("./news.json")
+
+# Use the news content for creating embeddings
+news_chunks = news_content
+
+# Create the vector store for news
+vector_store_news = get_vector_store_faq(news_chunks)
 
 # -------------------------------------------------------
 # User input for question
