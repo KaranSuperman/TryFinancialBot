@@ -450,35 +450,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=7,  # Increased number of results
-            highlights=True,
-            extra_params={
-                "use_autoprompt": True,
-                "num_results": 7,
-                "include_domains": [
-                    "finance.yahoo.com"
-                    "bloomberg.com",
-                    "reuters.com", 
-                    "ft.com", 
-                    "wsj.com", 
-                    "cnbc.com", 
-                    "marketwatch.com", 
-                    "investing.com", 
-                    "seekingalpha.com",
-                    "reuters.com/markets",
-                    "businesswire.com"
-                ],
-                "exclude_domains": [
-                    "youtube.com",
-                    "facebook.com", 
-                    "twitter.com", 
-                    "reddit.com"
-                ],
-                "max_publish_year": 2024, 
-                "text_length": "medium",
-                    "recency": "latest",  # If the API supports a recency filter
-                    "sort_by": "date",    # Sort results by most recent date
-            }
+            k=3,  # Increased number of results
+            highlights=True
         )
 
         # Ensure the API key is set in the headers
@@ -504,14 +477,14 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
+        output_parser = StrOutputParser()
+
         # Detailed Document Template
         document_template = """
-        <financial_news>
-            <headline>{title}</headline>
-            <date>{date}</date>
-            <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
-        </financial_news>
+        <source>
+            <url>{url}</url>
+            <highlights>{highlights}</highlights>
+        </source>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
@@ -533,39 +506,16 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Professional Financial News Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
+            ("system", "You are an expert research assistant. You use xml-formatted context to research people's questions."),
+            ("human", """
+        Please answer the following query based on the provided context. Please cite your sources at the end of your response.:
 
-            Key Priorities:
-            - Focus exclusively on verified financial and market news
-            - Prioritize significant market movements, corporate earnings, economic reports
-            - Provide clear, professional analysis with context
-            - Use precise financial terminology
-            - Highlight potential market implications"""),
-            ("human", """Generate a comprehensive financial news summary based on the following query and contextual information:
-
-            Query: {query}
-
-            Available Financial Context:
-            {context}
-
-            Analysis Requirements:
-            1. Structure as professional financial briefing
-            2. Include specific details about:
-            - Major stock index movements
-            - Significant company news
-            - Notable economic indicators
-            - Potential market impacts
-            3. Use precise numerical data
-            4. Maintain a professional, objective tone
-            5. Prioritize the most impactful financial news
-
-            Output Format:
-            Financial Market Briefing: 
-            - Headline 1: Concise description with key financial metrics 
-            - Headline 2: Concise description with key financial metrics 
-            - Headline 3: Concise description with key financial metrics 
-
-            Provide insights that a professional investor or financial analyst would find valuable.""")
+        Query: {query}
+        ---
+        <context>
+        {context}
+        </context>
+        """)
         ])
 
         chain = (
@@ -575,6 +525,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             }) 
             | generation_prompt 
             | llm
+            | output_parser
         )
         
         return chain
