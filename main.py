@@ -129,17 +129,22 @@ def get_vector_store(text_chunks, batch_size=10):
     return None
 
 # --------------------------------------------------------------------------------
-def extract_questions_from_json(json_path):
-    with open(json_path, "r") as f:
-        faq_data = json.load(f)
-    
+def extract_questions_from_json(file_path):
+
+    with open(file_path, 'r') as file:
+        data = json.load(file)
+
     questions = []
     metadata = []
-    
-    for entry in faq_data:
-        questions.append(entry["question"])
-        metadata.append({"answer": entry["answer"]}) 
-    
+
+    for entry in data:
+        if "question" in entry:
+            questions.append(entry["question"])
+            metadata.append({"answer": entry["answer"]})
+        elif "news_item" in entry:  # Assuming "news_item" is the key in news.json
+            questions.append(entry["news_item"])
+            metadata.append({"source": entry.get("source", "unknown")})
+
     return questions, metadata
 
 def get_vector_store_faq(faq_chunks, batch_size=1):
