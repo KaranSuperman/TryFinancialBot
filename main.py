@@ -542,9 +542,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                "Nvidia reported revenue of 22.1 billion dollars, which represents a 265% increase..."
 
             Remember: Every number, word, and punctuation mark should have proper spacing on both sides and in plain text.
-            If some ask Example:
-            - "whats's the today news?"
-              then response should be generated on the basis of today financial news.
+
             
             """)
         ])
