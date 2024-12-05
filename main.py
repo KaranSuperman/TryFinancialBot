@@ -129,22 +129,17 @@ def get_vector_store(text_chunks, batch_size=10):
     return None
 
 # --------------------------------------------------------------------------------
-def extract_questions_from_json(file_path):
-
-    with open(file_path, 'r') as file:
-        data = json.load(file)
-
+def extract_questions_from_json(json_path):
+    with open(json_path, "r") as f:
+        faq_data = json.load(f)
+    
     questions = []
     metadata = []
-
-    for entry in data:
-        if "question" in entry:
-            questions.append(entry["question"])
-            metadata.append({"answer": entry["answer"]})
-        elif "news_item" in entry:  # Assuming "news_item" is the key in news.json
-            questions.append(entry["news_item"])
-            metadata.append({"source": entry.get("source", "unknown")})
-
+    
+    for entry in faq_data:
+        questions.append(entry["question"])
+        metadata.append({"answer": entry["answer"]}) 
+    
     return questions, metadata
 
 def get_vector_store_faq(faq_chunks, batch_size=1):
@@ -871,149 +866,143 @@ def user_input(user_question):
         question_embedding = embeddings_model.embed_query(user_question)
         
         # -----------------------------------------------------
-        # Retrieve news from FAISS
-        new_db3 = FAISS.load_local("faiss_index_news", embeddings_model, allow_dangerous_deserialization=True)
-        mq_retriever_news = MultiQueryRetriever.from_llm(
-            retriever=new_db3.as_retriever(search_kwargs={'k': 3}),
+        # Retrieve documents from FAISS for PDF content
+        new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
+        mq_retriever = MultiQueryRetriever.from_llm(
+            retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
         
-        news_items = mq_retriever_news.get_relevant_documents(query=user_question)
+        docs = mq_retriever.get_relevant_documents(query=user_question)
         
-        # Compute similarity scores for news content
-        news_similarity_scores = []
-        news_with_scores = []
-        for news in news_items:
-            news_embedding = embeddings_model.embed_query(news.page_content)
-            score = cosine_similarity([question_embedding], [news_embedding])[0][0]
-            news_similarity_scores.append(score)
-            news_with_scores.append((score, news))
+        # Compute similarity scores for PDF content
+        pdf_similarity_scores = []
+        for doc in docs:
+            doc_embedding = embeddings_model.embed_query(doc.page_content)
+            score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
+            pdf_similarity_scores.append(score)
 
-        max_similarity_news = max(news_similarity_scores) if news_similarity_scores else 0
+        max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
+        
+        # ----------------------------------------------------------
+        # Retrieve FAQs from FAISS
+        new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
+        mq_retriever_faq = MultiQueryRetriever.from_llm(
+            retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
+            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+        )
+        
+        faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
+        
+        # Compute similarity scores for FAQ content and store with their metadata
+        faq_similarity_scores = []
+        faq_with_scores = []
+        for faq in faqs:
+            faq_embedding = embeddings_model.embed_query(faq.page_content)
+            score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
+            faq_similarity_scores.append(score)
+            faq_with_scores.append((score, faq))
 
-        # Debugging output
-        st.write("Max Similarity News:", max_similarity_news)
+        max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
+        
+        # ---------------------------------------------------------------------------
+        max_similarity = max(max_similarity_pdf, max_similarity_faq)
 
-        # Check if news response is relevant
-        if max_similarity_news >= 0.85:
-            st.info("Using News response")
-            best_news = max(news_with_scores, key=lambda x: x[0])[1]
-            
-            if hasattr(best_news, 'metadata'):
+        # -------------------------------------------------------------------------------------------
+
+        # Process based on similarity scores
+        if max_similarity < 0.65:
+            st.info("Using LLM response")
+            prompt1 = user_question + """\
+            Finance Term Query Guidelines:
+            1. Context: Finance domain
+            2. Response Requirements:
+            - Focus exclusively on defining finance-related terms
+            - Provide clear, concise explanations of financial terminology
+
+            Examples of Acceptable Queries:
+            - What is PE ratio?
+            - Define market capitalization
+            - Explain book value
+            - What does EBITDA mean?
+
+            STRICT RESTRICTIONS:
+            - NO stock recommendations
+            - NO investment advice
+            - AVOID statements like:
+            * "Best stocks to invest"
+            * "Worst performing stocks"
+            * "Recommended stocks/mutual funds"
+
+            Note: Responses must be purely informative and educational about financial terms.\
+            """
+    
+            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+            return {"output_text": response.content} if response else {"output_text": "No response generated."}
+
+        # -------------------------------------------------------------------------------------------
+
+
+        # Handle FAQ and PDF responses
+        try:
+            with open('./faq.json', 'r') as f:
+                faq_data = json.load(f)
+
+            # Create a dictionary to map questions to answers
+            faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
+
+            if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
+                st.info("Using FAQ response")
+                best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
+                
+                if best_faq.page_content in faq_dict:
+                    answer = faq_dict[best_faq.page_content]
+                    prompt_template = """
+                    Question: {question}
+
+                    The provided answer is:
+                    {answer}
+
+                    Based on this information, let me expand on the response within 100 words:
+
+                    {context}
+
+                    Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
+                    
+                    """
+                    prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
+                    chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+                    response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
+                    Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
+                    """}, return_only_outputs=True)
+                    return response
+                elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+                    return {"output_text": best_faq.metadata['answer']}
+                else:
+                    return {"output_text": best_faq.page_content}
+            else:
+                st.info("Using PDF response")
                 prompt_template = """
-                News Article: {content}
-                Date: {date}
-                Source: {source}
+                Use only the information from the provided PDF context to answer the question precisely and concisely.
+
+                Context:\n{context}
 
                 Question: {question}
 
-                Please provide a concise summary of the news article that addresses the question.
-                Keep the response focused and within 100 words.
+                Answer in a clear, direct manner, using only the factual information available in the document. Keep the response within 100 words.
+                If the question is unrelated to the PDF, respond with: "Please ask a query related to finance."
                 """
-                
-                prompt = PromptTemplate(template=prompt_template, input_variables=["content", "date", "source", "question"])
+ 
+                prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                response = chain({
-                    "input_documents": [best_news],
-                    "question": user_question,
-                    "content": best_news.metadata.get("content"),
-                    "date": best_news.metadata.get("date"),
-                    "source": best_news.metadata.get("source")
-                }, return_only_outputs=True)
+                response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
                 return response
-            else:
-                return {"output_text": best_news.page_content}
 
-        # If no relevant news, use Exa logic
-        st.info("Exa logic")
-        # ... Exa logic code ...
+        except Exception as e:
+            print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
+            return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
+
 
     except Exception as e:
-        st.error(f"Error in user_input: {str(e)}")
+        print(f"DEBUG: Error in user_input: {str(e)}")
         return {"output_text": "An error occurred while processing your request. Please try again."}
-
-def extract_news_from_json(json_path):
-    with open(json_path, "r") as f:
-        news_data = json.load(f)
-    
-    news_items = []
-    metadata = []
-    
-    for entry in news_data:
-        news_items.append(entry["title"])  # or any other field you want to match against
-        metadata.append({
-            "content": entry["content"],
-            "date": entry["date"],
-            "source": entry["source"]
-            # Add any other metadata fields you want to store
-        }) 
-    
-    return news_items, metadata
-
-def get_vector_store_news(news_chunks, batch_size=1):
-    try:
-        # Load the GCP credentials from Streamlit secrets
-        gcp_credentials = st.secrets["gcp_service_account"]
-        
-        # Convert credentials to dictionary if needed
-        if not isinstance(gcp_credentials, dict):
-            gcp_credentials_dict = json.loads(gcp_credentials) if isinstance(gcp_credentials, str) else dict(gcp_credentials)
-        else:
-            gcp_credentials_dict = gcp_credentials
-
-        # Create a temporary credentials file
-        credentials_path = "temp_service_account.json"
-        with open(credentials_path, "w") as f:
-            json.dump(gcp_credentials_dict, f)
-
-        # Set environment variable for authentication
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path 
-
-        # Initialize credentials
-        credentials = service_account.Credentials.from_service_account_file(credentials_path)
-        
-        # Initialize AI Platform
-        aiplatform.init(
-            project=gcp_credentials_dict["project_id"],
-            credentials=credentials
-        )
-
-        # Configure Gemini API
-        gemini_api_key = st.secrets["gemini"]["api_key"]
-        genai.configure(api_key=gemini_api_key)
-
-        # Create embeddings model
-        embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
-            google_api_key=gemini_api_key,
-            credentials=credentials
-        )
-
-        # Process text chunks in batches
-        text_embeddings = []
-        for i in range(0, len(news_chunks), batch_size):
-            batch = news_chunks[i:i + batch_size]
-            try:
-                batch_embeddings = embeddings.embed_documents(batch)
-                text_embeddings.extend([(text, emb) for text, emb in zip(batch, batch_embeddings)])
-            except Exception as e:
-                st.error(f"Error processing batch {i//batch_size}: {str(e)}")
-                continue
-
-        # Create and save vector store
-        if text_embeddings:
-            vector_store_news = FAISS.from_embeddings(
-                text_embeddings,
-                embedding=embeddings
-            )
-            vector_store_news.save_local("faiss_index_news")
-            return vector_store_news
-        else:
-            raise ValueError("No embeddings were successfully created")
-
-    except Exception as e:
-        st.error(f"Error in get_vector_store: {str(e)}")
-        st.error("Please check your credentials and permissions")
-        raise
-
-    return None
