@@ -475,7 +475,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                     "reddit.com"
                 ],
                 "recent_days": 1,  # Focus on most recent news
-                "text_length": "short"
+                "text_length": "medium"
             }
         )
 
