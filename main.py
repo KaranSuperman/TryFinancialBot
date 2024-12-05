@@ -602,7 +602,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
-    
+
 def execute_research_query(question: str):
     try:
         # Get API keys
