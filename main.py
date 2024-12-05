@@ -475,6 +475,19 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             }
         )
 
+
+                # Ensure the API key is set in the headers
+        if hasattr(retriever, 'client'):
+            retriever.client.headers.update({
+                "x-api-key": exa_api_key,
+                "Content-Type": "application/json"
+            })
+        
+        # Verify Gemini API key
+        if not gemini_api_key or not isinstance(gemini_api_key, str):
+            raise ValueError("Valid Gemini API key is required")
+
+
         # Gemini LLM Configuration
         genai.configure(api_key=gemini_api_key)
         llm = ChatGoogleGenerativeAI(
