@@ -446,48 +446,94 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Modified Retriever Configuration
+        # Retriever Configuration (similar to previous version)
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,  # Reduced for faster response
+            k=7,
             highlights=True,
             extra_params={
                 "use_autoprompt": True,
-                "num_results": 5,
+                "num_results": 7,
                 "include_domains": [
                     "bloomberg.com",
                     "reuters.com", 
+                    "ft.com", 
+                    "wsj.com", 
                     "cnbc.com", 
                     "marketwatch.com", 
-                    "finance.yahoo.com"
+                    "investing.com", 
+                    "finance.yahoo.com", 
+                    "seekingalpha.com"
                 ],
                 "exclude_domains": [
                     "youtube.com",
                     "facebook.com", 
                     "twitter.com"
                 ],
-                "recent_biased": True,  # Added to prioritize recent news
-                "recent_days": 2,  # Increased slightly
-                "text_length": "long"  # Changed to get more context
+                "recent_days": 1,
+                "text_length": "long"
             }
         )
 
-        # Modified Generation Prompt
+
+                # Ensure the API key is set in the headers
+        if hasattr(retriever, 'client'):
+            retriever.client.headers.update({
+                "x-api-key": exa_api_key,
+                "Content-Type": "application/json"
+            })
+        
+        # Verify Gemini API key
+        if not gemini_api_key or not isinstance(gemini_api_key, str):
+            raise ValueError("Valid Gemini API key is required")
+
+
+        # Gemini LLM Configuration
+        genai.configure(api_key=gemini_api_key)
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-pro",
+            temperature=0.1,
+            google_api_key=gemini_api_key,
+            max_output_tokens=2048,
+            convert_system_message_to_human=True
+        )
+
+        # Enhanced Prompt for Structured Output
         generation_prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a financial news analyst. Provide clear, factual summaries of current financial news and market trends."),
+        ("system", "You are well-versed in finance and stock-related topics, particularly within the Indian tax framework. Your role is to provide the latest news, trends, and insights related to finance and stock markets. You also give the up to date inforamtion of stock price and finance. Use the XML-formatted context to ensure your responses are accurate and informative."),
         ("human", """
-        Based on the following context, provide a concise summary of the latest financial news and developments:
+        Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
 
         Query: {query}
-        Context: {context}
-
-        Focus on key facts and developments. If no relevant information is found, clearly state that.
+        ---
+        <context>
+        {context}
+        </context>
         """)
         ])
 
-        # Simplified Chain Structure
+
+        # Retrieval and Generation Chain (similar to previous implementation)
+        document_chain = (
+            RunnablePassthrough() | 
+            RunnableLambda(lambda doc: {
+                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "date": doc.metadata.get("published_date", "Today"),
+                "highlights": doc.metadata.get("highlights", "No key insights available.")
+            })
+        )
+        
+        retrieval_chain = (
+            retriever | 
+            document_chain.map() | 
+            RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
+        )
+
         chain = (
-            {"query": RunnablePassthrough(), "context": retriever} 
+            RunnableParallel({
+                "query": RunnablePassthrough(),  
+                "context": retrieval_chain,  
+            }) 
             | generation_prompt 
             | llm
         )
