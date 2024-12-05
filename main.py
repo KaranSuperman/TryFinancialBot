@@ -538,10 +538,11 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             1. Use consistent spacing between ALL elements (words, numbers, and punctuation)
             2. Format numbers with appropriate separators (e.g., "22.1 billion" not "22.1billion")
             3. Use proper sentence structure with clear breaks between ideas
-            4. For general news queries like "what's the today news" or "latest news":
+            4. For general news queries like "what's the today news" or "latest news" :
                - Focus ONLY on financial markets, stock movements, and economic updates
                - Prioritize major market indices, significant stock movements, and key economic indicators
                - Structure the response as key financial headlines
+               - only with plain text
             5. Example format for general news:
                "Today's Key Financial Updates:
                - financial news 1 only with plain text
