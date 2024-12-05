@@ -527,7 +527,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Modified generation prompt with better formatting instructions
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("human", """You are a professional financial news analyst who has up-to-date information and news of finance and companies [specially of year 2024]. Present your analysis in clear, plain text format:
+            ("human", """You are a professional financial news analyst who has up-to-date information and news of finance and companies [specially of year 2024 with plain text]. Present your analysis in clear, plain text format:
 
             Query: {query}
 
