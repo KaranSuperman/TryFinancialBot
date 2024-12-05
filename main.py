@@ -630,7 +630,7 @@ def plot_stock_graph(symbol):
         period = st.selectbox(
             "Select Time Period", 
             ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max'], 
-            index=2
+            index=0  # Default to 1 day
         )
         
         # Get stock data with interval parameter
@@ -654,80 +654,84 @@ def plot_stock_graph(symbol):
         # Create Plotly figure
         fig = go.Figure()
         
-        # Add area chart
+        # Add area chart with improved styling
         fig.add_trace(go.Scatter(
             x=hist.index,
             y=hist['Close'],
-            fill='tozeroy',  # Add area fill
-            fillcolor='rgba(0,200,5,0.2)' if is_positive else 'rgba(255,62,46,0.2)',
+            fill='tozeroy',
+            fillcolor='rgba(0,255,0,0.1)' if is_positive else 'rgba(255,0,0,0.1)',
             mode='lines',
             line=dict(
-                color='#00C805' if is_positive else '#FF3E2E',
-                width=2
+                color='#00FF00' if is_positive else '#FF0000',
+                width=1.5
             ),
-            hovertemplate='%{x}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
+            hovertemplate='<b>Time</b>: %{x}<br>' +
+                         '<b>Price</b>: ' + currency_symbol + '%{y:.2f}<extra></extra>'
         ))
         
-        # Update layout
+        # Update layout with improved styling
         fig.update_layout(
-            title=None,  # Remove title for cleaner look
-            xaxis_title=None,  # Remove axis titles
-            yaxis_title=None,
-            hovermode='x unified',
-            template='plotly_dark',
-            height=400,  # Reduced height
-            showlegend=False,
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=0, r=0, t=10, b=20),  # Minimal margins
+            height=400,
+            margin=dict(l=0, r=60, t=10, b=20),
+            showlegend=False,
+            yaxis=dict(
+                side='right',
+                showgrid=True,
+                gridcolor='rgba(128,128,128,0.2)',
+                tickprefix=currency_symbol,
+                tickformat='.2f',
+                title=None
+            ),
+            hovermode='x unified'
         )
         
-        # Customize axis for different periods
+        # Customize x-axis based on period
         if period == '1d':
-            # Format time for intraday data
+            # For intraday, show fewer x-axis labels to prevent overlap
             fig.update_xaxes(
-                type='category',  # Use category type for better time display
-                tickformat='%H:%M',  # Show hours and minutes
+                type='category',
+                tickformat='%H:%M',
+                nticks=8,  # Reduce number of ticks
                 showgrid=True,
-                gridwidth=1,
                 gridcolor='rgba(128,128,128,0.2)',
                 rangeslider_visible=False,
-                tickangle=45  # Angle the time labels
+                title=None
             )
         else:
             fig.update_xaxes(
                 showgrid=True,
-                gridwidth=1,
                 gridcolor='rgba(128,128,128,0.2)',
                 rangeslider_visible=True,
                 rangeslider=dict(
-                    thickness=0.05  # Make rangeslider thinner
-                )
+                    thickness=0.05,
+                    bgcolor='rgba(0,0,0,0)'
+                ),
+                title=None
             )
-        
-        # Update y-axis
-        fig.update_yaxes(
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='rgba(128,128,128,0.2)',
-            tickprefix=currency_symbol,
-            side='right'  # Move price axis to right side
-        )
         
         # Display in Streamlit
         st.plotly_chart(fig, use_container_width=True)
         
-        # Display current price and changes
+        # Display metrics with improved formatting
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Current Price", 
-                     f"{currency_symbol}{hist['Close'][-1]:.2f}")
+            st.metric(
+                "Current Price",
+                f"{currency_symbol}{hist['Close'][-1]:.2f}"
+            )
         with col2:
-            st.metric("Change", 
-                     f"{currency_symbol}{price_change:.2f}")
+            st.metric(
+                "Change",
+                f"{currency_symbol}{price_change:.2f}",
+                delta=f"{price_change_pct:+.2f}%"
+            )
         with col3:
-            st.metric("Change %", 
-                     f"{price_change_pct:.2f}%")
+            st.metric(
+                "Previous Close",
+                f"{currency_symbol}{hist['Close'][-2]:.2f}"
+            )
         
         return True
         
