@@ -499,56 +499,19 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         )
 
         # Enhanced Prompt for Structured Output
-        generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst tasked with creating a meticulously structured financial news briefing. 
+            generation_prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are well-versed in finance and stock-related topics, particularly within the Indian tax framework. Your role is to provide the latest news, trends, and insights related to finance and stock markets. You also give the up to date inforamtion of stock price and finance. Use the XML-formatted context to ensure your responses are accurate and informative."),
+            ("human", """
+            Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
 
-CRITICAL FORMATTING RULES:
-1. Use EXACT formatting as specified below
-2. Never use bold, italics, or special characters
-3. Maintain clean, professional language
-4. Focus exclusively on financial and market news
-5. Provide precise, factual information"""),
-            ("human", """Create a comprehensive Financial Market Briefing with the following STRICT format:
+            Query: {query}
+            ---
+            <context>
+            {context}
+            </context>
+            """)
+            ])
 
-Financial Market Briefing: [Current Date]
-
-Market Overview:
-- Primary Stock Indices Performance
-  * Dow Jones Industrial Average: [Exact closing value] ([+/-] [Percentage])
-  * S&P 500: [Exact closing value] ([+/-] [Percentage])
-  * Nasdaq Composite: [Exact closing value] ([+/-] [Percentage])
-
-Key Financial Headlines:
-
-Headline 1: [Concise Headline]
-- Specific Detail 1
-- Specific Detail 2
-- Potential Market Implication
-
-Headline 2: [Concise Headline]
-- Specific Detail 1
-- Specific Detail 2
-- Potential Market Implication
-
-Headline 3: [Concise Headline]
-- Specific Detail 1
-- Specific Detail 2
-- Potential Market Implication
-
-Economic Indicators:
-- Inflation Rate: [Exact Percentage]
-- Interest Rates: [Current Rate]
-- Unemployment Rate: [Exact Percentage]
-
-Market Sentiment:
-- Bullish Sectors: [Top Performing Sectors]
-- Bearish Sectors: [Underperforming Sectors]
-
-Query Context: {query}
-Available Financial Information: {context}
-
-Ensure ALL information is current, precise, and presented in the specified format.""")
-        ])
 
         # Retrieval and Generation Chain (similar to previous implementation)
         document_chain = (
