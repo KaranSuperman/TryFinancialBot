@@ -630,20 +630,24 @@ def plot_stock_graph(symbol):
         period = st.selectbox(
             "Select Time Period", 
             ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max'], 
-            index=0  # Default to 1 day
+            index=2  # Default to 1 month
         )
         
-        # Get stock data with interval parameter
+        # Validate period input
+        valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max']
+        if period not in valid_periods:
+            st.error(f"Invalid period. Choose from {', '.join(valid_periods)}")
+            return False
+        
+        # Get stock data
         stock = yf.Ticker(symbol)
-        # Add interval parameter for intraday data
-        interval = '1m' if period == '1d' else '1d'
-        hist = stock.history(period=period, interval=interval)
+        hist = stock.history(period=period)
         
         if hist.empty:
             st.error(f"No data found for {symbol}")
             return False
             
-        # Determine currency symbol
+        # Determine currency symbol based on exchange
         currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
         
         # Calculate price changes
@@ -651,87 +655,97 @@ def plot_stock_graph(symbol):
         price_change_pct = (price_change / hist['Close'][0]) * 100
         is_positive = price_change >= 0
         
+        # Create period label
+        period_labels = {
+            '1d': '1 Day',
+            '5d': '5 Days', 
+            '1mo': '1 Month', 
+            '3mo': '3 Months', 
+            '6mo': '6 Months', 
+            '1y': '1 Year', 
+            '2y': '2 Years', 
+            '5y': '5 Years', 
+            'ytd': 'Year to Date', 
+            'max': 'Maximum'
+        }
+        period_label = period_labels.get(period, period)
+        
         # Create Plotly figure
         fig = go.Figure()
         
-        # Add area chart with improved styling
+        # Add price line
         fig.add_trace(go.Scatter(
             x=hist.index,
             y=hist['Close'],
-            fill='tozeroy',
-            fillcolor='rgba(0,255,0,0.1)' if is_positive else 'rgba(255,0,0,0.1)',
-            mode='lines',
+            mode='lines+markers',  # Add markers to show data points
+            name='Close Price',
             line=dict(
-                color='#00FF00' if is_positive else '#FF0000',
-                width=1.5
+                color='#00C805' if is_positive else '#FF3E2E',
+                width=2
             ),
-            hovertemplate='<b>Time</b>: %{x}<br>' +
-                         '<b>Price</b>: ' + currency_symbol + '%{y:.2f}<extra></extra>'
+            marker=dict(
+                size=8,
+                color='#ffffff',  # Set marker color to white
+                line=dict(
+                    color='#00C805' if is_positive else '#FF3E2E',
+                    width=2
+                )
+            ),
+            hovertemplate='Date: %{x}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
         ))
         
-        # Update layout with improved styling
+        # Update layout
         fig.update_layout(
+            title=dict(
+                text=f'{symbol} Stock Price | {period_label}',
+                x=0.5,  # Center title
+                y=0.95,
+                xanchor='center',
+                yanchor='top',
+                font=dict(size=20)
+            ),
+            xaxis_title='Date',
+            yaxis_title=f'Price ({currency_symbol})',
+            hovermode='x unified',
+            template='plotly_dark',  # Dark theme
+            height=500,
+            showlegend=False,
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
-            height=400,
-            margin=dict(l=0, r=60, t=10, b=20),
-            showlegend=False,
-            yaxis=dict(
-                side='right',
-                showgrid=True,
-                gridcolor='rgba(128,128,128,0.2)',
-                tickprefix=currency_symbol,
-                tickformat='.2f',
-                title=None
-            ),
-            hovermode='x unified'
+            margin=dict(l=50, r=50, t=50, b=80),  # Increased bottom margin for annotation
         )
         
-        # Customize x-axis based on period
+        # Adjust axis range for 1-day period
         if period == '1d':
-            # For intraday, show fewer x-axis labels to prevent overlap
             fig.update_xaxes(
-                type='category',
-                tickformat='%H:%M',
-                nticks=8,  # Reduce number of ticks
+                range=[hist.index[0], hist.index[-1]],
                 showgrid=True,
+                gridwidth=1,
                 gridcolor='rgba(128,128,128,0.2)',
-                rangeslider_visible=False,
-                title=None
+                rangeslider_visible=False
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                tickprefix=currency_symbol
             )
         else:
             fig.update_xaxes(
                 showgrid=True,
+                gridwidth=1,
                 gridcolor='rgba(128,128,128,0.2)',
-                rangeslider_visible=True,
-                rangeslider=dict(
-                    thickness=0.05,
-                    bgcolor='rgba(0,0,0,0)'
-                ),
-                title=None
+                rangeslider_visible=True
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                tickprefix=currency_symbol
             )
         
         # Display in Streamlit
         st.plotly_chart(fig, use_container_width=True)
-        
-        # Display metrics with improved formatting
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric(
-                "Current Price",
-                f"{currency_symbol}{hist['Close'][-1]:.2f}"
-            )
-        with col2:
-            st.metric(
-                "Change",
-                f"{currency_symbol}{price_change:.2f}",
-                delta=f"{price_change_pct:+.2f}%"
-            )
-        with col3:
-            st.metric(
-                "Previous Close",
-                f"{currency_symbol}{hist['Close'][-2]:.2f}"
-            )
         
         return True
         
