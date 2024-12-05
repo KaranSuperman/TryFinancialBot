@@ -866,145 +866,65 @@ def user_input(user_question):
         question_embedding = embeddings_model.embed_query(user_question)
         
         # -----------------------------------------------------
-        # Retrieve documents from FAISS for PDF content
-        new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
-        mq_retriever = MultiQueryRetriever.from_llm(
-            retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
+        # Retrieve news from FAISS
+        new_db3 = FAISS.load_local("faiss_index_news", embeddings_model, allow_dangerous_deserialization=True)
+        mq_retriever_news = MultiQueryRetriever.from_llm(
+            retriever=new_db3.as_retriever(search_kwargs={'k': 3}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
         
-        docs = mq_retriever.get_relevant_documents(query=user_question)
+        news_items = mq_retriever_news.get_relevant_documents(query=user_question)
         
-        # Compute similarity scores for PDF content
-        pdf_similarity_scores = []
-        for doc in docs:
-            doc_embedding = embeddings_model.embed_query(doc.page_content)
-            score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
-            pdf_similarity_scores.append(score)
+        # Compute similarity scores for news content
+        news_similarity_scores = []
+        news_with_scores = []
+        for news in news_items:
+            news_embedding = embeddings_model.embed_query(news.page_content)
+            score = cosine_similarity([question_embedding], [news_embedding])[0][0]
+            news_similarity_scores.append(score)
+            news_with_scores.append((score, news))
 
-        max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
-        
-        # ----------------------------------------------------------
-        # Retrieve FAQs from FAISS
-        new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
-        mq_retriever_faq = MultiQueryRetriever.from_llm(
-            retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
-            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
-        )
-        
-        faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
-        
-        # Compute similarity scores for FAQ content and store with their metadata
-        faq_similarity_scores = []
-        faq_with_scores = []
-        for faq in faqs:
-            faq_embedding = embeddings_model.embed_query(faq.page_content)
-            score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
-            faq_similarity_scores.append(score)
-            faq_with_scores.append((score, faq))
+        max_similarity_news = max(news_similarity_scores) if news_similarity_scores else 0
 
-        max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
-        
-        # ---------------------------------------------------------------------------
-        max_similarity = max(max_similarity_pdf, max_similarity_faq)
+        # Debugging output
+        st.write("Max Similarity News:", max_similarity_news)
 
-        # -------------------------------------------------------------------------------------------
-
-        # Process based on similarity scores
-        if max_similarity < 0.65:
-            st.info("Using LLM response")
-            prompt1 = user_question + """\
-            Finance Term Query Guidelines:
-            1. Context: Finance domain
-            2. Response Requirements:
-            - Focus exclusively on defining finance-related terms
-            - Provide clear, concise explanations of financial terminology
-
-            Examples of Acceptable Queries:
-            - What is PE ratio?
-            - Define market capitalization
-            - Explain book value
-            - What does EBITDA mean?
-
-            STRICT RESTRICTIONS:
-            - NO stock recommendations
-            - NO investment advice
-            - AVOID statements like:
-            * "Best stocks to invest"
-            * "Worst performing stocks"
-            * "Recommended stocks/mutual funds"
-
-            Note: Responses must be purely informative and educational about financial terms.\
-            """
-    
-            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-            return {"output_text": response.content} if response else {"output_text": "No response generated."}
-
-        # -------------------------------------------------------------------------------------------
-
-
-        # Handle FAQ and PDF responses
-        try:
-            with open('./faq.json', 'r') as f:
-                faq_data = json.load(f)
-
-            # Create a dictionary to map questions to answers
-            faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
-
-            if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                st.info("Using FAQ response")
-                best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-                
-                if best_faq.page_content in faq_dict:
-                    answer = faq_dict[best_faq.page_content]
-                    prompt_template = """
-                    Question: {question}
-
-                    The provided answer is:
-                    {answer}
-
-                    Based on this information, let me expand on the response within 100 words:
-
-                    {context}
-
-                    Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
-                    
-                    """
-                    prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
-                    chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                    response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
-                    Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
-                    """}, return_only_outputs=True)
-                    return response
-                elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
-                    return {"output_text": best_faq.metadata['answer']}
-                else:
-                    return {"output_text": best_faq.page_content}
-            else:
-                st.info("Using PDF response")
+        # Check if news response is relevant
+        if max_similarity_news >= 0.85:
+            st.info("Using News response")
+            best_news = max(news_with_scores, key=lambda x: x[0])[1]
+            
+            if hasattr(best_news, 'metadata'):
                 prompt_template = """
-                Use only the information from the provided PDF context to answer the question precisely and concisely.
-
-                Context:\n{context}
+                News Article: {content}
+                Date: {date}
+                Source: {source}
 
                 Question: {question}
 
-                Answer in a clear, direct manner, using only the factual information available in the document. Keep the response within 100 words.
-                If the question is unrelated to the PDF, respond with: "Please ask a query related to finance."
+                Please provide a concise summary of the news article that addresses the question.
+                Keep the response focused and within 100 words.
                 """
- 
-                prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+                
+                prompt = PromptTemplate(template=prompt_template, input_variables=["content", "date", "source", "question"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+                response = chain({
+                    "input_documents": [best_news],
+                    "question": user_question,
+                    "content": best_news.metadata.get("content"),
+                    "date": best_news.metadata.get("date"),
+                    "source": best_news.metadata.get("source")
+                }, return_only_outputs=True)
                 return response
+            else:
+                return {"output_text": best_news.page_content}
 
-        except Exception as e:
-            print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
-            return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
-
+        # If no relevant news, use Exa logic
+        st.info("Exa logic")
+        # ... Exa logic code ...
 
     except Exception as e:
-        print(f"DEBUG: Error in user_input: {str(e)}")
+        st.error(f"Error in user_input: {str(e)}")
         return {"output_text": "An error occurred while processing your request. Please try again."}
 
 def extract_news_from_json(json_path):
