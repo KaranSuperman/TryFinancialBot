@@ -28,6 +28,7 @@ from langchain_exa import ExaSearchRetriever
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
 from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
 import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
