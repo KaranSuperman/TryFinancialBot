@@ -503,7 +503,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         )
 
         # Refined Document Parsing Function
-        def parse_document(doc: Dict[str, Any]) -> Dict[str, str]:
+        def parse_document(doc: Any) -> dict:
             """
             Parse and extract key information from a document.
             
@@ -531,7 +531,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         document_prompt = PromptTemplate.from_template(document_template)
         
         # Improved Retrieval Chain
-        def format_documents(docs: List[Dict]) -> str:
+        def format_documents(docs: List[Any]) -> str:
             """
             Format multiple documents into a single string.
             
