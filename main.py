@@ -544,9 +544,9 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                - Structure the response as key financial headlines
             5. Example format for general news:
                "Today's Key Financial Updates:
-               - S&P 500 moved up 1.2% on strong earnings reports
-               - Federal Reserve signals potential rate changes
-               - Major tech stocks showing significant movement"
+               - financial news 1
+               - financial news 2
+               - financial news 3
 
             Remember: 
             - Keep focus strictly on financial and market news
