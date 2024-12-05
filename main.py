@@ -446,10 +446,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Enhanced Retriever Configuration
+        # Retriever Configuration (similar to previous version)
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=7,  # Increased number of results
+            k=7,
             highlights=True,
             extra_params={
                 "use_autoprompt": True,
@@ -463,36 +463,20 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                     "marketwatch.com", 
                     "investing.com", 
                     "finance.yahoo.com", 
-                    "seekingalpha.com",
-                    "reuters.com/markets",
-                    "businesswire.com"
+                    "seekingalpha.com"
                 ],
                 "exclude_domains": [
                     "youtube.com",
                     "facebook.com", 
-                    "twitter.com", 
-                    "reddit.com"
+                    "twitter.com"
                 ],
-                "recent_days": 1,  # Focus on most recent news
+                "recent_days": 1,
                 "text_length": "medium"
             }
         )
 
-        # Ensure the API key is set in the headers
-        if hasattr(retriever, 'client'):
-            retriever.client.headers.update({
-                "x-api-key": exa_api_key,
-                "Content-Type": "application/json"
-            })
-        
-        # Verify Gemini API key
-        if not gemini_api_key or not isinstance(gemini_api_key, str):
-            raise ValueError("Valid Gemini API key is required")
-
-        # Configure Gemini
+        # Gemini LLM Configuration
         genai.configure(api_key=gemini_api_key)
-        
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0.1,
@@ -501,69 +485,73 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
-        document_template = """
-        <financial_news>
-            <headline>{title}</headline>
-            <date>{date}</date>
-            <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
-        </financial_news>
-        """
-        document_prompt = PromptTemplate.from_template(document_template)
-        
+        # Enhanced Prompt for Structured Output
+        generation_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a professional financial analyst tasked with creating a meticulously structured financial news briefing. 
+
+CRITICAL FORMATTING RULES:
+1. Use EXACT formatting as specified below
+2. Never use bold, italics, or special characters
+3. Maintain clean, professional language
+4. Focus exclusively on financial and market news
+5. Provide precise, factual information"""),
+            ("human", """Create a comprehensive Financial Market Briefing with the following STRICT format:
+
+Financial Market Briefing: [Current Date]
+
+Market Overview:
+- Primary Stock Indices Performance
+  * Dow Jones Industrial Average: [Exact closing value] ([+/-] [Percentage])
+  * S&P 500: [Exact closing value] ([+/-] [Percentage])
+  * Nasdaq Composite: [Exact closing value] ([+/-] [Percentage])
+
+Key Financial Headlines:
+
+Headline 1: [Concise Headline]
+- Specific Detail 1
+- Specific Detail 2
+- Potential Market Implication
+
+Headline 2: [Concise Headline]
+- Specific Detail 1
+- Specific Detail 2
+- Potential Market Implication
+
+Headline 3: [Concise Headline]
+- Specific Detail 1
+- Specific Detail 2
+- Potential Market Implication
+
+Economic Indicators:
+- Inflation Rate: [Exact Percentage]
+- Interest Rates: [Current Rate]
+- Unemployment Rate: [Exact Percentage]
+
+Market Sentiment:
+- Bullish Sectors: [Top Performing Sectors]
+- Bearish Sectors: [Underperforming Sectors]
+
+Query Context: {query}
+Available Financial Information: {context}
+
+Ensure ALL information is current, precise, and presented in the specified format.""")
+        ])
+
+        # Retrieval and Generation Chain (similar to previous implementation)
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
-            }) | document_prompt
+                "highlights": doc.metadata.get("highlights", "No key insights available.")
+            })
         )
         
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
-            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+            RunnableLambda(lambda docs: "\n".join(str(doc) for doc in docs))
         )
-
-        # Professional Financial News Prompt
-        generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
-
-Key Priorities:
-- Focus exclusively on verified financial and market news
-- Prioritize significant market movements, corporate earnings, economic reports
-- Provide clear, professional analysis with context
-- Use precise financial terminology
-- Highlight potential market implications"""),
-            ("human", """Generate a comprehensive financial news summary based on the following query and contextual information:
-
-Query: {query}
-
-Available Financial Context:
-{context}
-
-Analysis Requirements:
-1. Structure as professional financial briefing
-2. Include specific details about:
-   - Major stock index movements
-   - Significant company news
-   - Notable economic indicators
-   - Potential market impacts
-3. Use precise numerical data
-4. Maintain a professional, objective tone
-5. Prioritize the most impactful financial news
-
-Output Format:
-Financial Market Briefing: [Current Date]
-- Headline 1: Concise description with key financial metrics
-- Headline 2: Concise description with key financial metrics
-- Headline 3: Concise description with key financial metrics
-
-Provide insights that a professional investor or financial analyst would find valuable.""")
-        ])
 
         chain = (
             RunnableParallel({
