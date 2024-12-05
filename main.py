@@ -543,7 +543,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
             Remember: Every number, word, and punctuation mark should have proper spacing on both sides.
             
-            Source citation should be on a new line at the end.
             """)
         ])
 
