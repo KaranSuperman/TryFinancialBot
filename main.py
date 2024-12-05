@@ -557,7 +557,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             5. Prioritize the most impactful financial news
 
             Output Format:
-            Financial Market Briefing: [Current Date]
+            Financial Market Briefing: 
             - Headline 1: Concise description with key financial metrics
             - Headline 2: Concise description with key financial metrics
             - Headline 3: Concise description with key financial metrics
