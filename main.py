@@ -1015,9 +1015,11 @@ def extract_news_from_json(json_path):
     metadata = []
     
     for entry in news_data:
-        news_items.append(entry["Title"])  # Use the "Title" key from your JSON
+        news_items.append(entry["title"])  # or any other field you want to match against
         metadata.append({
-            "content": entry["Content"],  # Use the "Content" key from your JSON
+            "content": entry["content"],
+            "date": entry["date"],
+            "source": entry["source"]
             # Add any other metadata fields you want to store
         }) 
     
