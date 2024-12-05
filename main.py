@@ -474,7 +474,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                     "reddit.com"
                 ],
                 "recent_days": 1,  # Focus on most recent news
-                "text_length": "medium"
+                "text_length": "short"
             }
         )
 
@@ -623,6 +623,7 @@ def execute_research_query(question: str):
         st.error(f"Critical error: {str(e)}")
         return {"output_text": f"An unexpected error occurred: {str(e)}"}
         
+
 def plot_stock_graph(symbol):
     try:
         # Period selection
@@ -640,7 +641,7 @@ def plot_stock_graph(symbol):
         
         # Get stock data
         stock = yf.Ticker(symbol)
-        hist = stock.history(period=period)
+        hist = stock.history(period=period, tz="Asia/Kolkata")
         
         if hist.empty:
             st.error(f"No data found for {symbol}")
@@ -668,14 +669,6 @@ def plot_stock_graph(symbol):
             'max': 'Maximum'
         }
         period_label = period_labels.get(period, period)
-        
-        # Get stock data with interval parameter
-        stock = yf.Ticker(symbol)
-        hist = stock.history(period=period, interval="1d")
-        
-        if hist.empty:
-            st.error(f"No data found for {symbol}")
-            return False
         
         # Create Plotly figure
         fig = go.Figure()
@@ -759,7 +752,6 @@ def plot_stock_graph(symbol):
     except Exception as e:
         st.error(f"Error plotting graph: {str(e)}")
         return False
-
 # ----------------------------------------------------------------------------------------------------------
 
 def user_input(user_question):
