@@ -300,31 +300,29 @@ def is_relevant(question, embeddings_model, threshold=0.55):
         return False
 
 def is_stock_query(user_question):
-    prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
-    SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. ALSO [PAASA] is a fintech company if 
-    any user ask query related to the company then donot response to that query.
+    prompt = f'''Analyze the following question precisely. If it contains both a stock price query AND a request for news/analysis, return BOTH responses.
 
     RULES:
-    1. IF the question is about STOCK PRICE then Generate only [Yahoo Finance] compatible symbol, respond: "True [STOCK_SYMBOL]"
-       - Examples:
-         "What is Microsoft's current stock price?" → "True MSFT"
-         "How much is Tesla trading for?" → "True TSLA"
-         "What is the price of google?" → "True GOOGL"
-         "What is price of cspx" → "True CSPX.L"
-         "csndx price" → "True CSNDX.SW"
+    1. IF question asks about BOTH stock price AND news/analysis:
+       Return: "True [STOCK_SYMBOL]\nNews [REPHRASED_QUERY]"
+       Examples:
+       "What is Microsoft's price and why is it moving?" → "True MSFT\nNews Why is Microsoft's stock price changing?"
+       "Tell me Apple's stock price and recent news" → "True AAPL\nNews What are Apple's recent market developments?"
 
-    2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
-       - Examples:
-         "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
-         "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
-         "What's the today news? → "News What is the today news?"
-         "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
+    2. IF question is ONLY about STOCK PRICE:
+       Return: "True [STOCK_SYMBOL]"
+       Examples:
+       "What is Microsoft's stock price?" → "True MSFT"
+       "How much is Tesla trading for?" → "True TSLA"
 
-    3. Do not response on financial terms , respond: "False NONE"
-        - Example:
-        "What is PE ratio?"
-        "What is high risk portfolio?"
+    3. IF question is ONLY about NEWS/ANALYSIS:
+       Return: "News [REPHRASED_QUERY]"
+       Examples:
+       "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
+       "What's happening with Tesla?" → "News What are Tesla's recent market trends?"
 
+    4. For all other queries:
+       Return: "False NONE"
 
     Important Stock Symbols:
     - Microsoft = MSFT
