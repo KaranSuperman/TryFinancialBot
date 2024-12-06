@@ -320,10 +320,7 @@ def is_stock_query(user_question):
          "What's the today news? → "News What is the today news?"
          "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
 
-    3. Do not response on financial terms , respond: "False NONE"
-        - Example:
-        "What is PE ratio?"
-        "What is high risk portfolio?"
+
 
 
     Important Stock Symbols:
