@@ -319,6 +319,7 @@ def is_stock_query(user_question):
          "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
          "What's the today news? → "News What is the today news?"
          "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
+         "What is the tax i pay on nifty 50 mutual funds?"  → "News hat is the tax i pay on nifty 50 mutual funds?"
 
 
 
