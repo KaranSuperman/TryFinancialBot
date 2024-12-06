@@ -33,6 +33,7 @@ import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from datetime import datetime, timedelta
 
 
 load_dotenv() 
@@ -448,89 +449,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Get current date in ISO format
-        current_time = datetime.now(timezone.utc)
-        two_days_ago = (current_time - timedelta(days=2)).isoformat()
-        current_time = current_time.isoformat()
+        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration with strict time controls
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
-            api_key=exa_api_key,
-            k=7,
+            api_key=api_key,
+            k=5,  # Increase number of documents
             highlights=True,
-            extra_params={
-                "use_autoprompt": True,
-                "num_days": 1,  # Reduced to 1 day
-                "sort": "date",
-                "min_date": f"{current_time[:10]}T00:00:00Z",  # Start of today
-                "max_date": current_time,   # Current time
-                "source_quality": "high",
-                "recent_bias": 1.0,
-                "include_domains": [
-                    "reuters.com",
-                    "bloomberg.com",
-                    "ft.com",
-                    "wsj.com",
-                    "cnbc.com",
-                    "marketwatch.com",
-                    "finance.yahoo.com"
-                ],
-                "time_window": "12h",     # Last 12 hours only
-                "freshness": "12h"        # Last 12 hours only
-            }
+            start_published_date=start_date,  # Use ISO 8601 format
+            type="news",  # Specifically request news content
         )
 
-        # Add stronger headers for recency
+        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
-                "Content-Type": "application/json",
-                "x-request-time": current_time,
-                "x-require-recent": "true",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
+                "Content-Type": "application/json"
             })
-
-        # Updated generation prompt with stricter time checks
-        generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst providing REAL-TIME market insights. 
-            STRICT RULES:
-            1. ONLY use news from the last 12 hours
-            2. ALWAYS verify the timestamp of each news item
-            3. If ALL news items are older than 12 hours, respond with:
-               "I apologize, but I cannot find any current news about this topic from the last 12 hours. Please try a different query or check recent financial news sources directly."
-            4. Start your response with the current date and time in UTC
-            5. For each piece of news, include its timestamp"""),
-            ("human", """Based on the following query and recent financial news:
-
-            Query: {query}
-
-            Recent Financial Context:
-            {context}
-
-            Provide a clear, well-formatted market briefing with the following structure:
-
-            [Current UTC Time: YYYY-MM-DD HH:MM]
-
-            📊 MARKET BRIEFING
-            
-            1️⃣ [Main Headline] (Time: HH:MM UTC)
-            • Key Point 1
-            • Key Point 2
-            • Impact Assessment
-            
-            2️⃣ [Secondary Development] (Time: HH:MM UTC)
-            • Key Details
-            • Market Implications
-            
-            3️⃣ [Additional Insight] (Time: HH:MM UTC)
-            • Supporting Data
-            • Potential Impact
-
-            If no recent news is available, clearly state that fact.""")
-        ])
-
+        
         # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
@@ -547,16 +483,14 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Updated Document Template with better formatting
+        # Detailed Document Template
         document_template = """
-        {title}
-        Date: {date}
-        
-        Key Points:
-        {highlights}
-        
-        Source: {url}
-        ---
+        <financial_news>
+            <headline>{title}</headline>
+            <date>{date}</date>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
+        </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
 
@@ -577,6 +511,44 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             document_chain.map() | 
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
+
+        # Professional Financial News Prompt
+        generation_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
+
+            Key Priorities:
+            - Focus exclusively on verified financial and market news
+            - Prioritize significant market movements, corporate earnings, economic reports
+            - Provide clear, professional analysis with context
+            - Use precise financial terminology
+            - Highlight potential market implications"""),
+            ("human", """Generate a comprehensive financial news summary based on the following query and contextual information:
+
+            Query: {query}
+
+            Available Financial Context:
+            {context}
+
+            Analysis Requirements:
+            1. Structure as professional financial briefing
+            2. Include specific details about:
+            - Major stock index movements
+            - Significant company news
+            - Notable economic indicators
+            - Potential market impacts
+            3. Use precise numerical data
+            4. Maintain a professional, objective tone
+            5. Prioritize the most impactful financial news
+
+            Output Format:
+            Financial Market Briefing: 
+            - Headline 1: Concise description with key financial metrics 
+            - Headline 2: Concise description with key financial metrics 
+            - Headline 3: Concise description with key financial metrics 
+
+            Provide insights that a professional investor or financial analyst would find valuable.
+           """)
+        ])
 
         chain = (
             RunnableParallel({
