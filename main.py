@@ -319,9 +319,11 @@ def is_stock_query(user_question):
          "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
          "What's the today news? → "News What is the today news?"
          "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
-         "What is the tax i pay on nifty 50 mutual funds?"  → "News hat is the tax i pay on nifty 50 mutual funds?"
 
-
+    3. Do not response on financial terms , respond: "False NONE"
+        - Example:
+        "What is PE ratio?"
+        "What is high risk portfolio?"
 
 
     Important Stock Symbols:
@@ -540,11 +542,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             4. Maintain a professional, objective tone
             5. Prioritize the most impactful financial news
 
-            Output Format:
-            Financial Market Briefing: 
-            - Headline 1: Concise description with key financial metrics 
-            - Headline 2: Concise description with key financial metrics 
-            - Headline 3: Concise description with key financial metrics 
 
             Provide insights that a professional investor or financial analyst would find valuable.
            """)
