@@ -448,12 +448,16 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Enhanced Retriever Configuration
+        # Enhanced Retriever Configuration with recency bias
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=7,  # Increased number of results
+            k=7,
             highlights=True,
-        
+            extra_params={
+                "use_autoprompt": True,
+                "num_days": 7,  # Limit to last 7 days
+                "sort": "date"  # Sort by date, newest first
+            }
         )
 
         # Ensure the API key is set in the headers
@@ -479,14 +483,16 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Updated Document Template with better formatting
         document_template = """
-        <financial_news>
-            <headline>{title}</headline>
-            <date>{date}</date>
-            <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
-        </financial_news>
+        {title}
+        Date: {date}
+        
+        Key Points:
+        {highlights}
+        
+        Source: {url}
+        ---
         """
         document_prompt = PromptTemplate.from_template(document_template)
 
@@ -508,42 +514,37 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Professional Financial News Prompt
+        # Updated generation prompt for better formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
-
-            Key Priorities:
-            - Focus exclusively on verified financial and market news
-            - Prioritize significant market movements, corporate earnings, economic reports
-            - Provide clear, professional analysis with context
-            - Use precise financial terminology
-            - Highlight potential market implications"""),
-            ("human", """Generate a comprehensive financial news summary based on the following query and contextual information:
+            ("system", """You are a professional financial analyst providing real-time market insights. Focus on the most recent news and developments."""),
+            ("human", """Based on the following query and recent financial news:
 
             Query: {query}
 
-            Available Financial Context:
+            Recent Financial Context:
             {context}
 
-            Analysis Requirements:
-            1. Structure as professional financial briefing
-            2. Include specific details about:
-            - Major stock index movements
-            - Significant company news
-            - Notable economic indicators
-            - Potential market impacts
-            3. Use precise numerical data
-            4. Maintain a professional, objective tone
-            5. Prioritize the most impactful financial news
+            Provide a clear, well-formatted market briefing with the following structure:
 
-            Output Format:
-            Financial Market Briefing: 
-            - Headline 1: Concise description with key financial metrics 
-            - Headline 2: Concise description with key financial metrics 
-            - Headline 3: Concise description with key financial metrics 
+            📊 MARKET BRIEFING
+            
+            1️⃣ [Main Headline]
+            • Key Point 1
+            • Key Point 2
+            • Impact Assessment
+            
+            2️⃣ [Secondary Development]
+            • Key Details
+            • Market Implications
+            
+            3️⃣ [Additional Insight]
+            • Supporting Data
+            • Potential Impact
 
-            Provide insights that a professional investor or financial analyst would find valuable.
-           """)
+            Keep each section concise and focused on the most recent developments.
+            Use bullet points for clarity.
+            Include specific numbers and data where available.
+            """)
         ])
 
         chain = (
