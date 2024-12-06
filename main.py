@@ -33,6 +33,7 @@ import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from datetime import datetime, timedelta
 
 
 load_dotenv() 
@@ -448,23 +449,38 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Enhanced Retriever Configuration with recency bias
+        # Enhanced Retriever Configuration with stricter recency controls
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=7,
             highlights=True,
             extra_params={
                 "use_autoprompt": True,
-                "num_days": 7,  # Limit to last 7 days
-                "sort": "date"  # Sort by date, newest first
+                "num_days": 2,  # Reduced to last 2 days for more recent news
+                "sort": "date",  # Sort by date
+                "min_date": "now-2d",  # Only articles from last 2 days
+                "max_date": "now",  # Up to current time
+                "source_quality": "high",  # Focus on high-quality sources
+                "recent_bias": 0.9,  # Strong bias towards recent content
+                "include_domains": [
+                    "reuters.com",
+                    "bloomberg.com",
+                    "ft.com",
+                    "wsj.com",
+                    "cnbc.com",
+                    "marketwatch.com",
+                    "finance.yahoo.com"
+                ]
             }
         )
 
-        # Ensure the API key is set in the headers
+        # Add explicit headers for recency
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "x-request-time": "now",  # Current time stamp
+                "x-require-recent": "true"  # Explicit recent content flag
             })
         
         # Verify Gemini API key
@@ -505,7 +521,16 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "date": doc.metadata.get("published_date", "Today"),
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
                 "url": doc.metadata.get("url", "No source URL")
-            }) | document_prompt
+            }) | 
+            # Add timestamp validation
+            RunnableLambda(lambda x: {
+                **x,
+                "is_recent": (
+                    datetime.strptime(x["date"], "%Y-%m-%d") >= 
+                    (datetime.now() - timedelta(days=2))
+                ) if x["date"] != "Today" else True
+            }) |
+            document_prompt
         )
         
         retrieval_chain = (
@@ -514,9 +539,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Updated generation prompt for better formatting
+        # Update the system message to emphasize recency
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst providing real-time market insights. Focus on the most recent news and developments."""),
+            ("system", """You are a professional financial analyst providing REAL-TIME market insights. 
+            ONLY use news from the last 48 hours. 
+            If the provided context contains older news, IGNORE it and mention that you need more recent information.
+            Focus exclusively on the most recent market developments."""),
             ("human", """Based on the following query and recent financial news:
 
             Query: {query}
