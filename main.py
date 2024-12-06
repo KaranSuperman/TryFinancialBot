@@ -564,7 +564,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Headline 2: Concise description with key financial metrics 
             - Headline 3: Concise description with key financial metrics 
 
-            Provide insights that a professional investor or financial analyst would find valuable.""")
+            Provide insights that a professional investor or financial analyst would find valuable.
+            NOTE: Always response anything in XML format.""")
         ])
 
         chain = (
