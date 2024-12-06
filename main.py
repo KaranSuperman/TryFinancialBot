@@ -542,15 +542,14 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             4. Maintain a professional, objective tone
             5. Prioritize the most impactful financial news
 
-
-            Output format:
-            1. Information
-            2. Information
-            .
-            .
-            .
-            soon.
-
+            Output Format:
+            Financial Market Briefing: 
+            - Headline 1: Concise description with key financial metrics 
+            - Headline 2: Concise description with key financial metrics 
+            - Headline 3: Concise description with key financial metrics 
+            -
+            -
+            soon..
 
             Provide insights that a professional investor or financial analyst would find valuable.
            """)
