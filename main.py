@@ -449,19 +449,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Enhanced Retriever Configuration with stricter recency controls
+        # Get current date in ISO format
+        current_time = datetime.now(timezone.utc)
+        two_days_ago = (current_time - timedelta(days=2)).isoformat()
+        current_time = current_time.isoformat()
+
+        # Enhanced Retriever Configuration with strict time controls
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=7,
             highlights=True,
             extra_params={
                 "use_autoprompt": True,
-                "num_days": 2,  # Reduced to last 2 days for more recent news
-                "sort": "date",  # Sort by date
-                "min_date": "now-2d",  # Only articles from last 2 days
-                "max_date": "now",  # Up to current time
-                "source_quality": "high",  # Focus on high-quality sources
-                "recent_bias": 0.9,  # Strong bias towards recent content
+                "num_days": 2,
+                "sort": "date",
+                "min_date": two_days_ago,  # Explicit ISO datetime
+                "max_date": current_time,   # Explicit ISO datetime
+                "source_quality": "high",
+                "recent_bias": 1.0,         # Maximum recency bias
                 "include_domains": [
                     "reuters.com",
                     "bloomberg.com",
@@ -470,19 +475,27 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                     "cnbc.com",
                     "marketwatch.com",
                     "finance.yahoo.com"
-                ]
+                ],
+                "exclude_domains": [
+                    "seekingalpha.com",  # Often has delayed content
+                    "fool.com"           # Often has delayed content
+                ],
+                "time_window": "1d",     # Additional time window parameter
+                "freshness": "1d"        # Additional freshness parameter
             }
         )
 
-        # Add explicit headers for recency
+        # Add stronger headers for recency
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json",
-                "x-request-time": "now",  # Current time stamp
-                "x-require-recent": "true"  # Explicit recent content flag
+                "x-request-time": current_time,
+                "x-require-recent": "true",
+                "Cache-Control": "no-cache",  # Prevent caching
+                "Pragma": "no-cache"
             })
-        
+
         # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
@@ -521,21 +534,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "date": doc.metadata.get("published_date", "Today"),
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
                 "url": doc.metadata.get("url", "No source URL")
-            }) | 
-            # Add timestamp validation with consistent timezone handling
-            RunnableLambda(lambda x: {
-                **x,
-                "is_recent": (
-                    # Parse the date string based on its format
-                    (datetime.fromisoformat(x["date"].replace('Z', '+00:00'))
-                     if x["date"] != "Today" and 'T' in x["date"]
-                     else datetime.strptime(x["date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
-                     if x["date"] != "Today"
-                     else datetime.now(timezone.utc))
-                    >= (datetime.now(timezone.utc) - timedelta(days=2))
-                )
-            }) |
-            document_prompt
+            }) | document_prompt
         )
         
         retrieval_chain = (
@@ -546,7 +545,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Updated generation prompt for better formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst providing real-time market insights. Focus on the most recent news and developments."""),
+            ("system", """You are a professional financial analyst providing REAL-TIME market insights. 
+            STRICT RULES:
+            1. ONLY use news from the last 24 hours
+            2. ALWAYS verify and mention the exact date of the news in your response
+            3. If news is older than 24 hours, reject it and state: "This information is not current. Please check recent sources."
+            4. Format dates as: [Current Date: YYYY-MM-DD] at the start of your response"""),
             ("human", """Based on the following query and recent financial news:
 
             Query: {query}
