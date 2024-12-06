@@ -914,13 +914,7 @@ def user_input(user_question):
             - Explain book value
             - What does EBITDA mean?
 
-            STRICT RESTRICTIONS:
-            - NO stock recommendations
-            - NO investment advice
-            - AVOID statements like:
-            * "Best stocks to invest"
-            * "Worst performing stocks"
-            * "Recommended stocks/mutual funds"
+
 
             Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
             """
