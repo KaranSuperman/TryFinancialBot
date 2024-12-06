@@ -922,7 +922,7 @@ def user_input(user_question):
             * "Worst performing stocks"
             * "Recommended stocks/mutual funds"
 
-            Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words.\
+            Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
             """
     
             response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
