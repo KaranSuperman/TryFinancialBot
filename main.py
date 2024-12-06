@@ -300,31 +300,68 @@ def is_relevant(question, embeddings_model, threshold=0.55):
         return False
 
 def is_stock_query(user_question):
-    prompt = f'''Analyze the following question precisely. If it contains both a stock price query AND a request for news/analysis, return BOTH responses.
+    prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
+    SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. ALSO [PAASA] is a fintech company if 
+    any user ask query related to the company then donot response to that query.
 
     RULES:
-    1. IF question asks about BOTH stock price AND news/analysis:
-       Return: "True [STOCK_SYMBOL]\nNews [REPHRASED_QUERY]"
-       Examples:
-       "What is Microsoft's price and why is it moving?" → "True MSFT\nNews Why is Microsoft's stock price changing?"
-       "Tell me Apple's stock price and recent news" → "True AAPL\nNews What are Apple's recent market developments?"
+    1. IF the question is about STOCK PRICE then Generate only [Yahoo Finance] compatible symbol, respond: "True [STOCK_SYMBOL]"
+       - Examples:
+         "What is Microsoft's current stock price?" → "True MSFT"
+         "How much is Tesla trading for?" → "True TSLA"
+         "What is the price of google?" → "True GOOGL"
+         "What is price of cspx" → "True CSPX.L"
+         "csndx price" → "True CSNDX.SW"
 
-    2. IF question is ONLY about STOCK PRICE:
-       Return: "True [STOCK_SYMBOL]"
-       Examples:
-       "What is Microsoft's stock price?" → "True MSFT"
-       "How much is Tesla trading for?" → "True TSLA"
+    2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
+       - Examples:
+         "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
+         "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
+         "What's the today news? → "News What is the today news?"
+         "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
 
-    3. IF question is ONLY about NEWS/ANALYSIS:
-       Return: "News [REPHRASED_QUERY]"
-       Examples:
-       "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
-       "What's happening with Tesla?" → "News What are Tesla's recent market trends?"
+    3. Do not response on financial terms , respond: "False NONE"
+        - Example:
+        "What is PE ratio?"
+        "What is high risk portfolio?"
 
-    4. For all other queries:
-       Return: "False NONE"
 
-    [Previous stock symbol and exchange suffix rules remain the same...]
+    Important Stock Symbols:
+    - Microsoft = MSFT
+    - Apple = AAPL
+    - Tesla = TSLA
+    - Google = GOOGL
+    - Amazon = AMZN
+    - Meta = META
+    - Bitcoin = BTC-USD
+
+
+    COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
+    EXCHANGE SUFFIXES:
+    - US Exchanges:
+      * No suffix for NYSE/NASDAQ (AAPL, MSFT)
+    
+    NOTE: Append appropriate exchange suffix if needed
+    - International Exchanges:
+      - .L = London Stock Exchange (UK)
+      - .SW = SIX Swiss Exchange (Switzerland)
+      - .NS = National Stock Exchange (India)
+      - .BO = Bombay Stock Exchange (India)
+      - .JK = Indonesia Stock Exchange
+      - .SI = Singapore Exchange
+      - .HK = Hong Kong Stock Exchange
+      - .T = Tokyo Stock Exchange (Japan)
+      - .AX = Australian Securities Exchange
+      - .SA = São Paulo Stock Exchange (Brazil)
+      - .TO = Toronto Stock Exchange (Canada)
+      - .MX = Mexican Stock Exchange
+      - .KS = Korea Exchange
+      - .DE = Deutsche Börse (Germany)
+      - .PA = Euronext Paris
+      - .AS = Euronext Amsterdam
+      - .MI = Milan Stock Exchange (Italy)
+      - .MC = Madrid Stock Exchange (Spain)
+
 
     Question: {user_question}'''
 
@@ -735,42 +772,8 @@ def user_input(user_question):
         # Check for stock query
 
         result = is_stock_query(user_question)
+        # st.write(f"DEBUG: Processed query - Result: {result}")
         
-        # Check if we have both a stock price query and a news query
-        if result.startswith("True ") and "News " in result:
-            _, symbol = result.split(maxsplit=1)
-            combined_response = ""
-            
-            # Get stock price information
-            stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-            if stock_price is not None:
-                combined_response = (
-                    f"**Stock Update for {symbol}**\n\n"
-                    f"- Current Price: {currency_symbol}{stock_price:.2f}\n"
-                    f"- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                )
-            
-            # Get news information using Exa
-            try:
-                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
-                
-                if exa_api_key and gemini_api_key:
-                    research_chain = create_research_chain(exa_api_key, gemini_api_key)
-                    news_response = research_chain.invoke(f"What's happening with {symbol} stock recently?")
-                    
-                    if hasattr(news_response, 'content'):
-                        combined_response += "\n**Recent News Analysis:**\n" + news_response.content
-            
-            except Exception as e:
-                combined_response += f"\nUnable to fetch recent news: {str(e)}"
-            
-            return {
-                "output_text": combined_response,
-                "graph": plot_stock_graph(symbol),
-                "display_order": ["text", "graph"]
-            }
-            
         # Handle current stock price query
         if result.startswith("True "):
             _, symbol = result.split(maxsplit=1)
