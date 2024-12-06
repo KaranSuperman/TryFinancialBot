@@ -535,11 +535,40 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Definitive Statement Capturing Core News Event 
             - Key Actors/Entities Involved
 
-            Summary:
-            - Short and concise summary
+            Comprehensive Overview:
+            1. Core Event Details
+            - What Happened: [Precise Description]
+            - When and Where: [Specific Temporal and Geographic Context]
+            - Key Participants: [Individuals/Organizations Involved]
 
-            <Note: Everything should be in plain text>
+            2. Background Context
+            - Historical Perspective: [Relevant Past Events] 
+            - Previous Developments: [How This Event Connects to Broader Narrative]
 
+            3. Immediate Implications
+            - Direct Consequences: [Short-term Impact]
+            - Stakeholder Responses: [Reactions from Involved Parties]
+
+            4. Broader Significance
+            - Systemic Effects: [Potential Wider Ramifications]
+            - Expert Perspectives: [Insights from Analysts/Experts] 
+
+            5. Potential Future Developments
+            - Projected Scenarios: [Possible Future Outcomes]
+            - Uncertainty Factors: [Elements That Could Alter Trajectory]
+
+            Key Takeaways:
+            - Takeaway 1: [Concise, Impactful Insight]
+            - Takeaway 2: [Another Critical Observation]
+            - Takeaway 3: [Additional Significant Point]
+
+            Contextual Data Points:
+            - Quantitative Metric 1: [Relevant Numerical Information]
+            - Quantitative Metric 2: [Additional Numerical Context]
+
+            Ongoing Monitoring:
+            - Areas to Watch: [Future Developments to Track]
+            - Potential Follow-up Stories: [Related Emerging Narratives]
             ```
             """
                 )
