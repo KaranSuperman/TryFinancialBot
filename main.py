@@ -772,50 +772,10 @@ def user_input(user_question):
         # Check for stock query
 
         result = is_stock_query(user_question)
+        # st.write(f"DEBUG: Processed query - Result: {result}")
         
-        # Check if we have both a stock price query and a news query
-        if "\nNews " in result and result.startswith("True "):
-            # Split the result into price and news components
-            price_part, news_part = result.split("\nNews ", 1)
-            _, symbol = price_part.split(maxsplit=1)
-            
-            # Clean the symbol (remove any trailing whitespace or newlines)
-            symbol = symbol.strip()
-            
-            combined_response = ""
-            
-            # Get stock price information
-            stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-            if stock_price is not None:
-                combined_response = (
-                    f"**Stock Update for {symbol}**\n\n"
-                    f"- Current Price: {currency_symbol}{stock_price:.2f}\n"
-                    f"- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                )
-            
-            # Get news information using Exa
-            try:
-                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
-                
-                if exa_api_key and gemini_api_key:
-                    research_chain = create_research_chain(exa_api_key, gemini_api_key)
-                    news_response = research_chain.invoke(news_part)
-                    
-                    if hasattr(news_response, 'content'):
-                        combined_response += "\n**Recent News Analysis:**\n" + news_response.content
-            
-            except Exception as e:
-                combined_response += f"\nUnable to fetch recent news: {str(e)}"
-            
-            return {
-                "output_text": combined_response,
-                "graph": plot_stock_graph(symbol),
-                "display_order": ["text", "graph"]
-            }
-            
         # Handle current stock price query
-        elif result.startswith("True "):
+        if result.startswith("True "):
             _, symbol = result.split(maxsplit=1)
             try:
                 # st.info("Using Stocks response")
