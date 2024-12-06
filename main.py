@@ -453,29 +453,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             api_key=exa_api_key,
             k=7,  # Increased number of results
             highlights=True,
-            extra_params={
-                "use_autoprompt": True,
-                "num_results": 7,
-                "include_domains": [
-                    "finance.yahoo.com"
-                    "bloomberg.com",
-                    "reuters.com", 
-                    "ft.com", 
-                    "wsj.com", 
-                    "cnbc.com", 
-                    "marketwatch.com", 
-                    "investing.com", 
-                    "seekingalpha.com",
-                    "reuters.com/markets",
-                    "businesswire.com"
-                ],
-                "exclude_domains": [
-                    "youtube.com",
-                    "facebook.com", 
-                    "twitter.com", 
-                    "reddit.com"
-                ]
-            }
+        
         )
 
         # Ensure the API key is set in the headers
