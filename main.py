@@ -551,6 +551,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             -
             soon..
 
+            
+
             Provide insights that a professional investor or financial analyst would find valuable.
            """)
         ])
