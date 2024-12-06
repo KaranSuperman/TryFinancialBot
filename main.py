@@ -951,7 +951,7 @@ def user_input(user_question):
                     The provided answer is:
                     {answer}
 
-                    Based on this information, let me expand on the response within 100 words but do not add anything by assumption:
+                    Based on this information, let me response within 100 words:
 
                     {context}
 
