@@ -524,7 +524,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Focus on the most significant and impactful elements of the news
             - Use clear, concise language
             - Highlight broader implications and potential consequences
-            - Other than Highlighters everything should be in XML format"""),
+            - Other than Highlighters everything should be in plain text format"""),
             ("human", """Generate a comprehensive news summary based on the following query and contextual information:
 
             Query: {query}
