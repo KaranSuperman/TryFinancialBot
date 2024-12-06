@@ -551,7 +551,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             -
             soon..
 
-            
+
 
             Provide insights that a professional investor or financial analyst would find valuable.
            """)
@@ -996,7 +996,7 @@ def user_input(user_question):
                     - Avoid any specific investment advice
                     - Keep responses factual and educational
 
-                    Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
+                    Note: Responses must be purely informative and educational about financial terms and up to date . Try to give response within 100 words with solid answer.\
                     """
 
                     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
