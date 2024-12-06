@@ -36,6 +36,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 
+
 load_dotenv() 
 
 
@@ -453,11 +454,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
-            api_key=api_key,
+            api_key=exa_api_key,
             k=5,  # Increase number of documents
             highlights=True,
             start_published_date=start_date,  # Use ISO 8601 format
             type="news",  # Specifically request news content
+        
         )
 
         # Ensure the API key is set in the headers
