@@ -516,41 +516,17 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Professional Financial News Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
-
-            Key Priorities:
-            - Focus exclusively on verified financial and market news
-            - Prioritize significant market movements, corporate earnings, economic reports
-            - Provide clear, professional analysis with context
-            - Use precise financial terminology
-            - Highlight potential market implications"""),
-            ("human", """Generate a comprehensive financial news summary based on the following query and contextual information:
+        ("system", "You are a highly knowledgeable finance and stocks assistant. Your role is to provide the latest news, trends, and insights related to finance and stock markets. Use the XML-formatted context to ensure your responses are accurate and informative."),
+            ("human", """
+            Please respond to the following query using the provided context. Ensure your answer is well-structured, concise, and includes relevant data or statistics where applicable. Cite your sources at the end of your response for verification.
 
             Query: {query}
-
-            Available Financial Context:
+            ---
+            <context>
             {context}
-
-            Analysis Requirements:
-            1. Structure as professional financial briefing
-            2. Include specific details about:
-            - Major stock index movements
-            - Significant company news
-            - Notable economic indicators
-            - Potential market impacts
-            3. Use precise numerical data
-            4. Maintain a professional, objective tone
-            5. Prioritize the most impactful financial news
-
-            Output Format:
-            Financial Market Briefing: 
-            - Headline 1: Concise description with key financial metrics 
-            - Headline 2: Concise description with key financial metrics 
-            - Headline 3: Concise description with key financial metrics 
-
-            Provide insights that a professional investor or financial analyst would find valuable.
-           """)
-        ])
+            </context>
+            """)
+            ])
 
         chain = (
             RunnableParallel({
