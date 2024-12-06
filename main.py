@@ -977,12 +977,31 @@ def user_input(user_question):
                 Question: {question}
 
                 Answer in a clear, direct manner, using only the factual information available in the document. Keep the response within 100 words.
-                If the question is unrelated to the PDF, respond with: "Please ask a query related to finance."
+                If the question cannot be answered from the PDF context, respond with: "NO_PDF_ANSWER"
                 """
  
                 prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
                 response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+                
+                # Check if we got a NO_PDF_ANSWER response
+                if "NO_PDF_ANSWER" in response["output_text"]:
+                    st.info("Using LLM response")
+                    prompt1 = user_question + """\
+                    Finance Term Query Guidelines:
+                    1. Context: Finance domain
+                    2. Response Requirements:
+                    - Focus exclusively on defining finance-related terms
+                    - Provide clear, concise explanations of financial terminology
+                    - Avoid any specific investment advice
+                    - Keep responses factual and educational
+
+                    Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
+                    """
+
+                    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+                    return {"output_text": response.content} if response else {"output_text": "No response generated."}
+                
                 return response
 
         except Exception as e:
