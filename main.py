@@ -581,7 +581,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Use clear, professional language
             - Focus on factual, verifiable information
             - Highlight multiple dimensions of the news story
-            """)]
+            """)
+        )]
 
         chain = (
             RunnableParallel({
