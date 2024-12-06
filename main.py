@@ -536,8 +536,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             News Briefing: [Date]
 
             Main Headline:
-            - Definitive Statement Capturing Core News Event
-            - Key Actors/Entities Involved
+            - [Definitive Statement Capturing Core News Event]
+            - [Key Actors/Entities Involved]
 
             Comprehensive Overview:
             1. Core Event Details
@@ -562,17 +562,17 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Uncertainty Factors: [Elements That Could Alter Trajectory]
 
             Key Takeaways:
-            - Takeaway 1: [Concise, Impactful Insight]
-            - Takeaway 2: [Another Critical Observation]
-            - Takeaway 3: [Additional Significant Point]
+            - [Concise, Impactful Insight]
+            - [Another Critical Observation] 
+            - [Additional Significant Point]
 
             Contextual Data Points:
-            - Quantitative Metric 1: [Relevant Numerical Information]
-            - Quantitative Metric 2: [Additional Numerical Context]
+            - [Relevant Numerical Information]
+            - [Additional Numerical Context]
 
             Ongoing Monitoring:
-            - Areas to Watch: [Future Developments to Track]
-            - Potential Follow-up Stories: [Related Emerging Narratives]
+            - [Areas to Watch]
+            - [Potential Follow-up Stories]
             ```
 
             Critical Instructions:
