@@ -33,7 +33,6 @@ import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-from datetime import datetime, timedelta, timezone
 
 
 load_dotenv() 
@@ -461,12 +460,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             highlights=True,
             extra_params={
                 "use_autoprompt": True,
-                "num_days": 2,
+                "num_days": 1,  # Reduced to 1 day
                 "sort": "date",
-                "min_date": two_days_ago,  # Explicit ISO datetime
-                "max_date": current_time,   # Explicit ISO datetime
+                "min_date": f"{current_time[:10]}T00:00:00Z",  # Start of today
+                "max_date": current_time,   # Current time
                 "source_quality": "high",
-                "recent_bias": 1.0,         # Maximum recency bias
+                "recent_bias": 1.0,
                 "include_domains": [
                     "reuters.com",
                     "bloomberg.com",
@@ -476,12 +475,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                     "marketwatch.com",
                     "finance.yahoo.com"
                 ],
-                "exclude_domains": [
-                    "seekingalpha.com",  # Often has delayed content
-                    "fool.com"           # Often has delayed content
-                ],
-                "time_window": "1d",     # Additional time window parameter
-                "freshness": "1d"        # Additional freshness parameter
+                "time_window": "12h",     # Last 12 hours only
+                "freshness": "12h"        # Last 12 hours only
             }
         )
 
@@ -492,9 +487,49 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "Content-Type": "application/json",
                 "x-request-time": current_time,
                 "x-require-recent": "true",
-                "Cache-Control": "no-cache",  # Prevent caching
-                "Pragma": "no-cache"
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
             })
+
+        # Updated generation prompt with stricter time checks
+        generation_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a professional financial analyst providing REAL-TIME market insights. 
+            STRICT RULES:
+            1. ONLY use news from the last 12 hours
+            2. ALWAYS verify the timestamp of each news item
+            3. If ALL news items are older than 12 hours, respond with:
+               "I apologize, but I cannot find any current news about this topic from the last 12 hours. Please try a different query or check recent financial news sources directly."
+            4. Start your response with the current date and time in UTC
+            5. For each piece of news, include its timestamp"""),
+            ("human", """Based on the following query and recent financial news:
+
+            Query: {query}
+
+            Recent Financial Context:
+            {context}
+
+            Provide a clear, well-formatted market briefing with the following structure:
+
+            [Current UTC Time: YYYY-MM-DD HH:MM]
+
+            📊 MARKET BRIEFING
+            
+            1️⃣ [Main Headline] (Time: HH:MM UTC)
+            • Key Point 1
+            • Key Point 2
+            • Impact Assessment
+            
+            2️⃣ [Secondary Development] (Time: HH:MM UTC)
+            • Key Details
+            • Market Implications
+            
+            3️⃣ [Additional Insight] (Time: HH:MM UTC)
+            • Supporting Data
+            • Potential Impact
+
+            If no recent news is available, clearly state that fact.""")
+        ])
 
         # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
@@ -542,44 +577,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             document_chain.map() | 
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
-
-        # Updated generation prompt for better formatting
-        generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst providing REAL-TIME market insights. 
-            STRICT RULES:
-            1. ONLY use news from the last 24 hours
-            2. ALWAYS verify and mention the exact date of the news in your response
-            3. If news is older than 24 hours, reject it and state: "This information is not current. Please check recent sources."
-            4. Format dates as: [Current Date: YYYY-MM-DD] at the start of your response"""),
-            ("human", """Based on the following query and recent financial news:
-
-            Query: {query}
-
-            Recent Financial Context:
-            {context}
-
-            Provide a clear, well-formatted market briefing with the following structure:
-
-            📊 MARKET BRIEFING
-            
-            1️⃣ [Main Headline]
-            • Key Point 1
-            • Key Point 2
-            • Impact Assessment
-            
-            2️⃣ [Secondary Development]
-            • Key Details
-            • Market Implications
-            
-            3️⃣ [Additional Insight]
-            • Supporting Data
-            • Potential Impact
-
-            Keep each section concise and focused on the most recent developments.
-            Use bullet points for clarity.
-            Include specific numbers and data where available.
-            """)
-        ])
 
         chain = (
             RunnableParallel({
