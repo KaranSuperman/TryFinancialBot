@@ -523,8 +523,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Provide context and balanced perspective
             - Focus on the most significant and impactful elements of the news
             - Use clear, concise language
-            - Highlight broader implications and potential consequences
-            - Other than Highlighters everything should be in plain text format"""),
+            - Highlight broader implications and potential consequences"""),
             ("human", """Generate a comprehensive news summary based on the following query and contextual information:
 
             Query: {query}
