@@ -535,36 +535,47 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
 
             Key Priorities:
-            - Focus exclusively on verified financial and market news
-            - Prioritize significant market movements, corporate earnings, economic reports
-            - Provide clear, professional analysis with context
-            - Use precise financial terminology
-            - Highlight potential market implications"""),
-            ("human", """Generate a comprehensive financial news summary based on the following query and contextual information:
+            - Deliver clear, well-structured financial news summaries
+            - Focus on verified financial and market news
+            - Use precise, professional language
+            - Emphasize market impacts and key insights
+            - Ensure clean, readable formatting"""),
+            ("human", """Generate a professional financial market briefing based on the following query and contextual information:
 
             Query: {query}
 
             Available Financial Context:
             {context}
 
-            Analysis Requirements:
-            1. Structure as professional financial briefing
-            2. Include specific details about:
-            - Major stock index movements
-            - Significant company news
-            - Notable economic indicators
-            - Potential market impacts
-            3. Use precise numerical data
-            4. Maintain a professional, objective tone
-            5. Prioritize the most impactful financial news
+            Requirements:
+            1. Create a structured, easy-to-read briefing
+            2. Format each headline with:
+            - Clear, concise title
+            - 2-3 key bullet points
+            - Explicit market implications
+            3. Use professional financial terminology
+            4. Provide objective, data-driven analysis
+            5. Maintain a clean, consistent format
 
             Output Format:
-            Financial Market Briefing: 
-            - Headline 1: Concise description with key financial metrics 
-            - Headline 2: Concise description with key financial metrics 
-            - Headline 3: Concise description with key financial metrics 
+            # Financial Market Briefing
 
-            Provide insights that a professional investor or financial analyst would find valuable.""")
+            ## Headline 1: [Concise, Descriptive Title]
+            - Key Point 1
+            - Key Point 2
+            - Market Impact: [Specific, Quantifiable Insight]
+
+            ## Headline 2: [Concise, Descriptive Title]
+            - Key Point 1
+            - Key Point 2
+            - Market Impact: [Specific, Quantifiable Insight]
+
+            ## Headline 3: [Concise, Descriptive Title]
+            - Key Point 1
+            - Key Point 2
+            - Market Impact: [Specific, Quantifiable Insight]
+
+            Provide insights a professional investor would find immediately valuable and actionable.""")
         ])
 
         chain = (
