@@ -522,13 +522,16 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
                 "url": doc.metadata.get("url", "No source URL")
             }) | 
-            # Add timestamp validation
+            # Add timestamp validation with proper ISO format handling
             RunnableLambda(lambda x: {
                 **x,
                 "is_recent": (
-                    datetime.strptime(x["date"], "%Y-%m-%d") >= 
-                    (datetime.now() - timedelta(days=2))
-                ) if x["date"] != "Today" else True
+                    datetime.fromisoformat(x["date"].replace('Z', '+00:00'))
+                    if x["date"] != "Today" and 'T' in x["date"]
+                    else datetime.strptime(x["date"], "%Y-%m-%d")
+                    if x["date"] != "Today"
+                    else datetime.now()
+                ) >= (datetime.now() - timedelta(days=2))
             }) |
             document_prompt
         )
@@ -539,12 +542,9 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Update the system message to emphasize recency
+        # Updated generation prompt for better formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst providing REAL-TIME market insights. 
-            ONLY use news from the last 48 hours. 
-            If the provided context contains older news, IGNORE it and mention that you need more recent information.
-            Focus exclusively on the most recent market developments."""),
+            ("system", """You are a professional financial analyst providing real-time market insights. Focus on the most recent news and developments."""),
             ("human", """Based on the following query and recent financial news:
 
             Query: {query}
