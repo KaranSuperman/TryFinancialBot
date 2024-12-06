@@ -549,10 +549,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Headline 3: Concise description with key financial metrics 
             -
             -
-            -
-            Source: [Source-1 name with inbuit link]
-                    [Source-2 name with inbuit link]
-                    [Source-3 name with inbuit link]
+            - Headline n
             
 
 
