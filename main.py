@@ -520,23 +520,21 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
             Core Principles:
             - Maintain objectivity and factual accuracy
-            - Provide context and balanced perspective
+            - Provide context and balanced perspective 
             - Focus on the most significant and impactful elements of the news
-            - Use clear, concise language
+            - Use clear, concise language, avoiding unnecessary formatting like italics or large font sizes
             - Highlight broader implications and potential consequences"""),
             ("human", """Generate a comprehensive news summary based on the following query and contextual information:
 
             Query: {query}
-
-            Available Context:
-            {context}
+            Context: {context}
 
             Output Format:
             ```
             News Briefing: [Date]
 
             Main Headline:
-            - Definitive Statement Capturing Core News Event
+            - Definitive Statement Capturing Core News Event 
             - Key Actors/Entities Involved
 
             Comprehensive Overview:
@@ -546,7 +544,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Key Participants: [Individuals/Organizations Involved]
 
             2. Background Context
-            - Historical Perspective: [Relevant Past Events]
+            - Historical Perspective: [Relevant Past Events] 
             - Previous Developments: [How This Event Connects to Broader Narrative]
 
             3. Immediate Implications
@@ -555,7 +553,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
             4. Broader Significance
             - Systemic Effects: [Potential Wider Ramifications]
-            - Expert Perspectives: [Insights from Analysts/Experts]
+            - Expert Perspectives: [Insights from Analysts/Experts] 
 
             5. Potential Future Developments
             - Projected Scenarios: [Possible Future Outcomes]
@@ -574,17 +572,9 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Areas to Watch: [Future Developments to Track]
             - Potential Follow-up Stories: [Related Emerging Narratives]
             ```
-
-            Critical Instructions:
-            - Ensure comprehensive coverage of the news event
-            - Maintain objectivity and avoid sensationalism
-            - Provide balanced perspective
-            - Use clear, professional language
-            - Focus on factual, verifiable information
-            - Highlight multiple dimensions of the news story
-            """)
-        ])
-
+            """
+                )
+            ])
         chain = (
             RunnableParallel({
                 "query": RunnablePassthrough(),  
