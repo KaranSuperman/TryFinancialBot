@@ -33,7 +33,7 @@ import os
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 load_dotenv() 
@@ -522,16 +522,18 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
                 "url": doc.metadata.get("url", "No source URL")
             }) | 
-            # Add timestamp validation with proper ISO format handling
+            # Add timestamp validation with consistent timezone handling
             RunnableLambda(lambda x: {
                 **x,
                 "is_recent": (
-                    datetime.fromisoformat(x["date"].replace('Z', '+00:00'))
-                    if x["date"] != "Today" and 'T' in x["date"]
-                    else datetime.strptime(x["date"], "%Y-%m-%d")
-                    if x["date"] != "Today"
-                    else datetime.now()
-                ) >= (datetime.now() - timedelta(days=2))
+                    # Parse the date string based on its format
+                    (datetime.fromisoformat(x["date"].replace('Z', '+00:00'))
+                     if x["date"] != "Today" and 'T' in x["date"]
+                     else datetime.strptime(x["date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                     if x["date"] != "Today"
+                     else datetime.now(timezone.utc))
+                    >= (datetime.now(timezone.utc) - timedelta(days=2))
+                )
             }) |
             document_prompt
         )
