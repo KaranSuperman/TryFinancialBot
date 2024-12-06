@@ -516,75 +516,47 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Professional Financial News Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are an expert news analyst with a commitment to providing clear, comprehensive, and objective summaries of current events. Your goal is to distill complex information into a structured, easily digestible format that captures the key aspects of the news.
+            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
 
-            Core Principles:
-            - Maintain objectivity and factual accuracy
-            - Provide context and balanced perspective
-            - Focus on the most significant and impactful elements of the news
-            - Use clear, concise language
-            - Highlight broader implications and potential consequences"""),
-            ("human", """Generate a comprehensive news summary based on the following query and contextual information:
+            Key Priorities:
+            - Focus exclusively on verified financial and market news
+            - Prioritize significant market movements, corporate earnings, economic reports
+            - Provide clear, professional analysis with context
+            - Use precise financial terminology
+            - Highlight potential market implications"""),
+            ("human", """Generate a comprehensive financial news summary based on the following query and contextual information:
 
             Query: {query}
 
-            Available Context:
+            Available Financial Context:
             {context}
 
+            Analysis Requirements:
+            1. Structure as professional financial briefing
+            2. Include specific details about:
+            - Major stock index movements
+            - Significant company news
+            - Notable economic indicators
+            - Potential market impacts
+            3. Use precise numerical data
+            4. Maintain a professional, objective tone
+            5. Prioritize the most impactful financial news
+
             Output Format:
-            ```
-            News Briefing: [Date]
+            Financial Market Briefing: 
+            - Headline 1: Short description with key financial metrics 
+            - Headline 2: Short description with key financial metrics 
+            - Headline 3: Short description with key financial metrics 
+            -
+            -
+            - Headline n
+            
 
-            Main Headline:
-            - Definitive Statement Capturing Core News Event
-            - Key Actors/Entities Involved
 
-            Comprehensive Overview:
-            1. Core Event Details
-            - What Happened: [Precise Description]
-            - When and Where: [Specific Temporal and Geographic Context]
-            - Key Participants: [Individuals/Organizations Involved]
 
-            2. Background Context
-            - Historical Perspective: [Relevant Past Events]
-            - Previous Developments: [How This Event Connects to Broader Narrative]
-
-            3. Immediate Implications
-            - Direct Consequences: [Short-term Impact]
-            - Stakeholder Responses: [Reactions from Involved Parties]
-
-            4. Broader Significance
-            - Systemic Effects: [Potential Wider Ramifications]
-            - Expert Perspectives: [Insights from Analysts/Experts]
-
-            5. Potential Future Developments
-            - Projected Scenarios: [Possible Future Outcomes]
-            - Uncertainty Factors: [Elements That Could Alter Trajectory]
-
-            Key Takeaways:
-            - Takeaway 1: [Concise, Impactful Insight]
-            - Takeaway 2: [Another Critical Observation]
-            - Takeaway 3: [Additional Significant Point]
-
-            Contextual Data Points:
-            - Quantitative Metric 1: [Relevant Numerical Information]
-            - Quantitative Metric 2: [Additional Numerical Context]
-
-            Ongoing Monitoring:
-            - Areas to Watch: [Future Developments to Track]
-            - Potential Follow-up Stories: [Related Emerging Narratives]
-            ```
-
-            Critical Instructions:
-            - Ensure comprehensive coverage of the news event
-            - Maintain objectivity and avoid sensationalism
-            - Provide balanced perspective
-            - Use clear, professional language
-            - Focus on factual, verifiable information
-            - Highlight multiple dimensions of the news story
-            """)
+            Provide insights that a professional investor or financial analyst would find valuable.
+           """)
         ])
-        
 
         chain = (
             RunnableParallel({
