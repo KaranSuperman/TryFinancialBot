@@ -511,26 +511,26 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         )
 
         generation_prompt = PromptTemplate.from_template("""
-**Financial Market Briefing**
+            **Financial Market Briefing**
 
-**Market Overview**
-{market_overview}
+            **Market Overview**
+            {market_overview}
 
-**Key Headlines**
-{headlines}
+            **Key Headlines**
+            {headlines}
 
-**Outlook**
-{outlook}
-""")
+            **Outlook**
+            {outlook}
+            """)
 
         chain = (
             RunnableParallel({
                 "market_overview": RunnableLambda(lambda docs: "Provide a brief summary of the day's or week's most significant financial trends."),
-                "headlines": [
+                "headlines": RunnableChain([
                     RunnableLambda(lambda docs: "🔹 **Headline 1**: Provide a concise, attention-grabbing title and key details."),
                     RunnableLambda(lambda docs: "🔹 **Headline 2**: Provide a concise, attention-grabbing title and key details."),
                     RunnableLambda(lambda docs: "🔹 **Headline 3**: Provide a concise, attention-grabbing title and key details.")
-                ],
+                ]),
                 "outlook": RunnableLambda(lambda docs: "Provide a brief forward-looking statement about potential market directions or key events to watch.")
             }) 
             | generation_prompt 
