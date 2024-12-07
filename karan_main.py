@@ -544,27 +544,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Output Format:
             **Financial Market Briefing**
 
-            Market Overview
-            [Brief summary of the day's or week's most significant financial trends]
 
-            Key Headlines:
-            Headline 1: [Concise, attention-grabbing title]
-            * Key Details: [Specific financial information]
-            * Context: [Explanation of significance]
-            * Market Impact: [Potential implications]
-
-
-            Headline 2: [Concise, attention-grabbing title]
-            * Key Details: [Specific financial information]
-            * Context: [Explanation of significance]
-            * Market Impact: [Potential implications]
-
-            [Continue with additional headlines as needed]
-
-            **Outlook**
-            [Brief forward-looking statement about potential market directions or key events to watch]
-
-            Provide insights that would be valuable to investors, financial professionals, and business leaders.
             """)
         ])
 
