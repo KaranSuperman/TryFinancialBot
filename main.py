@@ -320,12 +320,7 @@ def is_stock_query(user_question):
          "What's the today news? → "News What is the today news?"
          "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
 
-    3. IF the question is about Finance or tax related information, respond: "News [REPHRASED_QUERY]"
-       - Examples:
-         "What is the market cap to gdp ratio of India?" → "News What is India's market capitalization-to-GDP ratio?"
-         "What is the tax I pay on debt ETF's overseas?" → "News How is taxation applied to overseas debt ETFs?"
-
-    4. Do not response on financial terms , respond: "False NONE"
+    3. Do not response on financial terms , respond: "False NONE"
         - Example:
         "What is PE ratio?"
         "What is high risk portfolio?"
