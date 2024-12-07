@@ -542,7 +542,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Maintain a professional yet conversational tone
 
             Output Format:
-            **Financial Market Briefing**
+            **Financial Market Briefing should ne only in plain text**
 
 
             """)
