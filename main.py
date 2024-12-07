@@ -320,7 +320,12 @@ def is_stock_query(user_question):
          "What's the today news? → "News What is the today news?"
          "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
 
-    3. Do not response on financial terms , respond: "False NONE"
+    3. IF the question is about Finance or tax related information, respond: "News [REPHRASED_QUERY]"
+       - Examples:
+         "What is the market cap to gdp ratio of India?" → "News What is India's market capitalization-to-GDP ratio?"
+         "What is the tax I pay on debt ETF's overseas?" → "News How is taxation applied to overseas debt ETFs?"
+
+    4. Do not response on financial terms , respond: "False NONE"
         - Example:
         "What is PE ratio?"
         "What is high risk portfolio?"
@@ -516,46 +521,36 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Professional Financial News Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
+            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide comprehensive, engaging, and actionable financial insights in a clear, journalistic style.
 
             Key Priorities:
-            - Focus exclusively on verified financial and market news
-            - Prioritize significant market movements, corporate earnings, economic reports
-            - Provide clear, professional analysis with context
-            - Use precise financial terminology
-            - Highlight potential market implications"""),
-            ("human", """Generate a comprehensive financial news summary based on the following query and contextual information:
+            - Deliver comprehensive market coverage
+            - Provide context and nuanced analysis
+            - Highlight key trends and potential implications
+            - Use clear, accessible language
+            - Balance factual reporting with strategic insights"""),
+            ("human", """Generate a comprehensive financial market briefing based on the following query and contextual information:
 
             Query: {query}
 
             Available Financial Context:
             {context}
 
-            Analysis Requirements:
-            1. Structure as professional financial briefing
-            2. Include specific details about:
-            - Major stock index movements
-            - Significant company news
-            - Notable economic indicators
-            - Potential market impacts
-            3. Use precise numerical data
-            4. Maintain a professional, objective tone
-            5. Prioritize the most impactful financial news
+            Briefing Guidelines:
+            - Create a concise, informative summary of key financial developments
+            - Use a clear, engaging narrative structure
+            - Organize insights into distinct, digestible headlines
+            - Include:
+            * Precise financial details
+            * Context for each development
+            * Potential market implications
+            - Maintain a professional yet conversational tone
 
             Output Format:
-            Financial Market Briefing: 
-            - Headline 1: Concise description with key financial metrics 
-            - Headline 2: Concise description with key financial metrics 
-            - Headline 3: Concise description with key financial metrics 
-            -
-            -
-            - Headline n
-            
+            **Financial Market Briefing should ne only in plain text**
 
 
-
-            Provide insights that a professional investor or financial analyst would find valuable.
-           """)
+            """)
         ])
 
         chain = (
