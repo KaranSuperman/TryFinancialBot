@@ -24,16 +24,25 @@ import os
 import json
 import yfinance as yf
 import warnings
-import requests
 from langchain_exa import ExaSearchRetriever
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
 from langchain_openai import ChatOpenAI
-from langchain.docstore.document import Document
+from langchain_core.output_parsers import StrOutputParser
+import os
+from dotenv import load_dotenv
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
 
-EXA_API_KEY = st.secrets["general"]["EXA_API_KEY"]
-OPENAI_API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
 
+
+load_dotenv() 
+
+
+exa_api_key = st.secrets["exa"]["api_key"]
+# openai_api_key = st.secrets["openai"]["api_key"]
+ 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
 
@@ -58,7 +67,7 @@ def get_vector_store(text_chunks, batch_size=10):
     try:
         # Load the GCP credentials from Streamlit secrets
         gcp_credentials = st.secrets["gcp_service_account"]
-
+        
         # Convert credentials to dictionary if needed
         if not isinstance(gcp_credentials, dict):
             gcp_credentials_dict = json.loads(gcp_credentials) if isinstance(gcp_credentials, str) else dict(gcp_credentials)
@@ -75,7 +84,7 @@ def get_vector_store(text_chunks, batch_size=10):
 
         # Initialize credentials
         credentials = service_account.Credentials.from_service_account_file(credentials_path)
-
+        
         # Initialize AI Platform
         aiplatform.init(
             project=gcp_credentials_dict["project_id"],
@@ -126,21 +135,21 @@ def get_vector_store(text_chunks, batch_size=10):
 def extract_questions_from_json(json_path):
     with open(json_path, "r") as f:
         faq_data = json.load(f)
-
+    
     questions = []
     metadata = []
-
+    
     for entry in faq_data:
         questions.append(entry["question"])
         metadata.append({"answer": entry["answer"]}) 
-
+    
     return questions, metadata
 
 def get_vector_store_faq(faq_chunks, batch_size=1):
     try:
         # Load the GCP credentials from Streamlit secrets
         gcp_credentials = st.secrets["gcp_service_account"]
-
+        
         # Convert credentials to dictionary if needed
         if not isinstance(gcp_credentials, dict):
             gcp_credentials_dict = json.loads(gcp_credentials) if isinstance(gcp_credentials, str) else dict(gcp_credentials)
@@ -157,7 +166,7 @@ def get_vector_store_faq(faq_chunks, batch_size=1):
 
         # Initialize credentials
         credentials = service_account.Credentials.from_service_account_file(credentials_path)
-
+        
         # Initialize AI Platform
         aiplatform.init(
             project=gcp_credentials_dict["project_id"],
@@ -216,7 +225,7 @@ def is_input_safe(user_input):
     "act as",
     "simulate",
     "roleplay",]
-
+    
     # Combine all disallowed phrases into a single regex pattern
     pattern = re.compile('|'.join(map(re.escape, disallowed_phrases)), re.IGNORECASE)
     return not pattern.search(user_input)
@@ -290,198 +299,454 @@ def is_relevant(question, embeddings_model, threshold=0.55):
     else:
         return False
 
-
 def is_stock_query(user_question):
-    # Normalize the question to lowercase for consistent matching
-    question_lower = user_question.lower()
-    
-    prompt = f'''Analyze the following question based on these rules:
+    prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
+    SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. ALSO [PAASA] is a fintech company if 
+    any user ask query related to the company then donot response to that query.
 
-    IF the question is asking about CURRENT STOCK PRICE in any way:
-    - Respond with exactly two words: "True" and the stock symbol
-    - Examples:
-      "what is microsoft stock price" → "True MSFT"
-      "tell me about tesla stock" → "True TSLA"
-      "how much is apple trading for" → "True AAPL"
+    RULES:
+    1. IF the question is about STOCK PRICE then Generate only [Yahoo Finance] compatible symbol, respond: "True [STOCK_SYMBOL]"
+       - Examples:
+         "What is Microsoft's current stock price?" → "True MSFT"
+         "How much is Tesla trading for?" → "True TSLA"
+         "What is the price of google?" → "True GOOGL"
+         "What is price of cspx" → "True CSPX.L"
+         "csndx price" → "True CSNDX.SW"
+
+    2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
+       - Examples:
+         "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
+         "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
+         "What's the today news? → "News What is the today news?"
+         "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
+
+    3. Do not response on financial terms , respond: "False NONE"
+        - Example:
+        "What is PE ratio?"
+        "What is high risk portfolio?"
+
+
+    Important Stock Symbols:
+    - Microsoft = MSFT
+    - Apple = AAPL
+    - Tesla = TSLA
+    - Google = GOOGL
+    - Amazon = AMZN
+    - Meta = META
+    - Bitcoin = BTC-USD
+
+
+    COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
+    EXCHANGE SUFFIXES:
+    - US Exchanges:
+      * No suffix for NYSE/NASDAQ (AAPL, MSFT)
     
-    IF the question is about any OTHER financial or stock-related topic:
-    - Start response with "News"
-    - Follow with a clear, concise rephrasing of the question
-    - Examples:
-      "why is apple stock falling today" → "News Why has Apple's stock price decreased today?"
-      "what was tesla's revenue last quarter" → "News What was Tesla's revenue performance in the previous quarter?"
-      "explain the impact of interest rates on bank stocks" → "News How do interest rates affect banking sector stocks?"
-    
-    Stock symbol guide:
-    - US stocks: Standard ticker (AAPL, MSFT, GOOGL, TSLA)
-    - Indian NSE: Add .NS (RELIANCE.NS)
-    - Indian BSE: Add .BO (RELIANCE.BO)
-    
-    Common tickers:
-    Microsoft = MSFT
-    Apple = AAPL
-    Tesla = TSLA
-    Google = GOOGL
-    Amazon = AMZN
-    Meta = META
-    
+    NOTE: Append appropriate exchange suffix if needed
+    - International Exchanges:
+      - .L = London Stock Exchange (UK)
+      - .SW = SIX Swiss Exchange (Switzerland)
+      - .NS = National Stock Exchange (India)
+      - .BO = Bombay Stock Exchange (India)
+      - .JK = Indonesia Stock Exchange
+      - .SI = Singapore Exchange
+      - .HK = Hong Kong Stock Exchange
+      - .T = Tokyo Stock Exchange (Japan)
+      - .AX = Australian Securities Exchange
+      - .SA = São Paulo Stock Exchange (Brazil)
+      - .TO = Toronto Stock Exchange (Canada)
+      - .MX = Mexican Stock Exchange
+      - .KS = Korea Exchange
+      - .DE = Deutsche Börse (Germany)
+      - .PA = Euronext Paris
+      - .AS = Euronext Amsterdam
+      - .MI = Milan Stock Exchange (Italy)
+      - .MC = Madrid Stock Exchange (Spain)
+
+
     Question: {user_question}'''
 
-    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt)]).content
+    try:
+        # Use Gemini for intelligent classification
+        response = ChatGoogleGenerativeAI(
+            model="gemini-pro", 
+            temperature=0
+        )([HumanMessage(content=prompt)]).content
 
-    # Add debugging output
-    print(f"DEBUG: LLM Response: {response}")
+        # Add detailed debugging output
+        # st.write(f"DEBUG: LLM Stock Query Classification - Raw Response: {response}")
 
-    # Check if it's a stock price query (starts with "True")
-    if response.startswith("True "):
-        parts = response.strip().split(maxsplit=1)
-        if len(parts) == 2:
-            return f"True {parts[1].upper()}"
+        # Validate and process LLM response
+        if response.startswith("True "):
+            parts = response.strip().split(maxsplit=1)
+            if len(parts) == 2:
+                return f"True {parts[1].upper()}"
+            return "False NONE"
+        
+        if response.startswith("News "):
+            return response.strip()
+        
         return "False NONE"
-    
-    # Check if it's a news/analysis query (starts with "News")
-    if response.startswith("News "):
-        return response.strip()  # Return the entire rephrased question with "News" prefix
-    
-    # Default fallback
-    return "False NONE"
 
- 
+    except Exception as e:
+        st.write(f"DEBUG: Error in is_stock_query LLM processing: {str(e)}")
+        return "False NONE"
+
+
 def get_stock_price(symbol):
     try:
-        # If the symbol is for an Indian company, check if it ends with '.NS' or '.BO'
-        if symbol.endswith('.NS') or symbol.endswith('.BO'):
-            stock = yf.Ticker(symbol)
-            currency_symbol = "₹"
-        else:
-            # For global companies, ensure the symbol is valid for global exchanges
-            stock = yf.Ticker(symbol)
-            currency_symbol = "$"
-
-        # Fetch the latest closing price
-        stock_price = stock.history(period="1d")["Close"].iloc[-1]
-        previous_day_stock_price = stock.history(period="5d")["Close"].iloc[-2]
-
+        # Initialize variables
+        stock = yf.Ticker(symbol)
+        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
+        
+        # Fetch historical data with error checking
+        hist = stock.history(period="5d")
+        
+        # Check if we received any data
+        if hist.empty:
+            print(f"DEBUG: No data received for symbol {symbol}")
+            return None, None, None, None, None, None
+            
+        # Get the most recent data points
+        recent_prices = hist['Close'].tail(2)
+        
+        # Check if we have enough data points
+        if len(recent_prices) < 2:
+            print(f"DEBUG: Insufficient price data for {symbol}. Got {len(recent_prices)} days of data")
+            return None, None, None, None, None, None
+            
+        # Get current and previous prices
+        stock_price = recent_prices.iloc[-1]
+        previous_day_stock_price = recent_prices.iloc[-2]
+        
+        # Calculate changes
         price_change = stock_price - previous_day_stock_price
-        # Determine the direction of the price change
         change_direction = "up" if price_change > 0 else "down"
-
         percentage_change = (price_change / previous_day_stock_price) * 100
-
-
-        return stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change
+        
+        # Debug logging
+        # st.write(f"DEBUG: Successfully fetched data for {symbol}")
+        # st.write(f"DEBUG: Current price: {stock_price}")
+        # st.write(f"DEBUG: Previous price: {previous_day_stock_price}")
+        
+        return (
+            stock_price,
+            previous_day_stock_price,
+            currency_symbol,
+            price_change,
+            change_direction,
+            percentage_change
+        )
+        
     except Exception as e:
-        print(f"DEBUG: Error in get_stock_price: {str(e)}")
-        return None, None
+        print(f"DEBUG: Error in get_stock_price for {symbol}: {str(e)}")
+        st.write(f"DEBUG: Error in get_stock_price for {symbol}: {str(e)}")
+        # Return None values for all expected return values
+        return None, None, None, None, None, None
 
-def create_research_chain(exa_api_key: str, openai_api_key: str):
+def create_research_chain(exa_api_key: str, gemini_api_key: str):
+    if not exa_api_key or not isinstance(exa_api_key, str):
+        raise ValueError("Valid Exa API key is required")
+    
+    exa_api_key = exa_api_key.strip()
+    
     try:
-        # Initialize the Exa retriever with error handling
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=3,
+            k=5,  # Increase number of documents
             highlights=True,
-            search_params={
-                "use_autoprompt": True,
-                "min_relevance": 0.7  # Ensure higher quality results
-            }
-        )
+            start_published_date=start_date,  # Use ISO 8601 format
+            type="news",  # Specifically request news content
         
-        # Improved document template with better structure
+        )
+
+        # Ensure the API key is set in the headers
+        if hasattr(retriever, 'client'):
+            retriever.client.headers.update({
+                "x-api-key": exa_api_key,
+                "Content-Type": "application/json"
+            })
+        
+        # Verify Gemini API key
+        if not gemini_api_key or not isinstance(gemini_api_key, str):
+            raise ValueError("Valid Gemini API key is required")
+
+        # Configure Gemini
+        genai.configure(api_key=gemini_api_key)
+        
+        # Enhanced LLM Configuration
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-pro",
+            temperature=0.1,
+            google_api_key=gemini_api_key,
+            max_output_tokens=2048,
+            convert_system_message_to_human=True
+        )
+
+        # Detailed Document Template
         document_template = """
-        <article>
-            <title>{title}</title>
-            <source>{url}</source>
-            <excerpt>{highlights}</excerpt>
-            <published>{published_date}</published>
-        </article>
+        <financial_news>
+            <headline>{title}</headline>
+            <date>{date}</date>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
+        </financial_news>
         """
+        document_prompt = PromptTemplate.from_template(document_template)
+
+
         
-        # Format individual documents
-        def format_document(doc: Document) -> str:
-            return document_template.format(
-                title=doc.metadata.get('title', 'Untitled'),
-                url=doc.metadata.get('url', 'No URL available'),
-                highlights=doc.metadata.get('highlights', 'No highlights available'),
-                published_date=doc.metadata.get('published_date', 'Date not available')
-            )
-        
-        # Process retrieved documents
-        def process_documents(docs: List[Document]) -> str:
-            if not docs:
-                return "No relevant information found."
-            
-            formatted_docs = [format_document(doc) for doc in docs]
-            return "\n\n".join(formatted_docs)
-        
-        # Enhanced retrieval chain with error handling
-        def safe_retrieval(query: str) -> str:
-            try:
-                docs = retriever.get_relevant_documents(query)
-                return process_documents(docs)
-            except Exception as e:
-                print(f"Retrieval error: {str(e)}")
-                return "Unable to retrieve information at this time."
-        
-        # Improved prompt template with better context handling
-        generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a financial analysis expert. Your role is to:
-                1. Analyze the provided market news and data
-                2. Provide clear, concise, and accurate information
-                3. Include relevant facts and figures from the sources
-                4. Cite sources when making specific claims
-                5. Maintain objectivity in your analysis"""),
-            ("human", """
-            Please provide a detailed analysis for the following query:
-            Question: {query}
-            
-            Based on these sources:
-            {context}
-            
-            Please structure your response with:
-            1. Direct answer to the question
-            2. Key supporting evidence
-            3. Additional context if relevant
-            """)
-        ])
-        
-        # Initialize OpenAI with appropriate settings
-        llm = ChatOpenAI(
-            api_key=openai_api_key,
-            temperature=0.2,  # Lower temperature for more focused responses
-            model="gpt-4-turbo-preview"  # Using a more capable model
+        document_chain = (
+            RunnablePassthrough() | 
+            RunnableLambda(lambda doc: {
+                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "date": doc.metadata.get("published_date", "Today"),
+                "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "url": doc.metadata.get("url", "No source URL")
+            }) | document_prompt
         )
         
-        # Combine chains with better error handling
+        retrieval_chain = (
+            retriever | 
+            document_chain.map() | 
+            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+        )
+
+        # Professional Financial News Prompt
+        generation_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide concise, accurate, and actionable financial insights.
+
+            Key Priorities:
+            - Focus exclusively on verified financial and market news
+            - Prioritize significant market movements, corporate earnings, economic reports
+            - Provide clear, professional analysis with context
+            - Use precise financial terminology
+            - Highlight potential market implications"""),
+            ("human", """Generate a comprehensive financial news summary based on the following query and contextual information:
+
+            Query: {query}
+
+            Available Financial Context:
+            {context}
+
+            Analysis Requirements:
+            1. Structure as professional financial briefing
+            2. Include specific details about:
+            - Major stock index movements
+            - Significant company news
+            - Notable economic indicators
+            - Potential market impacts
+            3. Use precise numerical data
+            4. Maintain a professional, objective tone
+            5. Prioritize the most impactful financial news
+
+            Output Format:
+            Financial Market Briefing: 
+            - Headline 1: Concise description with key financial metrics 
+            - Headline 2: Concise description with key financial metrics 
+            - Headline 3: Concise description with key financial metrics 
+            -
+            -
+            - Headline n
+            
+
+
+
+            Provide insights that a professional investor or financial analyst would find valuable.
+           """)
+        ])
+
         chain = (
             RunnableParallel({
-                "query": RunnablePassthrough(),
-                "context": RunnableLambda(safe_retrieval)
-            })
+                "query": RunnablePassthrough(),  
+                "context": retrieval_chain,  
+            }) 
             | generation_prompt 
             | llm
+
         )
         
         return chain
-        
+
     except Exception as e:
-        print(f"Error creating research chain: {str(e)}")
+        st.error(f"Error in create_research_chain: {str(e)}")
         raise
 
-def execute_research_query(chain, question: str):
-    """
-    Execute a research query with proper error handling
-    """
-    try:
-        response = chain.invoke(question)
-        if response and hasattr(response, 'content'):
-            return {"output_text": response.content}
-        else:
-            return {"output_text": "Unable to generate a response. Please try again."}
-    except Exception as e:
-        print(f"Error executing research query: {str(e)}")
-        return {"output_text": "An error occurred while processing your request. Please try again later."}
 
+def execute_research_query(question: str):
+    try:
+        # Get API keys
+        exa_api_key = st.secrets.get("exa", {}).get("api_key") or os.getenv("EXA_API_KEY")
+        gemini_api_key = st.secrets.get("gemini", {}).get("api_key") or os.getenv("GEMINI_API_KEY")
+
+        # Validate API keys
+        if not exa_api_key:
+            return {"output_text": "Configuration error: Exa API key is not set"}
+        
+        if not gemini_api_key:
+            return {"output_text": "Configuration error: Gemini API key is not set"}
+
+        # Execute chain with error handling
+        try:
+            chain = create_research_chain(exa_api_key, gemini_api_key)
+            response = chain.invoke(question)
+            
+            # Handle response
+            if hasattr(response, 'content'):
+                return {"output_text": response.content}
+            else:
+                return {"output_text": str(response)}
+            
+        except Exception as e:
+            error_msg = str(e)
+            st.error(f"Chain execution error: {error_msg}")
+            
+            # Extract detailed error information
+            if hasattr(e, 'response'):
+                try:
+                    error_details = e.response.json() if hasattr(e.response, 'json') else e.response.text
+                    st.error(f"API Response details: {error_details}")
+                except:
+                    st.error(f"Raw response: {e.response}")
+                    
+            return {"output_text": f"Error during execution: {error_msg}"}
+
+    except Exception as e:
+        st.error(f"Critical error: {str(e)}")
+        return {"output_text": f"An unexpected error occurred: {str(e)}"}
+        
+
+def plot_stock_graph(symbol):
+    try:
+        # Period selection
+        period = st.selectbox(
+            "Select Time Period", 
+            ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max'], 
+            index=2  # Default to 1 month
+        )
+        
+        # Validate period input
+        valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max']
+        if period not in valid_periods:
+            st.error(f"Invalid period. Choose from {', '.join(valid_periods)}")
+            return False
+        
+        # Get stock data
+        stock = yf.Ticker(symbol)
+        hist = stock.history(period=period)
+        
+        if hist.empty:
+            st.error(f"No data found for {symbol}")
+            return False
+            
+        # Determine currency symbol based on exchange
+        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
+        
+        # Calculate price changes
+        price_change = hist['Close'][-1] - hist['Close'][0]
+        price_change_pct = (price_change / hist['Close'][0]) * 100
+        is_positive = price_change >= 0
+        
+        # Create period label
+        period_labels = {
+            '1d': '1 Day',
+            '5d': '5 Days', 
+            '1mo': '1 Month', 
+            '3mo': '3 Months', 
+            '6mo': '6 Months', 
+            '1y': '1 Year', 
+            '2y': '2 Years', 
+            '5y': '5 Years', 
+            'ytd': 'Year to Date', 
+            'max': 'Maximum'
+        }
+        period_label = period_labels.get(period, period)
+        
+        # Create Plotly figure
+        fig = go.Figure()
+        
+        # Add price line
+        fig.add_trace(go.Scatter(
+            x=hist.index,
+            y=hist['Close'],
+            mode='lines+markers',  # Add markers to show data points
+            name='Close Price',
+            line=dict(
+                color='#00C805' if is_positive else '#FF3E2E',
+                width=2
+            ),
+            marker=dict(
+                size=8,
+                color='#ffffff',  # Set marker color to white
+                line=dict(
+                    color='#00C805' if is_positive else '#FF3E2E',
+                    width=2
+                )
+            ),
+            hovertemplate='Date: %{x}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
+        ))
+        
+        # Update layout
+        fig.update_layout(
+            title=dict(
+                text=f'{symbol} Stock Price | {period_label}',
+                x=0.5,  # Center title
+                y=0.95,
+                xanchor='center',
+                yanchor='top',
+                font=dict(size=20)
+            ),
+            xaxis_title='Date',
+            yaxis_title=f'Price ({currency_symbol})',
+            hovermode='x unified',
+            template='plotly_dark',  # Dark theme
+            height=500,
+            showlegend=False,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=50, r=50, t=50, b=80),  # Increased bottom margin for annotation
+        )
+        
+        # Adjust axis range for 1-day period
+        if period == '1d':
+            fig.update_xaxes(
+                range=[hist.index[0], hist.index[-1]],
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                rangeslider_visible=False
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                tickprefix=currency_symbol
+            )
+        else:
+            fig.update_xaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                rangeslider_visible=True
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                tickprefix=currency_symbol
+            )
+        
+        # Display in Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error plotting graph: {str(e)}")
+        return False
+# ----------------------------------------------------------------------------------------------------------
 
 def user_input(user_question):
     try:
@@ -501,61 +766,99 @@ def user_input(user_question):
         embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
         # Check if question is relevant to finance
-        if not is_relevant(user_question, embeddings_model, threshold=0.5):
-            st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
-            return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
+        # if not is_relevant(user_question, embeddings_model, threshold=0.5):
+        #     st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
+        #     return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
         # Check for stock query
+
         result = is_stock_query(user_question)
+        # st.write(f"DEBUG: Processed query - Result: {result}")
         
-        # Handle stock price queries
-        if result.startswith("True"):
-            st.info("stock price queries")
-            _, symbol = result.split()
-            # Use your existing get_stock_price function
-            stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-            
-            if stock_price is not None:
-                return {
-                    "output_text": (
-                        f"Stock Update for {symbol} \n\n"
-                        f"Current Price: {currency_symbol}{stock_price:.2f}\n\n"
-                        f"Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                        f"{'📈' if change_direction == 'up' else '📉'} The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
-                        f"({percentage_change:+.2f}%) compared to the previous close!\n"
-                    )
-                }
-            else:
-                return {"output_text": f"Unable to fetch stock price for {symbol}"}
-        
-        # Handle news/research queries
-        elif result.startswith("News"):
-            st.info("news/research queries")
-            _, rephrased_question = result.split(" ", 1)
-            # return (f"Rephrased question: {rephrased_question}")
-
+        # Handle current stock price query
+        if result.startswith("True "):
+            _, symbol = result.split(maxsplit=1)
             try:
-                # Create the research chain
-                chain = create_research_chain(
-                    exa_api_key=st.secrets["general"]["EXA_API_KEY"],
-                    openai_api_key=st.secrets["general"]["OPENAI_API_KEY"]
-                )
-                
-                # Execute the research query with error handling
-                return execute_research_query(chain, rephrased_question)
-                
+                # st.info("Using Stocks response")
+                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
+                if stock_price is not None:
+                    output_text = (
+                        f"**Stock Update for {symbol}**\n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        # f"{'📈' if change_direction == 'up' else '📉'} "
+                        # f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        # f"({percentage_change:+.2f}%) compared to the previous close!"
+                    )
+                    
+                    # Generate and return graph after text
+                    return {
+                        "output_text": output_text,
+                        "graph": plot_stock_graph(symbol),
+                        "display_order": ["text", "graph"]  # Optional: add explicit ordering
+                    }
+
+                else:
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
             except Exception as e:
-                print(f"Error in research chain: {str(e)}")
-                return {"output_text": "Sorry, I couldn't process your research request. Please try again later."}
+                print(f"DEBUG: Stock price error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                }
         
-        # Handle invalid queries
-        else:
-            return {"output_text": "Unable to process your question. Please try rephrasing it."}
+        # Handle stock news/analysis query
+        elif result.startswith("News "):
+            try:
+                # st.info("Exa logic")
+                # Remove "News " prefix to get the original research query
+                research_query = result[5:]
+                
+                # Retrieve API keys from Streamlit secrets or environment variables
+                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+
+                if not exa_api_key or not gemini_api_key:
+                    raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
+
+                # Create the research chain using the Gemini API key
+                research_chain = create_research_chain(exa_api_key, gemini_api_key)
+                
+                # Execute the research query
+                response = research_chain.invoke(research_query)
+                
+                # Extract and clean the content
+                if hasattr(response, 'content'):
+                    content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
+                    return {"output_text": content}
+                else:
+                    return {"output_text": "No valid content received from the response."}
+
+            except Exception as e:
+                print(f"DEBUG: Research query error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while researching your query: {str(e)}"
+                }
+        
+        # Instead, use a more direct approach
+        # else:
+        #     st.info("Using LLM response")
+        #     prompt1 = user_question + """ In the context of Finance       
+        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+        #         for example, 
+        #         - which are the best stocks to invest 
+        #         - which stock is worst
+        #         - Suggest me best stocks )"""
+    
+        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
 
+        
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
-
+        
         # -----------------------------------------------------
         # Retrieve documents from FAISS for PDF content
         new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
@@ -563,9 +866,9 @@ def user_input(user_question):
             retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
-
+        
         docs = mq_retriever.get_relevant_documents(query=user_question)
-
+        
         # Compute similarity scores for PDF content
         pdf_similarity_scores = []
         for doc in docs:
@@ -574,7 +877,7 @@ def user_input(user_question):
             pdf_similarity_scores.append(score)
 
         max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
-
+        
         # ----------------------------------------------------------
         # Retrieve FAQs from FAISS
         new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
@@ -582,9 +885,9 @@ def user_input(user_question):
             retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
-
+        
         faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
-
+        
         # Compute similarity scores for FAQ content and store with their metadata
         faq_similarity_scores = []
         faq_with_scores = []
@@ -595,22 +898,38 @@ def user_input(user_question):
             faq_with_scores.append((score, faq))
 
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
-
+        
         # ---------------------------------------------------------------------------
         max_similarity = max(max_similarity_pdf, max_similarity_faq)
 
+        # -------------------------------------------------------------------------------------------
+
         # Process based on similarity scores
         if max_similarity < 0.65:
-            st.info("Using LLM response")
-            prompt1 = user_question + """ In the context of Finance       
-            (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
-                for example, 
-                - which are the best stocks to invest 
-                - which stock is worst
-                - Suggest me best stocks )"""
+            # st.info("Using LLM response")
+            prompt1 = user_question + """\
+            Finance Term Query Guidelines:
+            1. Context: Finance domain
+            2. Response Requirements:
+            - Focus exclusively on defining finance-related terms
+            - Provide clear, concise explanations of financial terminology
 
+            Examples of Acceptable Queries:
+            - What is PE ratio?
+            - Define market capitalization
+            - Explain book value
+            - What does EBITDA mean?
+
+
+
+            Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
+            """
+    
             response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
             return {"output_text": response.content} if response else {"output_text": "No response generated."}
+
+        # -------------------------------------------------------------------------------------------
+
 
         # Handle FAQ and PDF responses
         try:
@@ -621,18 +940,23 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                st.info("Using FAQ response")
+                # st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-
+                
                 if best_faq.page_content in faq_dict:
                     answer = faq_dict[best_faq.page_content]
                     prompt_template = """
                     Question: {question}
+
                     The provided answer is:
                     {answer}
-                    Based on this information, let me expand on the response:
+
+                    Based on this information, let me response within 100 words:
+
                     {context}
+
                     Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
+                    
                     """
                     prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
                     chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
@@ -645,28 +969,49 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                st.info("Using PDF response")
-                prompt_template = """ About the company: 
-                Paasa believes location shouldn't impede global market access. Without hassle, our platform lets anyone diversify their capital internationally. We want to establish a platform that helps you expand your portfolio globally utilizing the latest technology, data, and financial tactics.
-                Formerly SoFi, we helped develop one of the most successful US all-digital banks. Many found global investment too complicated and unattainable. So we departed to fix it.
-                Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Every component of our platform, from dollar-denominated accounts to tax-efficient tactics, helps you develop wealth while disguising complexity.
-                Answer the Question in brief and should be within 200 words.
-                Background:\n{context}?\n
-                Question:\n{question}. + Explain in detail.\n
-                Answer:
+                # st.info("Using PDF response")
+                prompt_template = """
+                Use only the information from the provided PDF context to answer the question precisely and concisely.
+
+                Context:\n{context}
+
+                Question: {question}
+
+                Answer in a clear, direct manner, using only the factual information available in the document. Keep the response within 100 words.
+                If the question cannot be answered from the PDF context, respond with: "NO_PDF_ANSWER"
                 """
+ 
                 prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
                 chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
                 response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+                
+                # Check if we got a NO_PDF_ANSWER response
+                if "NO_PDF_ANSWER" in response["output_text"]:
+                    # st.info("Using LLM response")
+                    prompt1 = user_question + """\
+                    Finance Term Query Guidelines:
+                    1. Context: Finance domain
+                    2. Response Requirements:
+                    - Focus exclusively on defining finance-related terms
+                    - Provide clear, concise explanations of financial terminology
+                    - Avoid any specific investment advice
+                    - Keep responses factual and educational
+
+                    Keep in mind do not provide any other information other than Finance domain.
+
+                    Note: Responses must be purely informative and educational about financial terms and up to date . Try to give response within 100 words with solid answer.\
+                    """
+
+                    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+                    return {"output_text": response.content} if response else {"output_text": "No response generated."}
+                
                 return response
 
         except Exception as e:
             print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
             return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
 
+
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
-
-
-
-
+        return {"output_text": "An error occurred while processing your request. Please try again."}

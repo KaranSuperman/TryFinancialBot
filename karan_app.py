@@ -1,5 +1,5 @@
 import streamlit as st
-from main import extract_text_from_pdfs, get_text_chunks, get_vector_store, extract_questions_from_json, get_vector_store_faq, user_input
+from karan_main import extract_text_from_pdfs, get_text_chunks, get_vector_store, extract_questions_from_json, get_vector_store_faq, user_input
 
 #changes
 # ---------------------------------------------------------
@@ -81,15 +81,24 @@ vector_store_faq = get_vector_store_faq(faq_chunks)
 user_question = st.text_input("Ask a question about finance:")
 
 if user_question:
-    # Get the response from the chatbot
-    response = user_input(user_question)
+    try:
+        # Get the response from the chatbot
+        response = user_input(user_question)
+        
+        # Ensure response is a dictionary
+        if not isinstance(response, dict):
+            response = {"output_text": str(response)}
+        
+        # Display the response
+        st.subheader("Response:")
+        bot_response = response.get("output_text", "No response generated.")
+        st.write(bot_response)
 
-    # Display the response
-    st.subheader("Response:")
-    bot_response = response.get("output_text", "No response generated.")
-    st.write(bot_response)
-    
-    #Store chat data in Supabase
-    # store_chat_data(user_question, bot_response)
-    # store_questions(user_question)
-    # store_answers(bot_response)
+        #Store chat data in Supabase
+        store_chat_data(user_question, bot_response)
+        store_questions(user_question)
+        store_answers(bot_response)
+        
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        print(f"DEBUG: Streamlit display error: {str(e)}")
