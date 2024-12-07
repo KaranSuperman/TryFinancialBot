@@ -446,9 +446,12 @@ def get_stock_price(symbol):
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
-    
+    if not gemini_api_key or not isinstance(gemini_api_key, str):
+        raise ValueError("Valid Gemini API key is required")
+
     exa_api_key = exa_api_key.strip()
-    
+    gemini_api_key = gemini_api_key.strip()
+
     try:
         start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
@@ -459,7 +462,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             highlights=True,
             start_published_date=start_date,  # Use ISO 8601 format
             type="news",  # Specifically request news content
-        
         )
 
         # Ensure the API key is set in the headers
@@ -468,14 +470,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
-        
-        # Verify Gemini API key
-        if not gemini_api_key or not isinstance(gemini_api_key, str):
-            raise ValueError("Valid Gemini API key is required")
 
         # Configure Gemini
         genai.configure(api_key=gemini_api_key)
-        
+
         # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
@@ -496,8 +494,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         """
         document_prompt = PromptTemplate.from_template(document_template)
 
-
-        
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
@@ -507,80 +503,44 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
-        
+
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Professional Financial News Prompt
-        generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide comprehensive, engaging, and actionable financial insights in a clear, journalistic style.
+        generation_prompt = PromptTemplate.from_template("""
+**Financial Market Briefing**
 
-            Key Priorities:
-            - Deliver comprehensive market coverage
-            - Provide context and nuanced analysis
-            - Highlight key trends and potential implications
-            - Use clear, accessible language
-            - Balance factual reporting with strategic insights"""),
-            ("human", """Generate a comprehensive financial market briefing based on the following query and contextual information:
+**Market Overview**
+{market_overview}
 
-            Query: {query}
+**Key Headlines**
+{headlines}
 
-            Available Financial Context:
-            {context}
-
-            Briefing Guidelines:
-            - Create a concise, informative summary of key financial developments
-            - Use a clear, engaging narrative structure
-            - Organize insights into distinct, digestible headlines
-            - Include:
-            * Precise financial details
-            * Context for each development
-            * Potential market implications
-            - Maintain a professional yet conversational tone
-
-            Output Format:
-            **Financial Market Briefing**
-
-            **Market Overview**
-            [Brief summary of the day's or week's most significant financial trends]
-
-            **Key Headlines**
-            🔹 Headline 1: [Concise, attention-grabbing title]
-            * Key Details: [Specific financial information]
-            * Context: [Explanation of significance]
-            * Market Impact: [Potential implications]
-
-            🔹 Headline 2: [Concise, attention-grabbing title]
-            * Key Details: [Specific financial information]
-            * Context: [Explanation of significance]
-            * Market Impact: [Potential implications]
-
-            [Continue with additional headlines as needed]
-
-            **Outlook**
-            [Brief forward-looking statement about potential market directions or key events to watch]
-
-            Provide insights that would be valuable to investors, financial professionals, and business leaders.
-            """)
-        ])
+**Outlook**
+{outlook}
+""")
 
         chain = (
             RunnableParallel({
-                "query": RunnablePassthrough(),  
-                "context": retrieval_chain,  
+                "market_overview": RunnableLambda(lambda docs: "Provide a brief summary of the day's or week's most significant financial trends."),
+                "headlines": RunnableChain([
+                    RunnableLambda(lambda docs: "🔹 **Headline 1**: Provide a concise, attention-grabbing title and key details."),
+                    RunnableLambda(lambda docs: "🔹 **Headline 2**: Provide a concise, attention-grabbing title and key details."),
+                    RunnableLambda(lambda docs: "🔹 **Headline 3**: Provide a concise, attention-grabbing title and key details.")
+                ]),
+                "outlook": RunnableLambda(lambda docs: "Provide a brief forward-looking statement about potential market directions or key events to watch.")
             }) 
             | generation_prompt 
             | llm
-
         )
         
         return chain
 
     except Exception as e:
-        st.error(f"Error in create_research_chain: {str(e)}")
+        print(f"Error in create_research_chain: {str(e)}")
         raise
 
 
