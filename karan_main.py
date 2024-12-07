@@ -526,11 +526,11 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         chain = (
             RunnableParallel({
                 "market_overview": RunnableLambda(lambda docs: "Provide a brief summary of the day's or week's most significant financial trends."),
-                "headlines": RunnableChain([
+                "headlines": [
                     RunnableLambda(lambda docs: "🔹 **Headline 1**: Provide a concise, attention-grabbing title and key details."),
                     RunnableLambda(lambda docs: "🔹 **Headline 2**: Provide a concise, attention-grabbing title and key details."),
                     RunnableLambda(lambda docs: "🔹 **Headline 3**: Provide a concise, attention-grabbing title and key details.")
-                ]),
+                ],
                 "outlook": RunnableLambda(lambda docs: "Provide a brief forward-looking statement about potential market directions or key events to watch.")
             }) 
             | generation_prompt 
