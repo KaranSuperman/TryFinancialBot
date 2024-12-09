@@ -521,7 +521,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Professional Financial News Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide comprehensive, engaging, and actionable financial insights in a clear, journalistic style.
+            ("system", """You are a professional financial analyst specializing in the Indian market, with in-depth expertise in current market trends, company performance, and economic indicators. Your objective is to deliver clear, engaging, and actionable financial insights presented in a journalistic and accessible style.
 
             Key Priorities:
             - Deliver comprehensive market coverage
