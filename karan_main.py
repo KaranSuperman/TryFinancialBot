@@ -548,8 +548,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
             Output Format:
             **Financial Market Briefing should ne only in plain text**
-
-
+            *point x
+            *point y
+            *point z
+            
             """)
         ])
 
