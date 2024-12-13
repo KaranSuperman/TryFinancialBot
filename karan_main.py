@@ -529,28 +529,26 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Highlight key trends and potential implications
             - Use clear, accessible language
             - Balance factual reporting with strategic insights"""),
-            ("human", """Generate a comprehensive financial market briefing with the following strict requirements:
+            ("human", """Generate a comprehensive financial market briefing based on the following query and contextual information:
 
             Query: {query}
 
             Available Financial Context:
             {context}
 
-            CRITICAL OUTPUT INSTRUCTIONS:
-            1. ABSOLUTELY NO BULLET POINTS OR ASTERISKS
-            2. Write the briefing as CONTINUOUS PARAGRAPHS
-            3. Each distinct topic must be a separate, fully-formed paragraph
-            4. Use a clear, professional journalistic writing style
-            5. Ensure each paragraph provides complete context and analysis
-            6. Maintain a logical flow between paragraphs
-            7. Start with a compelling title in bold
+            Briefing Guidelines:
+            - Create a detailed financial market summary
+            - Write each topic in a separate, well-structured paragraph
+            - Ensure each paragraph provides comprehensive insights
+            - Include precise financial details, context, and market implications
+            - Maintain a professional yet conversational tone
+            - Start with a compelling title for the briefing
 
-            Paragraph Structure Requirements:
-            - Begin with a strong, clear topic sentence
-            - Provide detailed context and analysis
-            - Include specific financial details and implications
-            - Use sophisticated, clear language
-            - Avoid fragmented or choppy writing
+            Output Format:
+            - Title: A clear, engaging title summarizing the market overview
+            - Each topic should be a full paragraph with proper context and analysis
+            - Use clear, descriptive language
+            - Ensure logical flow between paragraphs
             """)
         ])
 
