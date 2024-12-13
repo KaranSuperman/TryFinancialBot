@@ -537,18 +537,17 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             {context}
 
             Briefing Guidelines:
-            - Create a detailed financial market summary
-            - Write each topic in a separate, well-structured paragraph
-            - Ensure each paragraph provides comprehensive insights
-            - Include precise financial details, context, and market implications
+            - Create a concise, informative summary of key financial developments
+            - Use a clear, engaging narrative structure
+            - Organize insights into distinct, digestible headlines
+            - Include:
+            * Precise financial details
+            * Context for each development
+            * Potential market implications
             - Maintain a professional yet conversational tone
-            - Start with a compelling title for the briefing
 
             Output Format:
-            - Title: A clear, engaging title summarizing the market overview
-            - Each topic should be a full paragraph with proper context and analysis
-            - Use clear, descriptive language
-            - Ensure logical flow between paragraphs
+            **Financial Market Briefing should ne only in plain text**
             """)
         ])
 
