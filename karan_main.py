@@ -620,118 +620,89 @@ def plot_stock_graph(symbol):
             index=2  # Default to 1 month
         )
         
-        # Validate period input
-        valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max']
-        if period not in valid_periods:
-            st.error(f"Invalid period. Choose from {', '.join(valid_periods)}")
-            return False
-        
         # Get stock data
         stock = yf.Ticker(symbol)
         hist = stock.history(period=period)
         
         if hist.empty:
             st.error(f"No data found for {symbol}")
-            return False
-            
-        # Determine currency symbol based on exchange
+            return
+        
+        # Currency Symbol
         currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
-        
-        # Calculate price changes
+
+        # Determine trend
         price_change = hist['Close'][-1] - hist['Close'][0]
-        price_change_pct = (price_change / hist['Close'][0]) * 100
         is_positive = price_change >= 0
+        line_color = '#1E88E5'  # Blue for professional look
         
-        # Create period label
-        period_labels = {
-            '1d': '1 Day',
-            '5d': '5 Days', 
-            '1mo': '1 Month', 
-            '3mo': '3 Months', 
-            '6mo': '6 Months', 
-            '1y': '1 Year', 
-            '2y': '2 Years', 
-            '5y': '5 Years', 
-            'ytd': 'Year to Date', 
-            'max': 'Maximum'
-        }
-        period_label = period_labels.get(period, period)
-        
-        # Create Plotly figure
+        # Create Plotly figure with enhancements
         fig = go.Figure()
-        
-        # Add price line
+
         fig.add_trace(go.Scatter(
             x=hist.index,
             y=hist['Close'],
-            mode='lines+markers',  # Add markers to show data points
+            mode='lines+markers', 
             name='Close Price',
             line=dict(
-                color='#00C805' if is_positive else '#FF3E2E',
-                width=2
+                color=line_color, 
+                width=3,
+                shape='spline'  # Smooth spline curve
             ),
             marker=dict(
-                size=8,
-                color='#ffffff',  # Set marker color to white
+                size=7,
+                color='white',
                 line=dict(
-                    color='#00C805' if is_positive else '#FF3E2E',
+                    color=line_color,
                     width=2
                 )
             ),
-            hovertemplate='Date: %{x}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
+            hovertemplate=f'Date: %{x}<br>Price: {currency_symbol}%{{y:.2f}}<extra></extra>'
         ))
-        
-        # Update layout
+
+        # Layout updates for a professional look
         fig.update_layout(
             title=dict(
-                text=f'{symbol} Stock Price | {period_label}',
-                x=0.5,  # Center title
-                y=0.95,
-                xanchor='center',
-                yanchor='top',
-                font=dict(size=20)
+                text=f"<b>{symbol} Stock Price | {period}</b>",
+                x=0.5,
+                font=dict(family="Arial, sans-serif", size=24, color="#333333")
             ),
-            xaxis_title='Date',
-            yaxis_title=f'Price ({currency_symbol})',
+            xaxis=dict(
+                title="Date",
+                showgrid=True,
+                gridcolor='rgba(200, 200, 200, 0.3)',
+                tickfont=dict(size=12),
+                linecolor='rgba(0,0,0,0.7)',
+                tickformat='%d %b'
+            ),
+            yaxis=dict(
+                title=f"Price ({currency_symbol})",
+                showgrid=True,
+                gridcolor='rgba(200, 200, 200, 0.3)',
+                tickfont=dict(size=12),
+                tickprefix=currency_symbol,
+                zerolinecolor='rgba(0,0,0,0.7)',
+            ),
+            plot_bgcolor='white',  # Light background
+            paper_bgcolor='white',
             hovermode='x unified',
-            template='plotly_dark',  # Dark theme
-            height=500,
-            showlegend=False,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=50, r=50, t=50, b=80),  # Increased bottom margin for annotation
+            margin=dict(l=40, r=40, t=60, b=40),
+            height=500
         )
-        
-        # Adjust axis range for 1-day period
-        if period == '1d':
-            fig.update_xaxes(
-                range=[hist.index[0], hist.index[-1]],
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(128,128,128,0.2)',
-                rangeslider_visible=False
-            )
-            fig.update_yaxes(
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(128,128,128,0.2)',
-                tickprefix=currency_symbol
-            )
-        else:
-            fig.update_xaxes(
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(128,128,128,0.2)',
-                rangeslider_visible=True
-            )
-            fig.update_yaxes(
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(128,128,128,0.2)',
-                tickprefix=currency_symbol
-            )
-        
-        # Display in Streamlit
+
+        # Add annotations for price change
+        fig.add_annotation(
+            x=hist.index[-1],
+            y=hist['Close'][-1],
+            text=f"<b>Current Price: {currency_symbol}{hist['Close'][-1]:.2f}</b>",
+            showarrow=True,
+            arrowhead=1,
+            arrowcolor=line_color,
+            font=dict(size=14, color=line_color),
+            ax=0, ay=-40
+        )
+
+        # Display the chart
         st.plotly_chart(fig, use_container_width=True)
         
         return True
