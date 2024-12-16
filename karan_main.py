@@ -541,9 +541,9 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             {context}
 
             ## Briefing Requirements
-            - Provide a **Market Overview** section
-            - Include **Key Developments** with specific insights
-            - Analyze **Potential Implications**
+            - Provide a Market Overview section
+            - Include Key Developments with specific insights
+            - Analyze Potential Implications
             - Use markdown formatting for:
             * Bold headings
             * Bullet points
@@ -558,7 +558,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Use markdown headers (##, ###)
             - Employ bulleted lists for key points
             - Maintain professional yet engaging tone
-            - Maximum length: 500-750 words
+            - Maximum length: 200-400 words
             """)
         ])
 
