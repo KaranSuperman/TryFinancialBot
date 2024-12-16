@@ -657,7 +657,8 @@ def plot_stock_graph(symbol):
                     width=2
                 )
             ),
-            hovertemplate=f'Date: %{x}<br>Price: {currency_symbol}%{{y:.2f}}<extra></extra>'
+            hovertemplate='Date: %{x|%d-%b-%Y}<br>Price: %{y:.2f}<extra></extra>'
+
 
         ))
 
