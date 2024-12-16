@@ -613,241 +613,131 @@ def execute_research_query(question: str):
 
 def plot_stock_graph(symbol):
     try:
-        # Validate symbol
-        if not symbol or not isinstance(symbol, str):
-            st.error("Invalid stock symbol")
-            return False
-
-        # Period selection with better labels
-        period_options = {
-            '1d': 'Today',
-            '5d': '5 Days',
-            '1mo': '1 Month',
-            '3mo': '3 Months',
-            '6mo': '6 Months',
-            '1y': '1 Year',
-            '2y': '2 Years',
-            '5y': '5 Years',
-            'ytd': 'Year to Date',
-            'max': 'Maximum'
-        }
-        
+        # Period selection
         period = st.selectbox(
-            "Select Time Period",
-            options=list(period_options.keys()),
-            format_func=lambda x: period_options[x],
-            index=2
+            "Select Time Period", 
+            ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max'], 
+            index=2  # Default to 1 month
         )
-
-        # Get stock data with error handling
-        try:
-            stock = yf.Ticker(symbol)
-            hist = stock.history(period=period, interval='1d' if period == '1d' else None)
-            
-            if hist.empty:
-                st.error(f"No data found for symbol {symbol}")
-                return False
-                
-            # Verify required columns exist
-            required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
-            if not all(col in hist.columns for col in required_columns):
-                st.error(f"Missing required price data for {symbol}")
-                return False
-                
-        except Exception as e:
-            st.error(f"Error fetching data for {symbol}: {str(e)}")
+        
+        # Validate period input
+        valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max']
+        if period not in valid_periods:
+            st.error(f"Invalid period. Choose from {', '.join(valid_periods)}")
             return False
-
-        # Calculate additional metrics with validation
+        
+        # Get stock data
+        stock = yf.Ticker(symbol)
+        hist = stock.history(period=period)
+        
+        if hist.empty:
+            st.error(f"No data found for {symbol}")
+            return False
+            
+        # Determine currency symbol based on exchange
         currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
         
-        if len(hist) >= 2:  # Ensure we have at least 2 data points
-            price_change = hist['Close'][-1] - hist['Close'][0]
-            price_change_pct = (price_change / hist['Close'][0]) * 100
-            is_positive = price_change >= 0
-        else:
-            price_change = price_change_pct = 0
-            is_positive = True
-
-        # Calculate moving averages if enough data points
-        if len(hist) >= 20:
-            hist['MA20'] = hist['Close'].rolling(window=20).mean()
-        if len(hist) >= 50:
-            hist['MA50'] = hist['Close'].rolling(window=50).mean()
-
-        # Create main price figure
+        # Calculate price changes
+        price_change = hist['Close'][-1] - hist['Close'][0]
+        price_change_pct = (price_change / hist['Close'][0]) * 100
+        is_positive = price_change >= 0
+        
+        # Create period label
+        period_labels = {
+            '1d': '1 Day',
+            '5d': '5 Days', 
+            '1mo': '1 Month', 
+            '3mo': '3 Months', 
+            '6mo': '6 Months', 
+            '1y': '1 Year', 
+            '2y': '2 Years', 
+            '5y': '5 Years', 
+            'ytd': 'Year to Date', 
+            'max': 'Maximum'
+        }
+        period_label = period_labels.get(period, period)
+        
+        # Create Plotly figure
         fig = go.Figure()
-
-        # Add candlestick chart
-        fig.add_trace(go.Candlestick(
+        
+        # Add price line
+        fig.add_trace(go.Scatter(
             x=hist.index,
-            open=hist['Open'],
-            high=hist['High'],
-            low=hist['Low'],
-            close=hist['Close'],
-            name='OHLC',
-            showlegend=True
-        ))
-
-        # Add moving averages with validation
-        if 'MA20' in hist.columns:
-            fig.add_trace(go.Scatter(
-                x=hist.index,
-                y=hist['MA20'],
-                name='20-day MA',
-                line=dict(color='orange', width=1),
-                showlegend=True
-            ))
-
-        if 'MA50' in hist.columns:
-            fig.add_trace(go.Scatter(
-                x=hist.index,
-                y=hist['MA50'],
-                name='50-day MA',
-                line=dict(color='blue', width=1),
-                showlegend=True
-            ))
-
-        # Add volume bars with validation
-        if 'Volume' in hist.columns and not hist['Volume'].isnull().all():
-            fig.add_trace(go.Bar(
-                x=hist.index,
-                y=hist['Volume'],
-                name='Volume',
-                yaxis='y2',
-                marker=dict(
-                    color=np.where(hist['Close'] >= hist['Open'], '#00C805', '#FF3E2E'),
-                    opacity=0.3
+            y=hist['Close'],
+            mode='lines+markers',  # Add markers to show data points
+            name='Close Price',
+            line=dict(
+                color='#00C805' if is_positive else '#FF3E2E',
+                width=2
+            ),
+            marker=dict(
+                size=8,
+                color='#ffffff',  # Set marker color to white
+                line=dict(
+                    color='#00C805' if is_positive else '#FF3E2E',
+                    width=2
                 )
-            ))
-
-        # Update layout with more details
+            ),
+            hovertemplate='Date: %{x}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
+        ))
+        
+        # Update layout
         fig.update_layout(
             title=dict(
-                text=f'{symbol} Stock Analysis | {period_options[period]}',
-                x=0.5,
+                text=f'{symbol} Stock Price | {period_label}',
+                x=0.5,  # Center title
                 y=0.95,
                 xanchor='center',
                 yanchor='top',
-                font=dict(size=24, color='white')
+                font=dict(size=20)
             ),
-            yaxis=dict(
-                title=f'Price ({currency_symbol})',
-                tickformat=',.2f',
-                side='left',
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(128,128,128,0.2)',
-            ),
-            yaxis2=dict(
-                title='Volume',
-                side='right',
-                overlaying='y',
-                showgrid=False,
-            ),
-            xaxis=dict(
-                title='Date',
-                rangeslider=dict(visible=True),
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(128,128,128,0.2)',
-            ),
-            template='plotly_dark',
-            height=800,
+            xaxis_title='Date',
+            yaxis_title=f'Price ({currency_symbol})',
             hovermode='x unified',
-            showlegend=True,
-            legend=dict(
-                yanchor="top",
-                y=0.99,
-                xanchor="left",
-                x=0.01,
-                bgcolor='rgba(0,0,0,0.5)'
-            ),
-            margin=dict(l=50, r=50, t=80, b=50),
+            template='plotly_dark',  # Dark theme
+            height=500,
+            showlegend=False,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=50, r=50, t=50, b=80),  # Increased bottom margin for annotation
         )
-
-        # Add range selector buttons
-        fig.update_xaxes(
-            rangeselector=dict(
-                buttons=list([
-                    dict(count=1, label="1D", step="day", stepmode="backward"),
-                    dict(count=5, label="5D", step="day", stepmode="backward"),
-                    dict(count=1, label="1M", step="month", stepmode="backward"),
-                    dict(count=3, label="3M", step="month", stepmode="backward"),
-                    dict(count=6, label="6M", step="month", stepmode="backward"),
-                    dict(count=1, label="1Y", step="year", stepmode="backward"),
-                    dict(step="all", label="ALL")
-                ]),
-                bgcolor='rgba(0,0,0,0.5)'
+        
+        # Adjust axis range for 1-day period
+        if period == '1d':
+            fig.update_xaxes(
+                range=[hist.index[0], hist.index[-1]],
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                rangeslider_visible=False
             )
-        )
-
-        # Add key statistics with validation
-        try:
-            stats_text = f"""
-            <b>Key Statistics:</b><br>
-            Current Price: {currency_symbol}{hist['Close'][-1]:.2f}<br>
-            Previous Close: {currency_symbol}{hist['Close'][-2]:.2f}<br>
-            Day's Range: {currency_symbol}{hist['Low'][-1]:.2f} - {currency_symbol}{hist['High'][-1]:.2f}<br>
-            Period Change: {price_change_pct:+.2f}%<br>
-            Volume: {hist['Volume'][-1]:,.0f}
-            """
-
-            fig.add_annotation(
-                text=stats_text,
-                xref="paper", yref="paper",
-                x=0.01, y=0.95,
-                showarrow=False,
-                font=dict(size=12, color='white'),
-                bgcolor='rgba(0,0,0,0.5)',
-                bordercolor='rgba(255,255,255,0.3)',
-                borderwidth=1,
-                align='left'
+            fig.update_yaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                tickprefix=currency_symbol
             )
-        except Exception as e:
-            print(f"Error adding statistics annotation: {str(e)}")
-
-        # Display the figure
+        else:
+            fig.update_xaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                rangeslider_visible=True
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                tickprefix=currency_symbol
+            )
+        
+        # Display in Streamlit
         st.plotly_chart(fig, use_container_width=True)
-
-        # Display additional metrics in columns with validation
-        try:
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric(
-                    "Price Change",
-                    f"{currency_symbol}{abs(price_change):.2f}",
-                    f"{price_change_pct:+.2f}%",
-                    delta_color="normal"
-                )
-                
-            with col2:
-                if 'Volume' in hist.columns and len(hist) >= 2:
-                    volume_change = ((hist['Volume'][-1] / hist['Volume'][-2]) - 1) if hist['Volume'][-2] != 0 else 0
-                    st.metric(
-                        "Trading Volume",
-                        f"{hist['Volume'][-1]:,.0f}",
-                        f"{volume_change:+.2f}%",
-                        delta_color="normal"
-                    )
-                
-            with col3:
-                if hasattr(stock, 'info') and stock.info.get('sharesOutstanding'):
-                    market_cap = hist['Close'][-1] * stock.info['sharesOutstanding']
-                    st.metric(
-                        "Market Cap",
-                        f"{currency_symbol}{(market_cap/1e9):,.2f}B",
-                        help="Market Capitalization"
-                    )
-        except Exception as e:
-            print(f"Error displaying metrics: {str(e)}")
-
+        
         return True
-
+        
     except Exception as e:
         st.error(f"Error plotting graph: {str(e)}")
-        print(f"Detailed error: {str(e)}")  # For debugging
         return False
 # ----------------------------------------------------------------------------------------------------------
 
@@ -885,42 +775,20 @@ def user_input(user_question):
                 st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
-                    stock = yf.Ticker(symbol)
-                    info = stock.info
+                    output_text = (
+                        f"**Stock Update for {symbol}**\n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        # f"{'📈' if change_direction == 'up' else '📉'} "
+                        # f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        # f"({percentage_change:+.2f}%) compared to the previous close!"
+                    )
                     
-                    # Format market cap
-                    market_cap = info.get('marketCap', 0)
-                    if market_cap >= 1e12:
-                        market_cap_str = f"{market_cap/1e12:.2f}T"
-                    elif market_cap >= 1e9:
-                        market_cap_str = f"{market_cap/1e9:.2f}B"
-                    elif market_cap >= 1e6:
-                        market_cap_str = f"{market_cap/1e6:.2f}M"
-                    else:
-                        market_cap_str = f"{market_cap:,.0f}"
-
-                    output_text = f"""
-                    **{symbol} Stock Update** {'📈' if change_direction == 'up' else '📉'}
-
-                    **Current Price:** {currency_symbol}{stock_price:.2f}
-                    **Previous Close:** {currency_symbol}{previous_day_stock_price:.2f}
-                    **Change:** {currency_symbol}{abs(price_change):.2f} ({percentage_change:+.2f}%)
-                    
-                    **Today's Range:** {currency_symbol}{info.get('dayLow', 'N/A')} - {currency_symbol}{info.get('dayHigh', 'N/A')}
-                    **52-Week Range:** {currency_symbol}{info.get('fiftyTwoWeekLow', 'N/A')} - {currency_symbol}{info.get('fiftyTwoWeekHigh', 'N/A')}
-                    
-                    **Market Cap:** {currency_symbol}{market_cap_str}
-                    **Volume:** {info.get('volume', 0):,}
-                    **Avg Volume:** {info.get('averageVolume', 0):,}
-                    
-                    **PE Ratio:** {info.get('trailingPE', 'N/A')}
-                    **Dividend Yield:** {info.get('dividendYield', 0)*100:.2f}%
-                    """
-                    
+                    # Generate and return graph after text
                     return {
                         "output_text": output_text,
                         "graph": plot_stock_graph(symbol),
-                        "display_order": ["text", "graph"]
+                        "display_order": ["text", "graph"]  # Optional: add explicit ordering
                     }
 
                 else:
