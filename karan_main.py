@@ -521,34 +521,44 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Professional Financial News Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide comprehensive, engaging, and actionable financial insights in a clear, journalistic style.
+            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide comprehensive, engaging, and actionable financial insights.
 
-            Key Priorities:
-            - Deliver comprehensive market coverage
-            - Provide context and nuanced analysis
-            - Highlight key trends and potential implications
-            - Use clear, accessible language
-            - Balance factual reporting with strategic insights"""),
+            CRITICAL OUTPUT INSTRUCTIONS:
+            1. Use clear markdown formatting
+            2. Structure your response with:
+            - Bold headlines
+            - Concise paragraphs
+            - Bulleted insights
+            - Clear section breaks
+            3. Ensure professional, accessible language
+            4. Focus on clarity and readability"""),
             ("human", """Generate a comprehensive financial market briefing based on the following query and contextual information:
 
-            Query: {query}
+            ## Market Analysis Query
+            {query}
 
-            Available Financial Context:
+            ## Available Financial Context
             {context}
 
-            Briefing Guidelines:
-            - Create a concise, informative summary of key financial developments
-            - Use a clear, engaging narrative structure
-            - Organize insights into distinct, digestible headlines
-            - Include:
-            * Precise financial details
-            * Context for each development
-            * Potential market implications
-            - Maintain a professional yet conversational tone
+            ## Briefing Requirements
+            - Provide a **Market Overview** section
+            - Include **Key Developments** with specific insights
+            - Analyze **Potential Implications**
+            - Use markdown formatting for:
+            * Bold headings
+            * Bullet points
+            * Clear section separation
+            
+            ## Output Guidelines
+            - Write in a clear, journalistic style
+            - Balance factual reporting with strategic analysis
+            - Ensure each section offers distinct, actionable insights
 
-            Output Format:
-            **Financial Market Briefing should ne only in plain text**
-            **Sources with inbuilt link**
+            ## Formatting Expectations
+            - Use markdown headers (##, ###)
+            - Employ bulleted lists for key points
+            - Maintain professional yet engaging tone
+            - Maximum length: 500-750 words
             """)
         ])
 
