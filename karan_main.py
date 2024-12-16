@@ -620,91 +620,118 @@ def plot_stock_graph(symbol):
             index=2  # Default to 1 month
         )
         
+        # Validate period input
+        valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max']
+        if period not in valid_periods:
+            st.error(f"Invalid period. Choose from {', '.join(valid_periods)}")
+            return False
+        
         # Get stock data
         stock = yf.Ticker(symbol)
         hist = stock.history(period=period)
         
         if hist.empty:
             st.error(f"No data found for {symbol}")
-            return
-        
-        # Currency Symbol
+            return False
+            
+        # Determine currency symbol based on exchange
         currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
-
-        # Determine trend
-        price_change = hist['Close'][-1] - hist['Close'][0]
-        is_positive = price_change >= 0
-        line_color = '#1E88E5'  # Blue for professional look
         
-        # Create Plotly figure with enhancements
+        # Calculate price changes
+        price_change = hist['Close'][-1] - hist['Close'][0]
+        price_change_pct = (price_change / hist['Close'][0]) * 100
+        is_positive = price_change >= 0
+        
+        # Create period label
+        period_labels = {
+            '1d': '1 Day',
+            '5d': '5 Days', 
+            '1mo': '1 Month', 
+            '3mo': '3 Months', 
+            '6mo': '6 Months', 
+            '1y': '1 Year', 
+            '2y': '2 Years', 
+            '5y': '5 Years', 
+            'ytd': 'Year to Date', 
+            'max': 'Maximum'
+        }
+        period_label = period_labels.get(period, period)
+        
+        # Create Plotly figure
         fig = go.Figure()
-
+        
+        # Add price line
         fig.add_trace(go.Scatter(
             x=hist.index,
             y=hist['Close'],
-            mode='lines+markers', 
+            mode='lines+markers',  # Add markers to show data points
             name='Close Price',
             line=dict(
-                color=line_color, 
-                width=3,
-                shape='spline'  # Smooth spline curve
+                color='#00C805' if is_positive else '#FF3E2E',
+                width=2
             ),
             marker=dict(
-                size=7,
-                color='white',
+                size=8,
+                color='#ffffff',  # Set marker color to white
                 line=dict(
-                    color=line_color,
+                    color='#00C805' if is_positive else '#FF3E2E',
                     width=2
                 )
             ),
-            hovertemplate='Date: %{x|%d-%b-%Y}<br>Price: %{y:.2f}<extra></extra>'
-
-
+            hovertemplate='Date: %{x}<br>Price: ' + currency_symbol + '%{y:.2f}<extra></extra>'
         ))
-
-        # Layout updates for a professional look
+        
+        # Update layout
         fig.update_layout(
             title=dict(
-                text=f"<b>{symbol} Stock Price | {period}</b>",
-                x=0.5,
-                font=dict(family="Arial, sans-serif", size=24, color="#333333")
+                text=f'{symbol} Stock Price | {period_label}',
+                x=0.5,  # Center title
+                y=0.95,
+                xanchor='center',
+                yanchor='top',
+                font=dict(size=20)
             ),
-            xaxis=dict(
-                title="Date",
-                showgrid=True,
-                gridcolor='rgba(200, 200, 200, 0.3)',
-                tickfont=dict(size=12),
-                linecolor='rgba(0,0,0,0.7)',
-                tickformat='%d %b'
-            ),
-            yaxis=dict(
-                title=f"Price ({currency_symbol})",
-                showgrid=True,
-                gridcolor='rgba(200, 200, 200, 0.3)',
-                tickfont=dict(size=12),
-                tickprefix=currency_symbol,
-                zerolinecolor='rgba(0,0,0,0.7)',
-            ),
-            plot_bgcolor='white',  # Light background
-            paper_bgcolor='white',
+            xaxis_title='Date',
+            yaxis_title=f'Price ({currency_symbol})',
             hovermode='x unified',
-            margin=dict(l=40, r=40, t=60, b=40),
-            height=500
+            template='plotly_dark',  # Dark theme
+            height=500,
+            showlegend=False,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=50, r=50, t=50, b=80),  # Increased bottom margin for annotation
         )
-
-        # Add annotations for price change
-        fig.add_annotation(
-            x=hist.index[-1],
-            y=hist['Close'][-1],
-            text=f"<b>Current Price: {currency_symbol}{hist['Close'][-1]:.2f}</b>",
-            showarrow=True,
-            arrowhead=1,
-            arrowcolor=line_color,
-            font=dict(size=14, color=line_color),
-            ax=0, ay=-40
-        )
-
-        # Display the chart
+        
+        # Adjust axis range for 1-day period
+        if period == '1d':
+            fig.update_xaxes(
+                range=[hist.index[0], hist.index[-1]],
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                rangeslider_visible=False
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                tickprefix=currency_symbol
+            )
+        else:
+            fig.update_xaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                rangeslider_visible=True
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128,128,128,0.2)',
+                tickprefix=currency_symbol
+            )
+        
+        # Display in Streamlit
         st.plotly_chart(fig, use_container_width=True)
         
         return True
@@ -745,7 +772,7 @@ def user_input(user_question):
         if result.startswith("True "):
             _, symbol = result.split(maxsplit=1)
             try:
-                st.info("Using Stocks response")
+                # st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
                     output_text = (
@@ -777,7 +804,7 @@ def user_input(user_question):
         # Handle stock news/analysis query
         elif result.startswith("News "):
             try:
-                st.info("Exa logic")
+                # st.info("Exa logic")
                 # Remove "News " prefix to get the original research query
                 research_query = result[5:]
                 
@@ -872,10 +899,10 @@ def user_input(user_question):
 
         # Process based on similarity scores
         if max_similarity < 0.65:
-            st.info("Using LLM response after similarity check")
+            # st.info("Using LLM response after similarity check")
             prompt1 = user_question + """\
             Don't response if the user_question is rather than financial terms.
-            If other question ask response with 'Please tell only finance related queries'.
+            If other question ask response with 'Please tell only finance related queries' .
             Finance Term Query Guidelines:
             1. Context: Finance domain
             2. Response Requirements:
@@ -889,7 +916,7 @@ def user_input(user_question):
             - What does EBITDA mean?
 
 
-
+ 
             Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
             """
     
@@ -908,7 +935,7 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                st.info("Using FAQ response")
+                # st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                 
                 if best_faq.page_content in faq_dict:
@@ -937,7 +964,7 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                st.info("Using PDF response")
+                # st.info("Using PDF response")
                 prompt_template = """
                 Use only the information from the provided PDF context to answer the question precisely and concisely.
 
@@ -955,7 +982,7 @@ def user_input(user_question):
                 
                 # Check if we got a NO_PDF_ANSWER response
                 if "NO_PDF_ANSWER" in response["output_text"]:
-                    st.info("Using LLM response after pdf fail")
+                    # st.info("Using LLM response after pdf fail")
                     prompt1 = user_question + """\
                     Finance Term Query Guidelines:
                     1. Context: Finance domain
