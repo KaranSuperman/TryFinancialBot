@@ -613,6 +613,11 @@ def execute_research_query(question: str):
 
 def plot_stock_graph(symbol):
     try:
+        # Validate symbol
+        if not symbol or not isinstance(symbol, str):
+            st.error("Invalid stock symbol")
+            return False
+
         # Period selection with better labels
         period_options = {
             '1d': 'Today',
@@ -634,23 +639,41 @@ def plot_stock_graph(symbol):
             index=2
         )
 
-        # Get stock data
-        stock = yf.Ticker(symbol)
-        hist = stock.history(period=period, interval='1d' if period == '1d' else None)
-        
-        if hist.empty:
-            st.error(f"No data found for {symbol}")
+        # Get stock data with error handling
+        try:
+            stock = yf.Ticker(symbol)
+            hist = stock.history(period=period, interval='1d' if period == '1d' else None)
+            
+            if hist.empty:
+                st.error(f"No data found for symbol {symbol}")
+                return False
+                
+            # Verify required columns exist
+            required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+            if not all(col in hist.columns for col in required_columns):
+                st.error(f"Missing required price data for {symbol}")
+                return False
+                
+        except Exception as e:
+            st.error(f"Error fetching data for {symbol}: {str(e)}")
             return False
 
-        # Calculate additional metrics
+        # Calculate additional metrics with validation
         currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
-        price_change = hist['Close'][-1] - hist['Close'][0]
-        price_change_pct = (price_change / hist['Close'][0]) * 100
-        is_positive = price_change >= 0
         
-        # Calculate moving averages
-        hist['MA20'] = hist['Close'].rolling(window=20).mean()
-        hist['MA50'] = hist['Close'].rolling(window=50).mean()
+        if len(hist) >= 2:  # Ensure we have at least 2 data points
+            price_change = hist['Close'][-1] - hist['Close'][0]
+            price_change_pct = (price_change / hist['Close'][0]) * 100
+            is_positive = price_change >= 0
+        else:
+            price_change = price_change_pct = 0
+            is_positive = True
+
+        # Calculate moving averages if enough data points
+        if len(hist) >= 20:
+            hist['MA20'] = hist['Close'].rolling(window=20).mean()
+        if len(hist) >= 50:
+            hist['MA50'] = hist['Close'].rolling(window=50).mean()
 
         # Create main price figure
         fig = go.Figure()
@@ -666,8 +689,8 @@ def plot_stock_graph(symbol):
             showlegend=True
         ))
 
-        # Add moving averages
-        if len(hist) > 20:
+        # Add moving averages with validation
+        if 'MA20' in hist.columns:
             fig.add_trace(go.Scatter(
                 x=hist.index,
                 y=hist['MA20'],
@@ -676,7 +699,7 @@ def plot_stock_graph(symbol):
                 showlegend=True
             ))
 
-        if len(hist) > 50:
+        if 'MA50' in hist.columns:
             fig.add_trace(go.Scatter(
                 x=hist.index,
                 y=hist['MA50'],
@@ -685,17 +708,18 @@ def plot_stock_graph(symbol):
                 showlegend=True
             ))
 
-        # Add volume bars
-        fig.add_trace(go.Bar(
-            x=hist.index,
-            y=hist['Volume'],
-            name='Volume',
-            yaxis='y2',
-            marker=dict(
-                color=np.where(hist['Close'] >= hist['Open'], '#00C805', '#FF3E2E'),
-                opacity=0.3
-            )
-        ))
+        # Add volume bars with validation
+        if 'Volume' in hist.columns and not hist['Volume'].isnull().all():
+            fig.add_trace(go.Bar(
+                x=hist.index,
+                y=hist['Volume'],
+                name='Volume',
+                yaxis='y2',
+                marker=dict(
+                    color=np.where(hist['Close'] >= hist['Open'], '#00C805', '#FF3E2E'),
+                    opacity=0.3
+                )
+            ))
 
         # Update layout with more details
         fig.update_layout(
@@ -729,7 +753,7 @@ def plot_stock_graph(symbol):
                 gridcolor='rgba(128,128,128,0.2)',
             ),
             template='plotly_dark',
-            height=800,  # Increased height
+            height=800,
             hovermode='x unified',
             showlegend=True,
             legend=dict(
@@ -758,61 +782,72 @@ def plot_stock_graph(symbol):
             )
         )
 
-        # Add key statistics in a box
-        stats_text = f"""
-        <b>Key Statistics:</b><br>
-        Current Price: {currency_symbol}{hist['Close'][-1]:.2f}<br>
-        Previous Close: {currency_symbol}{hist['Close'][-2]:.2f}<br>
-        Day's Range: {currency_symbol}{hist['Low'][-1]:.2f} - {currency_symbol}{hist['High'][-1]:.2f}<br>
-        Period Change: {price_change_pct:+.2f}%<br>
-        Volume: {hist['Volume'][-1]:,.0f}
-        """
+        # Add key statistics with validation
+        try:
+            stats_text = f"""
+            <b>Key Statistics:</b><br>
+            Current Price: {currency_symbol}{hist['Close'][-1]:.2f}<br>
+            Previous Close: {currency_symbol}{hist['Close'][-2]:.2f}<br>
+            Day's Range: {currency_symbol}{hist['Low'][-1]:.2f} - {currency_symbol}{hist['High'][-1]:.2f}<br>
+            Period Change: {price_change_pct:+.2f}%<br>
+            Volume: {hist['Volume'][-1]:,.0f}
+            """
 
-        fig.add_annotation(
-            text=stats_text,
-            xref="paper", yref="paper",
-            x=0.01, y=0.95,
-            showarrow=False,
-            font=dict(size=12, color='white'),
-            bgcolor='rgba(0,0,0,0.5)',
-            bordercolor='rgba(255,255,255,0.3)',
-            borderwidth=1,
-            align='left'
-        )
+            fig.add_annotation(
+                text=stats_text,
+                xref="paper", yref="paper",
+                x=0.01, y=0.95,
+                showarrow=False,
+                font=dict(size=12, color='white'),
+                bgcolor='rgba(0,0,0,0.5)',
+                bordercolor='rgba(255,255,255,0.3)',
+                borderwidth=1,
+                align='left'
+            )
+        except Exception as e:
+            print(f"Error adding statistics annotation: {str(e)}")
 
         # Display the figure
         st.plotly_chart(fig, use_container_width=True)
 
-        # Display additional metrics in columns
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric(
-                "Price Change",
-                f"{currency_symbol}{abs(price_change):.2f}",
-                f"{price_change_pct:+.2f}%",
-                delta_color="normal"
-            )
+        # Display additional metrics in columns with validation
+        try:
+            col1, col2, col3 = st.columns(3)
             
-        with col2:
-            st.metric(
-                "Trading Volume",
-                f"{hist['Volume'][-1]:,.0f}",
-                f"{((hist['Volume'][-1] / hist['Volume'][-2]) - 1):+.2f}%",
-                delta_color="normal"
-            )
-            
-        with col3:
-            st.metric(
-                "Market Cap",
-                f"{currency_symbol}{(hist['Close'][-1] * stock.info.get('sharesOutstanding', 0)/1e9):,.2f}B",
-                help="Market Capitalization"
-            )
+            with col1:
+                st.metric(
+                    "Price Change",
+                    f"{currency_symbol}{abs(price_change):.2f}",
+                    f"{price_change_pct:+.2f}%",
+                    delta_color="normal"
+                )
+                
+            with col2:
+                if 'Volume' in hist.columns and len(hist) >= 2:
+                    volume_change = ((hist['Volume'][-1] / hist['Volume'][-2]) - 1) if hist['Volume'][-2] != 0 else 0
+                    st.metric(
+                        "Trading Volume",
+                        f"{hist['Volume'][-1]:,.0f}",
+                        f"{volume_change:+.2f}%",
+                        delta_color="normal"
+                    )
+                
+            with col3:
+                if hasattr(stock, 'info') and stock.info.get('sharesOutstanding'):
+                    market_cap = hist['Close'][-1] * stock.info['sharesOutstanding']
+                    st.metric(
+                        "Market Cap",
+                        f"{currency_symbol}{(market_cap/1e9):,.2f}B",
+                        help="Market Capitalization"
+                    )
+        except Exception as e:
+            print(f"Error displaying metrics: {str(e)}")
 
         return True
 
     except Exception as e:
         st.error(f"Error plotting graph: {str(e)}")
+        print(f"Detailed error: {str(e)}")  # For debugging
         return False
 # ----------------------------------------------------------------------------------------------------------
 
