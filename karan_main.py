@@ -836,7 +836,7 @@ def user_input(user_question):
         
         # Instead, use a more direct approach
         # else:
-            st.info("Using LLM response")
+            # st.info("Using LLM response")
         #     prompt1 = user_question + """ In the context of Finance       
         #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
         #         for example, 
@@ -980,7 +980,7 @@ def user_input(user_question):
                 
                 # Check if we got a NO_PDF_ANSWER response
                 if "NO_PDF_ANSWER" in response["output_text"]:
-                    st.info("Using LLM response")
+                    st.info("Using LLM response after pdf fail")
                     prompt1 = user_question + """\
                     Finance Term Query Guidelines:
                     1. Context: Finance domain
