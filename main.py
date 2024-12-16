@@ -548,8 +548,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
             Output Format:
             **Financial Market Briefing should ne only in plain text**
-
-
             """)
         ])
 
@@ -838,7 +836,7 @@ def user_input(user_question):
         
         # Instead, use a more direct approach
         # else:
-        #     st.info("Using LLM response")
+            # st.info("Using LLM response")
         #     prompt1 = user_question + """ In the context of Finance       
         #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
         #         for example, 
@@ -901,8 +899,10 @@ def user_input(user_question):
 
         # Process based on similarity scores
         if max_similarity < 0.65:
-            # st.info("Using LLM response")
+            # st.info("Using LLM response after similarity check")
             prompt1 = user_question + """\
+            Don't response if the user_question is rather than financial terms.
+            If other question ask response with 'Please tell only finance related queries'.
             Finance Term Query Guidelines:
             1. Context: Finance domain
             2. Response Requirements:
@@ -982,7 +982,7 @@ def user_input(user_question):
                 
                 # Check if we got a NO_PDF_ANSWER response
                 if "NO_PDF_ANSWER" in response["output_text"]:
-                    # st.info("Using LLM response")
+                    # st.info("Using LLM response after pdf fail")
                     prompt1 = user_question + """\
                     Finance Term Query Guidelines:
                     1. Context: Finance domain
