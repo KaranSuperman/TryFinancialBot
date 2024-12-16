@@ -902,6 +902,7 @@ def user_input(user_question):
             st.info("Using LLM response after similarity check")
             prompt1 = user_question + """\
             Don't response if the user_question is rather than financial terms.
+            If other question ask response with 'Please tell only finance related queries'.
             Finance Term Query Guidelines:
             1. Context: Finance domain
             2. Response Requirements:
