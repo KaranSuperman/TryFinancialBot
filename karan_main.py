@@ -512,15 +512,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
-        # st.info(f"document_chain: {document_chain}")
-
+        
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
-        # st.info(f"retrieval_chain: {retrieval_chain}")
-
 
         # Professional Financial News Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
@@ -564,7 +561,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             | llm
 
         )
-        st.info(f"chain: {chain}")
         
         return chain
 
@@ -587,13 +583,9 @@ def execute_research_query(question: str):
             return {"output_text": "Configuration error: Gemini API key is not set"}
 
         # Execute chain with error handling
-        st.info(f"outer try")
         try:
-            # st.info(f"inner try")
             chain = create_research_chain(exa_api_key, gemini_api_key)
-            # st.info(f"running chain....")
             response = chain.invoke(question)
-            # st.info(f"response: {response}")
             
             # Handle response
             if hasattr(response, 'content'):
@@ -825,16 +817,13 @@ def user_input(user_question):
                     raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
 
                 # Create the research chain using the Gemini API key
-                # research_chain = create_research_chain(exa_api_key, gemini_api_key)
+                research_chain = create_research_chain(exa_api_key, gemini_api_key)
                 
                 # Execute the research query
-                # response = research_chain.invoke(research_query)
-                response = execute_research_query(research_query)
-                st.info(f"final response: {response}")
-                
+                response = research_chain.invoke(research_query)
                 
                 # Extract and clean the content
-                if hasattr(response, 'output_text'):
+                if hasattr(response, 'content'):
                     content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
                     return {"output_text": content}
                 else:
