@@ -587,8 +587,11 @@ def execute_research_query(question: str):
             return {"output_text": "Configuration error: Gemini API key is not set"}
 
         # Execute chain with error handling
+        st.info(f"outer try")
         try:
+            st.info(f"inner try")
             chain = create_research_chain(exa_api_key, gemini_api_key)
+            st.info(f"running chain....")
             response = chain.invoke(question)
             st.info(f"response: {response}")
             
