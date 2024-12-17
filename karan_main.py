@@ -512,16 +512,19 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
-        
+        st.info(f"document_chain: {document_chain}")
+
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
+        st.info(f"retrieval_chain: {retrieval_chain}")
+
 
         # Professional Financial News Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst with deep expertise in current market trends of India as well as foreign market, company performances, and economic indicators. Your goal is to provide comprehensive, engaging, and actionable financial insights in a clear, journalistic style.
+            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide comprehensive, engaging, and actionable financial insights in a clear, journalistic style.
 
             Key Priorities:
             - Deliver comprehensive market coverage
@@ -537,7 +540,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             {context}
 
             Briefing Guidelines:
-            - Create a concise, informative points of key financial developments
+            - Create a concise, informative summary of key financial developments
             - Use a clear, engaging narrative structure
             - Organize insights into distinct, digestible headlines
             - Include:
@@ -561,6 +564,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             | llm
 
         )
+        st.info(f"chain: {chain}")
         
         return chain
 
