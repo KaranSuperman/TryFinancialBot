@@ -834,7 +834,7 @@ def user_input(user_question):
                 
                 
                 # Extract and clean the content
-                if hasattr(response, 'content'):
+                if hasattr(response, 'output_text'):
                     content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
                     return {"output_text": content}
                 else:
