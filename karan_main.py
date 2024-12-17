@@ -589,11 +589,11 @@ def execute_research_query(question: str):
         # Execute chain with error handling
         st.info(f"outer try")
         try:
-            st.info(f"inner try")
+            # st.info(f"inner try")
             chain = create_research_chain(exa_api_key, gemini_api_key)
-            st.info(f"running chain....")
+            # st.info(f"running chain....")
             response = chain.invoke(question)
-            st.info(f"response: {response}")
+            # st.info(f"response: {response}")
             
             # Handle response
             if hasattr(response, 'content'):
