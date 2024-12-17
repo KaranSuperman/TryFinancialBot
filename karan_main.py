@@ -512,14 +512,14 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
-        st.info(f"document_chain: {document_chain}")
+        # st.info(f"document_chain: {document_chain}")
 
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
-        st.info(f"retrieval_chain: {retrieval_chain}")
+        # st.info(f"retrieval_chain: {retrieval_chain}")
 
 
         # Professional Financial News Prompt
@@ -830,6 +830,7 @@ def user_input(user_question):
                 # Execute the research query
                 # response = research_chain.invoke(research_query)
                 response = execute_research_query(research_query)
+                st.info(f"final response: {response}")
                 
                 
                 # Extract and clean the content
