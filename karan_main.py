@@ -825,15 +825,12 @@ def user_input(user_question):
                     raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
 
                 # Create the research chain using the Gemini API key
-                research_chain = create_research_chain(exa_api_key, gemini_api_key)
-
-                # Execute the research query
-                response = execute_research_query(research_query)
-
+                # research_chain = create_research_chain(exa_api_key, gemini_api_key)
                 
-                # 
+                # Execute the research query
                 # response = research_chain.invoke(research_query)
-
+                response = execute_research_query(research_query)
+                
                 
                 # Extract and clean the content
                 if hasattr(response, 'content'):
