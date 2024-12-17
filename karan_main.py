@@ -586,6 +586,7 @@ def execute_research_query(question: str):
         try:
             chain = create_research_chain(exa_api_key, gemini_api_key)
             response = chain.invoke(question)
+            st.info(f"response: {response}")
             
             # Handle response
             if hasattr(response, 'content'):
