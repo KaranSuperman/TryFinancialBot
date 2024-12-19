@@ -518,7 +518,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trend as well as global market, company performances, and economic indicators. Your goal is to provide concise, actionable financial insights focusing strictly on market-moving news and economic developments.
+            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trend as well as global market, company performances, and stocks indicators. Your goal is to provide concise, actionable financial insights focusing strictly on market-moving news and stocks,finance developments.
 
             Key Priorities:
             - Focus exclusively on financial markets, and corporate news
@@ -536,7 +536,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Format your response as follows:
 
             ## Market Snapshot
-            [1-2 sentences on key market movements]
+            [2-3 sentences on key market movements]
 
             ## Top Market Movers
             #### [Development 1]
