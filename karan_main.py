@@ -536,22 +536,22 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Format your response as follows:
 
             ## Market Snapshot
-            [2-3 sentences on key market movements in plain text]
+            [2-3 sentences on key market movements]
 
-            ## In Depth Knowledge:
+            ## In Depth Knowledge
             #### [Development 1]
             [1-2 sentences on impact]
 
             #### [Development 2]
             [1-2 sentences on impact]
 
-            ## --Outlook--
+            ## Outlook
             [1-2 sentences on immediate market implications]
 
             Requirements:
             - Limit to 2 key developments maximum
             - Each section should be 50 words or less
-            - Include only financial/economic news
+            - Include only financial/stocks news
             - Use specific numbers (indices, percentages) where relevant
             - Total response should fit comfortably on a mobile screen
             """)
