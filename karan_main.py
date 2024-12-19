@@ -457,26 +457,30 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     try:
         start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration with India focus
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=7,  # Increased to get more comprehensive coverage
+            k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
         )
 
+        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
+        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
+        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
+        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0.1,
@@ -485,6 +489,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
+        # Detailed Document Template
         document_template = """
         <financial_news>
             <headline>{title}</headline>
@@ -511,59 +516,49 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # India-focused Financial News Prompt
+        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst based in Mumbai with expertise in Indian markets, global trends, and their interconnections. Your analysis should primarily serve Indian investors and business professionals while maintaining a global perspective.
+            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trend as well as global market, company performances, and economic indicators. Your goal is to provide comprehensive, engaging, and actionable financial insights in a clear, journalistic style.
 
-            Key Focus Areas:
-            - Indian stock markets (Nifty, Sensex) and their movements
-            - Impact of global events on Indian markets
-            - FII/DII flows and their implications
-            - Sector-specific developments in India
-            - Currency movements (especially INR)
-            - Key policy decisions from RBI and government
-            - Relevant global market developments affecting Indian investors
-
-            Style Guidelines:
-            - Use Indian context and references
-            - Quote values in INR when discussing Indian markets
-            - Include both domestic and relevant international developments
-            - Explain global events from an Indian perspective
-            - Use terms familiar to Indian investors
-            - Include relevant sectoral impacts on Indian markets"""),
-            
-            ("human", """Generate a comprehensive Indian market briefing based on the following query and contextual information:
+            Key Priorities:
+            - Deliver comprehensive market coverage
+            - Provide context and nuanced analysis
+            - Highlight key trends and potential implications
+            - Use clear, accessible language
+            - Balance factual reporting with strategic insights"""),
+            ("human", """Generate a comprehensive financial market briefing based on the following query and contextual information:
 
             Query: {query}
 
             Available Financial Context:
             {context}
 
-            Please structure your response as follows:
+            Please format your response using the following structure:
 
-            ## Indian Market Overview
-            [2-3 sentences about current Indian market situation, including Nifty/Sensex levels if relevant]
+            ## Market Overview
+            [2-3 sentences summarizing the overall market situation]
 
-            ## Key Market Developments
-            #### Domestic Markets
-            [2-3 sentences about important Indian market developments]
+            ## Key Developments
+            #### [First Major Development Title]
+            [2-3 sentences with details and implications]
 
-            #### Global Impact on Indian Markets
-            [2-3 sentences about relevant international developments affecting Indian markets]
+            #### [Second Major Development Title]
+            [2-3 sentences with details and implications]
+            .
+            .
+            .
+            .
+            as needed 
 
-            #### Sector Watch
-            [2-3 sentences about key sector movements in India]
-
-            ## Investment Implications
-            [2-3 sentences about implications for Indian investors]
+            ## Market Implications
+            [2-3 sentences about broader market impact and potential future developments]
 
             Notes:
-            - Include specific Indian market data points
-            - Mention FII/DII flows when relevant
-            - Reference RBI/SEBI policies if applicable
-            - Compare with global benchmarks when useful
-            - Include sector-specific impacts
-            - Consider retail investor perspective
+            - Use clear section headers with proper spacing
+            - Keep paragraphs concise and well-separated
+            - Include specific numbers and data points where relevant
+            - Maintain a professional tone throughout
+            - Use appropriate markdown formatting for headers and sections
             """)
         ])
 
