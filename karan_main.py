@@ -539,10 +539,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             [1-2 sentences on key market movements]
 
             ## Top Market Movers
-            ### [Development 1]
+            #### [Development 1]
             [1-2 sentences on impact]
 
-            ### [Development 2]
+            #### [Development 2]
             [1-2 sentences on impact]
 
             ## Outlook
