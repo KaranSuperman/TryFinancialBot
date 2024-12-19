@@ -536,7 +536,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Format your response as follows:
 
             ## Market Snapshot
-            [2-3 sentences on key market movements]
+            [2-3 sentences on key market movements in plain text]
 
             ## In Depth Knowledge:
             #### [Development 1]
