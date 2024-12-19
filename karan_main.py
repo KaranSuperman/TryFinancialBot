@@ -538,7 +538,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             ## Market Snapshot
             [2-3 sentences on key market movements]
 
-            ## Top Market Movers
+            ## In Depth Knowledge
             #### [Development 1]
             [1-2 sentences on impact]
 
