@@ -535,13 +535,13 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Response Guidelines:
 
             1. For general "today's news" or "what happened today" queries:
-            - Provide minimum 5 financial/economic news items
+            - Provide minimum 5 financial/corporate news news items
             - Focus on stock market updates, corporate announcements, economic indicators
             - Include key financial metrics and market impacts
             - Format as numbered points with 1-2 sentences per news item
 
             2. For "top 10 news" or similar queries:
-            - Filter ONLY financial/economic/corporate news
+            - Filter ONLY financial/corporate news
             - Prioritize market-moving news
             - Include stock prices, percentage changes, or financial impacts
             - Remove any non-financial news items
