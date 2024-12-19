@@ -539,10 +539,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             [2-3 sentences summarizing the overall market situation]
 
             ## Key Developments
-            ### [First Major Development Title]
+            #### [First Major Development Title]
             [2-3 sentences with details and implications]
 
-            ### [Second Major Development Title]
+            #### [Second Major Development Title]
             [2-3 sentences with details and implications]
 
             ## Market Implications
