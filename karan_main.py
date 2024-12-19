@@ -518,47 +518,42 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trend as well as global market, company performances, and economic indicators. Your goal is to provide comprehensive, engaging, and actionable financial insights in a clear, journalistic style.
+            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trend as well as global market, company performances, and economic indicators. Your goal is to provide concise, actionable financial insights focusing strictly on market-moving news and economic developments.
 
             Key Priorities:
-            - Deliver comprehensive market coverage
-            - Provide context and nuanced analysis
-            - Highlight key trends and potential implications
-            - Use clear, accessible language
-            - Balance factual reporting with strategic insights"""),
-            ("human", """Generate a comprehensive financial market briefing based on the following query and contextual information:
+            - Focus exclusively on financial markets, economic indicators, and corporate news
+            - Provide brief but impactful analysis
+            - Highlight only the most significant market-moving developments
+            - Use clear, concise language
+            - Limit response length for mobile readability"""),
+            ("human", """Generate a brief financial market update based on the following query and context:
 
             Query: {query}
 
             Available Financial Context:
             {context}
 
-            Please format your response using the following structure:
+            Format your response as follows:
 
-            ## Market Overview
-            [2-3 sentences summarizing the overall market situation]
+            ## Market Snapshot
+            [1-2 sentences on key market movements]
 
-            ## Key Developments
-            #### [First Major Development Title]
-            [2-3 sentences with details and implications]
+            ## Top Market Movers
+            ### [Development 1]
+            [1-2 sentences on impact]
 
-            #### [Second Major Development Title]
-            [2-3 sentences with details and implications]
-            .
-            .
-            .
-            .
-            as needed 
+            ### [Development 2]
+            [1-2 sentences on impact]
 
-            ## Market Implications
-            [2-3 sentences about broader market impact and potential future developments]
+            ## Outlook
+            [1-2 sentences on immediate market implications]
 
-            Notes:
-            - Use clear section headers with proper spacing
-            - Keep paragraphs concise and well-separated
-            - Include specific numbers and data points where relevant
-            - Maintain a professional tone throughout
-            - Use appropriate markdown formatting for headers and sections
+            Requirements:
+            - Limit to 2 key developments maximum
+            - Each section should be 50 words or less
+            - Include only financial/economic news
+            - Use specific numbers (indices, percentages) where relevant
+            - Total response should fit comfortably on a mobile screen
             """)
         ])
 
