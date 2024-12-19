@@ -535,17 +535,17 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
             Please format your response using the following structure:
 
-            # Market Overview
+            ## Market Overview
             [2-3 sentences summarizing the overall market situation]
 
-            # Key Developments
-            ## [First Major Development Title]
+            ## Key Developments
+            ### [First Major Development Title]
             [2-3 sentences with details and implications]
 
-            ## [Second Major Development Title]
+            ### [Second Major Development Title]
             [2-3 sentences with details and implications]
 
-            # Market Implications
+            ## Market Implications
             [2-3 sentences about broader market impact and potential future developments]
 
             Notes:
