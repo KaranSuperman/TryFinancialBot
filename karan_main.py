@@ -571,49 +571,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
 
-
-# def execute_research_query(question: str):
-#     try:
-#         # Get API keys
-#         exa_api_key = st.secrets.get("exa", {}).get("api_key") or os.getenv("EXA_API_KEY")
-#         gemini_api_key = st.secrets.get("gemini", {}).get("api_key") or os.getenv("GEMINI_API_KEY")
-
-#         # Validate API keys
-#         if not exa_api_key:
-#             return {"output_text": "Configuration error: Exa API key is not set"}
-        
-#         if not gemini_api_key:
-#             return {"output_text": "Configuration error: Gemini API key is not set"}
-
-#         # Execute chain with error handling
-#         try:
-#             chain = create_research_chain(exa_api_key, gemini_api_key)
-#             response = chain.invoke(question)
-            
-#             # Handle response
-#             if hasattr(response, 'content'):
-#                 return {"output_text": response.content}
-#             else:
-#                 return {"output_text": str(response)}
-            
-#         except Exception as e:
-#             error_msg = str(e)
-#             st.error(f"Chain execution error: {error_msg}")
-            
-#             # Extract detailed error information
-#             if hasattr(e, 'response'):
-#                 try:
-#                     error_details = e.response.json() if hasattr(e.response, 'json') else e.response.text
-#                     st.error(f"API Response details: {error_details}")
-#                 except:
-#                     st.error(f"Raw response: {e.response}")
-                    
-#             return {"output_text": f"Error during execution: {error_msg}"}
-
-#     except Exception as e:
-#         st.error(f"Critical error: {str(e)}")
-#         return {"output_text": f"An unexpected error occurred: {str(e)}"}
-        
+     
 
 def plot_stock_graph(symbol):
     try:
