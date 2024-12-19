@@ -460,11 +460,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,  # Increase number of documents
+            k=5,
             highlights=True,
-            start_published_date=start_date,  # Use ISO 8601 format
-            type="news",  # Specifically request news content
-        
+            start_published_date=start_date,
+            type="news",
         )
 
         # Ensure the API key is set in the headers
@@ -500,8 +499,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
-
-
         
         document_chain = (
             RunnablePassthrough() | 
@@ -519,7 +516,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Professional Financial News Prompt
+        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide comprehensive, engaging, and actionable financial insights in a clear, journalistic style.
 
@@ -536,19 +533,27 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Available Financial Context:
             {context}
 
-            Briefing Guidelines:
-            - Create a concise, informative summary of key financial developments
-            - Use a clear, engaging narrative structure
-            - Organize insights into distinct, digestible headlines
-            - Include:
-            * Precise financial details
-            * Context for each development
-            * Potential market implications
-            - Maintain a professional yet conversational tone
+            Please format your response using the following structure:
 
-            Output Format:
-            **Financial Market Briefing should ne only in plain text**
-            
+            # Market Overview
+            [2-3 sentences summarizing the overall market situation]
+
+            # Key Developments
+            ## [First Major Development Title]
+            [2-3 sentences with details and implications]
+
+            ## [Second Major Development Title]
+            [2-3 sentences with details and implications]
+
+            # Market Implications
+            [2-3 sentences about broader market impact and potential future developments]
+
+            Notes:
+            - Use clear section headers with proper spacing
+            - Keep paragraphs concise and well-separated
+            - Include specific numbers and data points where relevant
+            - Maintain a professional tone throughout
+            - Use appropriate markdown formatting for headers and sections
             """)
         ])
 
@@ -559,7 +564,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             }) 
             | generation_prompt 
             | llm
-
         )
         
         return chain
@@ -569,47 +573,47 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         raise
 
 
-def execute_research_query(question: str):
-    try:
-        # Get API keys
-        exa_api_key = st.secrets.get("exa", {}).get("api_key") or os.getenv("EXA_API_KEY")
-        gemini_api_key = st.secrets.get("gemini", {}).get("api_key") or os.getenv("GEMINI_API_KEY")
+# def execute_research_query(question: str):
+#     try:
+#         # Get API keys
+#         exa_api_key = st.secrets.get("exa", {}).get("api_key") or os.getenv("EXA_API_KEY")
+#         gemini_api_key = st.secrets.get("gemini", {}).get("api_key") or os.getenv("GEMINI_API_KEY")
 
-        # Validate API keys
-        if not exa_api_key:
-            return {"output_text": "Configuration error: Exa API key is not set"}
+#         # Validate API keys
+#         if not exa_api_key:
+#             return {"output_text": "Configuration error: Exa API key is not set"}
         
-        if not gemini_api_key:
-            return {"output_text": "Configuration error: Gemini API key is not set"}
+#         if not gemini_api_key:
+#             return {"output_text": "Configuration error: Gemini API key is not set"}
 
-        # Execute chain with error handling
-        try:
-            chain = create_research_chain(exa_api_key, gemini_api_key)
-            response = chain.invoke(question)
+#         # Execute chain with error handling
+#         try:
+#             chain = create_research_chain(exa_api_key, gemini_api_key)
+#             response = chain.invoke(question)
             
-            # Handle response
-            if hasattr(response, 'content'):
-                return {"output_text": response.content}
-            else:
-                return {"output_text": str(response)}
+#             # Handle response
+#             if hasattr(response, 'content'):
+#                 return {"output_text": response.content}
+#             else:
+#                 return {"output_text": str(response)}
             
-        except Exception as e:
-            error_msg = str(e)
-            st.error(f"Chain execution error: {error_msg}")
+#         except Exception as e:
+#             error_msg = str(e)
+#             st.error(f"Chain execution error: {error_msg}")
             
-            # Extract detailed error information
-            if hasattr(e, 'response'):
-                try:
-                    error_details = e.response.json() if hasattr(e.response, 'json') else e.response.text
-                    st.error(f"API Response details: {error_details}")
-                except:
-                    st.error(f"Raw response: {e.response}")
+#             # Extract detailed error information
+#             if hasattr(e, 'response'):
+#                 try:
+#                     error_details = e.response.json() if hasattr(e.response, 'json') else e.response.text
+#                     st.error(f"API Response details: {error_details}")
+#                 except:
+#                     st.error(f"Raw response: {e.response}")
                     
-            return {"output_text": f"Error during execution: {error_msg}"}
+#             return {"output_text": f"Error during execution: {error_msg}"}
 
-    except Exception as e:
-        st.error(f"Critical error: {str(e)}")
-        return {"output_text": f"An unexpected error occurred: {str(e)}"}
+#     except Exception as e:
+#         st.error(f"Critical error: {str(e)}")
+#         return {"output_text": f"An unexpected error occurred: {str(e)}"}
         
 
 def plot_stock_graph(symbol):
@@ -824,7 +828,8 @@ def user_input(user_question):
                 
                 # Extract and clean the content
                 if hasattr(response, 'content'):
-                    content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
+                    content = response.content.strip()
+                    # Preserve markdown formatting and line breaks
                     return {"output_text": content}
                 else:
                     return {"output_text": "No valid content received from the response."}
