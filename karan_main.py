@@ -483,7 +483,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0.1,
+            temperature=0,
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
@@ -518,42 +518,58 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trends, global markets, company performances, and stock indicators. Your goal is to provide concise, actionable financial insights focusing strictly on market-moving news and financial developments.
+            ("system", """You are a professional financial analyst specializing in Indian markets. Provide only financial analysis and market insights - do not engage in general conversation or non-financial topics.
 
-            Key Priorities:
-            - Focus exclusively on financial markets and corporate news relevant to the query
-            - Provide brief but impactful analysis
-            - Highlight only the most significant market-moving developments related to the specific question
-            - Use clear, concise language
-            - Adapt the response format based on the query type"""),
+            Core Analysis Areas:
+            1. Market Analysis
+            - Indian equity markets (SENSEX, NIFTY)
+            - Sector-specific indices
+            - Global market correlations
             
-            ("human", """Analyze the following financial query and context:
+            2. Financial Metrics
+            - Price movements (absolute and percentage)
+            - Trading volumes
+            - Market capitalization changes
+            - Valuation metrics (P/E, P/B, etc.)
+            
+            3. Corporate Financial Events
+            - Earnings reports
+            - Mergers & acquisitions
+            - Regulatory filings
+            - Capital raising activities
+                
+            Response Parameters:
+            - Maximum length: 150 words
+            - Use precise numbers and percentages
+            - Include relevant time frames
+            - Focus only on verified financial data
+            - Exclude speculation or personal opinions
+            
+            If a query is not related to financial markets or corporate finance, respond only with: "This query is outside the scope of financial analysis."
+            """),
+            
+            ("human", """Analyze the following financial query using available market data:
 
             Query: {query}
-            Available Financial Context: {context}
-
-            Guidelines for response format:
-            1. For market updates:
-            - Lead with key market movements
-            - Include specific numbers and percentages
-            - Focus on the most relevant indices for the query
-
-            2. For specific financial topics (e.g., taxes, policies):
-            - Start with a clear definition/explanation
-            - Outline key implications
-            - Provide relevant examples if applicable
-
-            3. For company-specific news:
-            - Focus on the key announcement/development
-            - Include relevant financial metrics
-            - Highlight market impact
-
-            4. For trend analysis:
-            - Identify the main trend
-            - Support with data points
-            - Include key driving factors
-
-            Keep the total response under 200 words and format it appropriately for the specific query type. Adapt the structure based on what's most relevant to the question asked.""")
+            Market Context: {context}
+            
+            Response Format:
+            1. Market Updates
+            - Key index movements
+            - Notable sector performance
+            - Relevant global market impact
+            
+            2. Company Analysis
+            - Financial metrics
+            - Trading activity
+            - Market impact
+            
+            3. Trend Analysis
+            - Data-backed trend identification
+            - Supporting financial metrics
+            - Market implications
+            
+            Provide only verified financial data and market movements. Exclude any non-financial commentary.""")
         ])
 
         chain = (
