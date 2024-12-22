@@ -309,64 +309,22 @@ def is_stock_query(user_question):
        - Examples:
          "What is Microsoft's current stock price?" → "True MSFT"
          "How much is Tesla trading for?" → "True TSLA"
-         "What is the price of google?" → "True GOOGL"
-         "What is price of cspx" → "True CSPX.L"
-         "csndx price" → "True CSNDX.SW"
 
     2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
        - Examples:
          "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
          "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
-         "What's the today news? → "News What is the today news?"
-         "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
 
-    3. IF the question is about Finance or tax related information, respond: "News [REPHRASED_QUERY]"
+    3. IF the question is about taxes, documentation, or Paasa's services, respond: "False NONE"
+       - Examples:
+         "How do I file taxes on US investments?" → "False NONE"
+         "What documents do I need for tax filing?" → "False NONE"
+         "What services does Paasa provide?" → "False NONE"
+
+    4. IF the question is about general finance news, respond: "News [REPHRASED_QUERY]"
        - Examples:
          "What is the market cap to gdp ratio of India?" → "News What is India's market capitalization-to-GDP ratio?"
-         "What is the tax I pay on debt ETF's overseas?" → "News How is taxation applied to overseas debt ETFs?"
-
-    4. Do not response on financial terms , respond: "False NONE"
-        - Example:
-        "What is PE ratio?"
-        "What is high risk portfolio?"
-
-
-    Important Stock Symbols:
-    - Microsoft = MSFT
-    - Apple = AAPL
-    - Tesla = TSLA
-    - Google = GOOGL
-    - Amazon = AMZN
-    - Meta = META
-    - Bitcoin = BTC-USD
-
-
-    COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
-    EXCHANGE SUFFIXES:
-    - US Exchanges:
-      * No suffix for NYSE/NASDAQ (AAPL, MSFT)
-    
-    NOTE: Append appropriate exchange suffix if needed
-    - International Exchanges:
-      - .L = London Stock Exchange (UK)
-      - .SW = SIX Swiss Exchange (Switzerland)
-      - .NS = National Stock Exchange (India)
-      - .BO = Bombay Stock Exchange (India)
-      - .JK = Indonesia Stock Exchange
-      - .SI = Singapore Exchange
-      - .HK = Hong Kong Stock Exchange
-      - .T = Tokyo Stock Exchange (Japan)
-      - .AX = Australian Securities Exchange
-      - .SA = São Paulo Stock Exchange (Brazil)
-      - .TO = Toronto Stock Exchange (Canada)
-      - .MX = Mexican Stock Exchange
-      - .KS = Korea Exchange
-      - .DE = Deutsche Börse (Germany)
-      - .PA = Euronext Paris
-      - .AS = Euronext Amsterdam
-      - .MI = Milan Stock Exchange (Italy)
-      - .MC = Madrid Stock Exchange (Spain)
-
+         "What happened to nifty50 down today?" → "News What happened to nifty50 down today?"
 
     Question: {user_question}'''
 
