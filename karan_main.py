@@ -525,34 +525,48 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Report ONLY market movements, stock updates, and financial news
             - Include numbers, percentages, and market data
             - Focus on SENSEX, NIFTY, stocks, commodities, and currencies
+            - Cite specific financial data sources (Bloomberg, Reuters, Financial Times, etc.)
             
             2. For general queries:
             - Convert them to financial context
-            - Example: "How is the weather?" → "Market sentiment today shows..."
-            - Example: "What's happening in sports?" → "Sports-related stocks and sponsorship deals show..."
+            - Example: "How is the weather?" → "Market sentiment today shows... [Source: MarketWatch]"
+            - Example: "What's happening in sports?" → "Sports-related stocks and sponsorship deals show... [Source: Yahoo Finance]"
             
             3. Always Include:
-            - Market numbers and percentages
-            - Trading volumes
-            - Financial implications
-            - Stock movements
-            - Company financial metrics
+            - Market numbers and percentages with source attribution
+            - Trading volumes with exchange data sources
+            - Financial implications backed by analyst reports
+            - Stock movements with real-time market data sources
+            - Company financial metrics from official filings
             
-            4. Never Include:
+            4. Source Requirements:
+            - Cite primary financial data sources (Bloomberg, Reuters, etc.)
+            - Reference specific market exchanges for data
+            - Include timestamps for market data when available
+            - Mention regulatory filings (SEC, etc.) when citing company data
+            - Attribution for analyst reports and market research
+            
+            5. Never Include:
             - Non-financial news
             - General current events
             - Social or political news unless it has direct market impact
             - Entertainment news unless it affects media stocks
             
             Required Financial Elements:
-            - Stock market updates
-            - Corporate financial news
-            - Banking and financial services news
-            - Economic indicators
-            - Market trends
-            - Investment-related developments
-            - Trading data
-            - Company earnings and metrics"""),
+            - Stock market updates (Source: Exchange Data)
+            - Corporate financial news (Source: Company Filings)
+            - Banking and financial services news (Source: Financial Media)
+            - Economic indicators (Source: Government Agencies)
+            - Market trends (Source: Market Analysis Firms)
+            - Investment-related developments (Source: Investment Banks)
+            - Trading data (Source: Market Exchanges)
+            - Company earnings and metrics (Source: Quarterly Reports)
+
+            Format for Source Citation:
+            - End each data point with [Source: Organization Name, Date if applicable]
+            - For multiple sources, separate with semicolons
+            - Include timestamps for real-time market data
+            - Specify "According to [Source]" for analyst predictions"""),
             
             ("human", "{query}")
         ])
