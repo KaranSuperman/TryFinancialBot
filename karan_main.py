@@ -483,7 +483,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0.1,
+            temperature=0,
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
@@ -521,32 +521,39 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trends, global markets, company performances, and stock indicators. Your goal is to provide concise, actionable financial insights focusing strictly on market-moving news and financial developments.
 
             Key Priorities:
-            - Focus EXCLUSIVELY on financial markets, stock movements, corporate earnings, banking news, economic indicators, and monetary policy
-            - By default, provide the 5 most significant FINANCIAL news items from the last 24 hours
-            - Each news item must include specific numbers (e.g., stock prices, percentage changes, market caps)
-            - Completely exclude non-financial news (like technology updates, politics, or general news unless they have direct market impact)
-            
-            Default response format:
-            1. Major index movements (Sensex, Nifty50)
-            2. Top corporate financial news (earnings, M&As, fundraising)
-            3. Banking and financial sector updates
-            4. Economic indicators and RBI updates
-            5. Global market impacts on Indian markets"""),
+            - Focus exclusively on financial markets and corporate news relevant to the query
+            - Provide brief but impactful analysis
+            - Highlight only the most significant market-moving developments related to the specific question
+            - Use clear, concise language
+            - Adapt the response format based on the query type"""),
             
             ("human", """Analyze the following financial query and context:
 
             Query: {query}
             Available Financial Context: {context}
 
-            If a specific query is provided, respond only with relevant financial information.
-            If no specific query is provided, return the 5 most important financial news items from the last 24 hours.
+            Guidelines for response format:
+            1. For market updates:
+            - Lead with key market movements
+            - Include specific numbers and percentages
+            - Focus on the most relevant indices for the query
 
-            Required format for each news item:
-            - Headline with specific numbers/percentages
-            - 1-2 lines explaining financial impact
-            - Mention of relevant stock symbols or indices affected
+            2. For specific financial topics (e.g., taxes, policies):
+            - Start with a clear definition/explanation
+            - Outline key implications
+            - Provide relevant examples if applicable
 
-            All responses must be purely financial in nature. Non-financial news should be completely excluded unless it has direct market impact (with specific numbers showing the impact).""")
+            3. For company-specific news:
+            - Focus on the key announcement/development
+            - Include relevant financial metrics
+            - Highlight market impact
+
+            4. For trend analysis:
+            - Identify the main trend
+            - Support with data points
+            - Include key driving factors
+
+            Keep the total response under 200 words and format it appropriately for the specific query type. Adapt the structure based on what's most relevant to the question asked.""")
         ])
 
         chain = (
@@ -727,7 +734,7 @@ def user_input(user_question):
         if result.startswith("True "):
             _, symbol = result.split(maxsplit=1)
             try:
-                # st.info("Using Stocks response")
+                st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
                     output_text = (
@@ -759,7 +766,7 @@ def user_input(user_question):
         # Handle stock news/analysis query
         elif result.startswith("News "):
             try:
-                # st.info("Exa logic")
+                st.info("Exa logic")
                 # Remove "News " prefix to get the original research query
                 research_query = result[5:]
                 
@@ -855,7 +862,7 @@ def user_input(user_question):
 
         # Process based on similarity scores
         if max_similarity < 0.65:
-            # st.info("Using LLM response after similarity check")
+            st.info("Using LLM response after similarity check")
             prompt1 = user_question + """\
             Don't response if the user_question is rather than financial terms.
             If other question ask response with 'Please tell only finance related queries' .
@@ -891,7 +898,7 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                # st.info("Using FAQ response")
+                st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                 
                 if best_faq.page_content in faq_dict:
@@ -920,7 +927,7 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                # st.info("Using PDF response")
+                st.info("Using PDF response")
                 prompt_template = """
                 Use only the information from the provided PDF context to answer the question precisely and concisely.
 
@@ -938,7 +945,7 @@ def user_input(user_question):
                 
                 # Check if we got a NO_PDF_ANSWER response
                 if "NO_PDF_ANSWER" in response["output_text"]:
-                    # st.info("Using LLM response after pdf fail")
+                    st.info("Using LLM response after pdf fail")
                     prompt1 = user_question + """\
                     Finance Term Query Guidelines:
                     1. Context: Finance domain
