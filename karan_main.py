@@ -407,44 +407,122 @@ def get_stock_price(symbol):
         return None, None, None, None, None, None
 
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
-    if not exa_api_key:
-        raise ValueError("Exa API key is missing")
-        
-    # Add debug logging
-    st.write("Debug: Creating research chain")
-    st.write(f"Debug: Using Exa key ending in ...{exa_api_key[-4:]}")
+    if not exa_api_key or not isinstance(exa_api_key, str):
+        raise ValueError("Valid Exa API key is required")
+    
+    exa_api_key = exa_api_key.strip()
     
     try:
-        # Initialize retriever with error handling
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
             highlights=True,
-            start_published_date=(datetime.now() - timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            start_published_date=start_date,
             type="news",
         )
 
-        # Verify retriever configuration
-        if not hasattr(retriever, 'client'):
-            raise ValueError("Retriever client not properly initialized")
+        # Ensure the API key is set in the headers
+        if hasattr(retriever, 'client'):
+            retriever.client.headers.update({
+                "x-api-key": exa_api_key,
+                "Content-Type": "application/json"
+            })
+        
+        # Verify Gemini API key
+        if not gemini_api_key or not isinstance(gemini_api_key, str):
+            raise ValueError("Valid Gemini API key is required")
 
-        # ... rest of chain creation code ...
+        # Configure Gemini
+        genai.configure(api_key=gemini_api_key)
+        
+        # Enhanced LLM Configuration
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-pro",
+            temperature=0,
+            google_api_key=gemini_api_key,
+            max_output_tokens=2048,
+            convert_system_message_to_human=True
+        )
+
+        # Detailed Document Template
+        document_template = """
+        <financial_news>
+            <headline>{title}</headline>
+            <date>{date}</date>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
+        </financial_news>
+        """
+        document_prompt = PromptTemplate.from_template(document_template)
+        
+        document_chain = (
+            RunnablePassthrough() | 
+            RunnableLambda(lambda doc: {
+                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "date": doc.metadata.get("published_date", "Today"),
+                "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "url": doc.metadata.get("url", "No source URL")
+            }) | document_prompt
+        )
+        
+        retrieval_chain = (
+            retriever | 
+            document_chain.map() | 
+            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+        )
+
+        # Improved Financial News Prompt with Better Formatting
+        generation_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trends, global markets, company performances, and stock indicators. Your goal is to provide concise, actionable financial insights focusing strictly on market-moving news and financial developments.
+
+            Key Priorities:
+            - Focus EXCLUSIVELY on financial markets, stock movements, corporate earnings, banking news, economic indicators, and monetary policy
+            - By default, provide the 5 most significant FINANCIAL news items from the last 24 hours
+            - Each news item must include specific numbers (e.g., stock prices, percentage changes, market caps)
+            - Completely exclude non-financial news (like technology updates, politics, or general news unless they have direct market impact)
+            
+            Default response format:
+            1. Major index movements (Sensex, Nifty50)
+            2. Top corporate financial news (earnings, M&As, fundraising)
+            3. Banking and financial sector updates
+            4. Economic indicators and RBI updates
+            5. Global market impacts on Indian markets"""),
+            
+            ("human", """Analyze the following financial query and context:
+
+            Query: {query}
+            Available Financial Context: {context}
+
+            If a specific query is provided, respond only with relevant financial information.
+            If no specific query is provided, return the 5 most important financial news items from the last 24 hours.
+
+            Required format for each news item:
+            - Headline with specific numbers/percentages
+            - 1-2 lines explaining financial impact
+            - Mention of relevant stock symbols or indices affected
+
+            All responses must be purely financial in nature. Non-financial news should be completely excluded unless it has direct market impact (with specific numbers showing the impact).""")
+        ])
+
+        chain = (
+            RunnableParallel({
+                "query": RunnablePassthrough(),  
+                "context": retrieval_chain,  
+            }) 
+            | generation_prompt 
+            | llm
+        )
+        
+        return chain
 
     except Exception as e:
-        st.error(f"Failed to create research chain: {str(e)}")
+        st.error(f"Error in create_research_chain: {str(e)}")
         raise
 
-def fallback_to_llm(user_question):
-    """Fallback function when Exa fails"""
-    st.info("Using LLM fallback response")
-    prompt = user_question + """ 
-    Please provide a response focused on financial news and market analysis.
-    Keep the response factual and avoid speculation.
-    """
-    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)(
-        [HumanMessage(content=prompt)]
-    )
-    return {"output_text": response.content}
+     
 
 def plot_stock_graph(symbol):
     try:
@@ -667,33 +745,81 @@ def user_input(user_question):
             else:
                 return {"output_text": best_faq.page_content}
 
-        # Check for stock queries first
+        # Only if both PDF and FAQ similarities are low, check for stock queries
         result = is_stock_query(user_question)
-        if result.startswith("News "):
-            st.info("Using Exa logic")
-            research_query = result[5:]  # Remove "News " prefix
-            
+        if result.startswith("True "):
+            # ... existing stock price logic ...
+            _, symbol = result.split(maxsplit=1)
             try:
-                # Create research chain with proper error handling
-                research_chain = create_research_chain(exa_api_key, gemini_api_key)
-                
-                # Execute the research query and handle the response properly
-                response = research_chain.invoke(research_query)
-                
-                # Handle different response types
-                if hasattr(response, 'content'):
-                    return {"output_text": response.content.strip()}
-                elif isinstance(response, str):
-                    return {"output_text": response.strip()}
-                else:
-                    st.error("Unexpected response format from research chain")
-                    return {"output_text": "Unable to process news request. Please try again."}
+                st.info("Using Stocks response")
+                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
+                if stock_price is not None:
+                    output_text = (
+                        f"**Stock Update for {symbol}**\n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        # f"{'📈' if change_direction == 'up' else '📉'} "
+                        # f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        # f"({percentage_change:+.2f}%) compared to the previous close!"
+                    )
                     
-            except Exception as e:
-                st.error(f"Error in Exa processing: {str(e)}")
-                # Fallback to LLM response
-                return fallback_to_llm(user_question)
+                    # Generate and return graph after text
+                    return {
+                        "output_text": output_text,
+                        "graph": plot_stock_graph(symbol),
+                        "display_order": ["text", "graph"]  # Optional: add explicit ordering
+                    }
 
+                else:
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
+            except Exception as e:
+                print(f"DEBUG: Stock price error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                }
+        elif result.startswith("News "):
+            st.info("Using Exa logic")
+            # ... existing Exa logic ...
+            # Remove "News " prefix to get the original research query
+            research_query = result[5:]
+            
+            # Retrieve API keys from Streamlit secrets or environment variables
+            exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+            gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+
+            if not exa_api_key or not gemini_api_key:
+                raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
+
+            # Create the research chain using the Gemini API key
+            research_chain = create_research_chain(exa_api_key, gemini_api_key)
+            
+            # Execute the research query
+            response = research_chain.invoke(research_query)
+            
+            # Extract and clean the content
+            if hasattr(response, 'content'):
+                content = response.content.strip()
+                # Preserve markdown formatting and line breaks
+                return {"output_text": content}
+            else:
+                return {"output_text": "No valid content received from the response."}
+        # else:
+            # ... existing LLM fallback logic ...
+            # st.info("Using LLM response")
+            #     prompt1 = user_question + """ In the context of Finance       
+            #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+            #         for example, 
+            #         - which are the best stocks to invest 
+            #         - which stock is worst
+            #         - Suggest me best stocks )"""
+    
+            #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+            #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
+
+
+        
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
         
