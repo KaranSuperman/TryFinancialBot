@@ -678,18 +678,81 @@ def user_input(user_question):
         # Initialize embeddings model
         embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
-        # Check if question is relevant to finance
-        # if not is_relevant(user_question, embeddings_model, threshold=0.5):
-        #     st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
-        #     return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
-
-        # Check for stock query
-
-        result = is_stock_query(user_question)
-        # st.write(f"DEBUG: Processed query - Result: {result}")
+        # First check PDF content
+        new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
+        mq_retriever = MultiQueryRetriever.from_llm(
+            retriever=new_db1.as_retriever(search_kwargs={'k': 5}),
+            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+        )
         
-        # Handle current stock price query
+        docs = mq_retriever.get_relevant_documents(query=user_question)
+        
+        # Compute similarity scores for PDF content
+        pdf_similarity_scores = []
+        for doc in docs:
+            doc_embedding = embeddings_model.embed_query(doc.page_content)
+            score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
+            pdf_similarity_scores.append(score)
+
+        max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
+
+        # If PDF similarity is high enough, use PDF response
+        if max_similarity_pdf >= 0.65:
+            st.info("Using PDF response")
+            prompt_template = """
+            Use the information from the provided PDF context to answer the question in detail.
+
+            Context:\n{context}
+
+            Question: {question}
+
+            Provide a comprehensive answer, including all relevant details and explanations. Ensure the response is clear and informative, using the factual information available in the document.
+            """
+            
+            prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+            chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+            return chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+
+        # If PDF similarity is low, check FAQ
+        new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
+        mq_retriever_faq = MultiQueryRetriever.from_llm(
+            retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
+            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+        )
+        
+        faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
+        
+        # Compute FAQ similarity scores
+        faq_similarity_scores = []
+        faq_with_scores = []
+        for faq in faqs:
+            faq_embedding = embeddings_model.embed_query(faq.page_content)
+            score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
+            faq_similarity_scores.append(score)
+            faq_with_scores.append((score, faq))
+
+        max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
+
+        # If FAQ similarity is high enough, use FAQ response
+        if max_similarity_faq >= 0.65:
+            st.info("Using FAQ response")
+            best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
+            
+            with open('./faq.json', 'r') as f:
+                faq_data = json.load(f)
+            faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
+            
+            if best_faq.page_content in faq_dict:
+                return {"output_text": faq_dict[best_faq.page_content]}
+            elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+                return {"output_text": best_faq.metadata['answer']}
+            else:
+                return {"output_text": best_faq.page_content}
+
+        # Only if both PDF and FAQ similarities are low, check for stock queries
+        result = is_stock_query(user_question)
         if result.startswith("True "):
+            # ... existing stock price logic ...
             _, symbol = result.split(maxsplit=1)
             try:
                 st.info("Using Stocks response")
@@ -720,53 +783,44 @@ def user_input(user_question):
                 return {
                     "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
                 }
-        
-        # Handle stock news/analysis query
         elif result.startswith("News "):
-            try:
-                st.info("Exa logic")
-                # Remove "News " prefix to get the original research query
-                research_query = result[5:]
-                
-                # Retrieve API keys from Streamlit secrets or environment variables
-                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+            st.info("Using Exa logic")
+            # ... existing Exa logic ...
+            # Remove "News " prefix to get the original research query
+            research_query = result[5:]
+            
+            # Retrieve API keys from Streamlit secrets or environment variables
+            exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+            gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
 
-                if not exa_api_key or not gemini_api_key:
-                    raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
+            if not exa_api_key or not gemini_api_key:
+                raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
 
-                # Create the research chain using the Gemini API key
-                research_chain = create_research_chain(exa_api_key, gemini_api_key)
-                
-                # Execute the research query
-                response = research_chain.invoke(research_query)
-                
-                # Extract and clean the content
-                if hasattr(response, 'content'):
-                    content = response.content.strip()
-                    # Preserve markdown formatting and line breaks
-                    return {"output_text": content}
-                else:
-                    return {"output_text": "No valid content received from the response."}
-
-            except Exception as e:
-                print(f"DEBUG: Research query error: {str(e)}")
-                return {
-                    "output_text": f"An error occurred while researching your query: {str(e)}"
-                }
-        
-        # Instead, use a more direct approach
+            # Create the research chain using the Gemini API key
+            research_chain = create_research_chain(exa_api_key, gemini_api_key)
+            
+            # Execute the research query
+            response = research_chain.invoke(research_query)
+            
+            # Extract and clean the content
+            if hasattr(response, 'content'):
+                content = response.content.strip()
+                # Preserve markdown formatting and line breaks
+                return {"output_text": content}
+            else:
+                return {"output_text": "No valid content received from the response."}
         # else:
+            # ... existing LLM fallback logic ...
             # st.info("Using LLM response")
-        #     prompt1 = user_question + """ In the context of Finance       
-        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
-        #         for example, 
-        #         - which are the best stocks to invest 
-        #         - which stock is worst
-        #         - Suggest me best stocks )"""
+            #     prompt1 = user_question + """ In the context of Finance       
+            #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+            #         for example, 
+            #         - which are the best stocks to invest 
+            #         - which stock is worst
+            #         - Suggest me best stocks )"""
     
-        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
+            #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+            #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
 
         
