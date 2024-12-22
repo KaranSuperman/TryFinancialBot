@@ -309,22 +309,64 @@ def is_stock_query(user_question):
        - Examples:
          "What is Microsoft's current stock price?" → "True MSFT"
          "How much is Tesla trading for?" → "True TSLA"
+         "What is the price of google?" → "True GOOGL"
+         "What is price of cspx" → "True CSPX.L"
+         "csndx price" → "True CSNDX.SW"
 
     2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
        - Examples:
          "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
          "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
+         "What's the today news? → "News What is the today news?"
+         "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
 
-    3. IF the question is about taxes, documentation, or Paasa's services, respond: "False NONE"
-       - Examples:
-         "How do I file taxes on US investments?" → "False NONE"
-         "What documents do I need for tax filing?" → "False NONE"
-         "What services does Paasa provide?" → "False NONE"
-
-    4. IF the question is about general finance news, respond: "News [REPHRASED_QUERY]"
+    3. IF the question is about Finance or tax related information, respond: "News [REPHRASED_QUERY]"
        - Examples:
          "What is the market cap to gdp ratio of India?" → "News What is India's market capitalization-to-GDP ratio?"
-         "What happened to nifty50 down today?" → "News What happened to nifty50 down today?"
+         "What is the tax I pay on debt ETF's overseas?" → "News How is taxation applied to overseas debt ETFs?"
+
+    4. Do not response on financial terms , respond: "False NONE"
+        - Example:
+        "What is PE ratio?"
+        "What is high risk portfolio?"
+
+
+    Important Stock Symbols:
+    - Microsoft = MSFT
+    - Apple = AAPL
+    - Tesla = TSLA
+    - Google = GOOGL
+    - Amazon = AMZN
+    - Meta = META
+    - Bitcoin = BTC-USD
+
+
+    COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
+    EXCHANGE SUFFIXES:
+    - US Exchanges:
+      * No suffix for NYSE/NASDAQ (AAPL, MSFT)
+    
+    NOTE: Append appropriate exchange suffix if needed
+    - International Exchanges:
+      - .L = London Stock Exchange (UK)
+      - .SW = SIX Swiss Exchange (Switzerland)
+      - .NS = National Stock Exchange (India)
+      - .BO = Bombay Stock Exchange (India)
+      - .JK = Indonesia Stock Exchange
+      - .SI = Singapore Exchange
+      - .HK = Hong Kong Stock Exchange
+      - .T = Tokyo Stock Exchange (Japan)
+      - .AX = Australian Securities Exchange
+      - .SA = São Paulo Stock Exchange (Brazil)
+      - .TO = Toronto Stock Exchange (Canada)
+      - .MX = Mexican Stock Exchange
+      - .KS = Korea Exchange
+      - .DE = Deutsche Börse (Germany)
+      - .PA = Euronext Paris
+      - .AS = Euronext Amsterdam
+      - .MI = Milan Stock Exchange (Italy)
+      - .MC = Madrid Stock Exchange (Spain)
+
 
     Question: {user_question}'''
 
@@ -441,7 +483,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0,
+            temperature=0.1,
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
@@ -670,88 +712,22 @@ def user_input(user_question):
 
         # Initialize embeddings model
         embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-        
-        # Generate embedding for the user question FIRST
-        question_embedding = embeddings_model.embed_query(user_question)
 
-        # First check PDF content
-        new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
-        mq_retriever = MultiQueryRetriever.from_llm(
-            retriever=new_db1.as_retriever(search_kwargs={'k': 5}),
-            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
-        )
-        
-        docs = mq_retriever.get_relevant_documents(query=user_question)
-        
-        # Compute similarity scores for PDF content
-        pdf_similarity_scores = []
-        for doc in docs:
-            doc_embedding = embeddings_model.embed_query(doc.page_content)
-            score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
-            pdf_similarity_scores.append(score)
+        # Check if question is relevant to finance
+        # if not is_relevant(user_question, embeddings_model, threshold=0.5):
+        #     st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
+        #     return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
 
-        max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
+        # Check for stock query
 
-        # If PDF similarity is high enough, use PDF response
-        if max_similarity_pdf >= 0.65:
-            st.info("Using PDF response")
-            prompt_template = """
-            Use the information from the provided PDF context to answer the question in detail.
-
-            Context:\n{context}
-
-            Question: {question}
-
-            Provide a comprehensive answer, including all relevant details and explanations. Ensure the response is clear and informative, using the factual information available in the document.
-            """
-            
-            prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-            chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-            return chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
-
-        # If PDF similarity is low, check FAQ
-        new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
-        mq_retriever_faq = MultiQueryRetriever.from_llm(
-            retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
-            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
-        )
-        
-        faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
-        
-        # Compute FAQ similarity scores
-        faq_similarity_scores = []
-        faq_with_scores = []
-        for faq in faqs:
-            faq_embedding = embeddings_model.embed_query(faq.page_content)
-            score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
-            faq_similarity_scores.append(score)
-            faq_with_scores.append((score, faq))
-
-        max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
-
-        # If FAQ similarity is high enough, use FAQ response
-        if max_similarity_faq >= 0.65:
-            st.info("Using FAQ response")
-            best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-            
-            with open('./faq.json', 'r') as f:
-                faq_data = json.load(f)
-            faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
-            
-            if best_faq.page_content in faq_dict:
-                return {"output_text": faq_dict[best_faq.page_content]}
-            elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
-                return {"output_text": best_faq.metadata['answer']}
-            else:
-                return {"output_text": best_faq.page_content}
-
-        # Only if both PDF and FAQ similarities are low, check for stock queries
         result = is_stock_query(user_question)
+        # st.write(f"DEBUG: Processed query - Result: {result}")
+        
+        # Handle current stock price query
         if result.startswith("True "):
-            # ... existing stock price logic ...
             _, symbol = result.split(maxsplit=1)
             try:
-                st.info("Using Stocks response")
+                # st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
                     output_text = (
@@ -779,44 +755,53 @@ def user_input(user_question):
                 return {
                     "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
                 }
+        
+        # Handle stock news/analysis query
         elif result.startswith("News "):
-            st.info("Using Exa logic")
-            # ... existing Exa logic ...
-            # Remove "News " prefix to get the original research query
-            research_query = result[5:]
-            
-            # Retrieve API keys from Streamlit secrets or environment variables
-            exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-            gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+            try:
+                # st.info("Exa logic")
+                # Remove "News " prefix to get the original research query
+                research_query = result[5:]
+                
+                # Retrieve API keys from Streamlit secrets or environment variables
+                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
 
-            if not exa_api_key or not gemini_api_key:
-                raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
+                if not exa_api_key or not gemini_api_key:
+                    raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
 
-            # Create the research chain using the Gemini API key
-            research_chain = create_research_chain(exa_api_key, gemini_api_key)
-            
-            # Execute the research query
-            response = research_chain.invoke(research_query)
-            
-            # Extract and clean the content
-            if hasattr(response, 'content'):
-                content = response.content.strip()
-                # Preserve markdown formatting and line breaks
-                return {"output_text": content}
-            else:
-                return {"output_text": "No valid content received from the response."}
+                # Create the research chain using the Gemini API key
+                research_chain = create_research_chain(exa_api_key, gemini_api_key)
+                
+                # Execute the research query
+                response = research_chain.invoke(research_query)
+                
+                # Extract and clean the content
+                if hasattr(response, 'content'):
+                    content = response.content.strip()
+                    # Preserve markdown formatting and line breaks
+                    return {"output_text": content}
+                else:
+                    return {"output_text": "No valid content received from the response."}
+
+            except Exception as e:
+                print(f"DEBUG: Research query error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while researching your query: {str(e)}"
+                }
+        
+        # Instead, use a more direct approach
         # else:
-            # ... existing LLM fallback logic ...
             # st.info("Using LLM response")
-            #     prompt1 = user_question + """ In the context of Finance       
-            #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
-            #         for example, 
-            #         - which are the best stocks to invest 
-            #         - which stock is worst
-            #         - Suggest me best stocks )"""
+        #     prompt1 = user_question + """ In the context of Finance       
+        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+        #         for example, 
+        #         - which are the best stocks to invest 
+        #         - which stock is worst
+        #         - Suggest me best stocks )"""
     
-            #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-            #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
+        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
 
         
@@ -827,7 +812,7 @@ def user_input(user_question):
         # Retrieve documents from FAISS for PDF content
         new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever = MultiQueryRetriever.from_llm(
-            retriever=new_db1.as_retriever(search_kwargs={'k': 5}),
+            retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
         
@@ -870,7 +855,7 @@ def user_input(user_question):
 
         # Process based on similarity scores
         if max_similarity < 0.65:
-            st.info("Using LLM response after similarity check")
+            # st.info("Using LLM response after similarity check")
             prompt1 = user_question + """\
             Don't response if the user_question is rather than financial terms.
             If other question ask response with 'Please tell only finance related queries' .
@@ -906,7 +891,7 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                st.info("Using FAQ response")
+                # st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                 
                 if best_faq.page_content in faq_dict:
@@ -935,15 +920,16 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                st.info("Using PDF response")
+                # st.info("Using PDF response")
                 prompt_template = """
-                Use the information from the provided PDF context to answer the question in detail.
+                Use only the information from the provided PDF context to answer the question precisely and concisely.
 
                 Context:\n{context}
 
                 Question: {question}
 
-                Provide a comprehensive answer, including all relevant details and explanations. Ensure the response is clear and informative, using the factual information available in the document. If the question cannot be answered from the PDF context, respond with: "NO_PDF_ANSWER"
+                Answer in a clear, direct manner, using only the factual information available in the document. Keep the response within 100 words.
+                If the question cannot be answered from the PDF context, respond with: "NO_PDF_ANSWER"
                 """
  
                 prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
@@ -952,7 +938,7 @@ def user_input(user_question):
                 
                 # Check if we got a NO_PDF_ANSWER response
                 if "NO_PDF_ANSWER" in response["output_text"]:
-                    st.info("Using LLM response after pdf fail")
+                    # st.info("Using LLM response after pdf fail")
                     prompt1 = user_question + """\
                     Finance Term Query Guidelines:
                     1. Context: Finance domain
