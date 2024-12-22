@@ -408,46 +408,21 @@ def get_stock_price(symbol):
 
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
-        st.error("Invalid Exa API key")
-        return None
+        raise ValueError("Valid Exa API key is required")
+    
+    exa_api_key = exa_api_key.strip()
     
     try:
-        # Add debug logging
-        st.write("DEBUG: Initializing research chain")
-        
         start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
-        
-        # Add debug logging for API key
-        st.write(f"DEBUG: Using Exa API key: {exa_api_key[:5]}...")  # Only show first 5 chars for security
-        
+
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
-            include_domains=[
-                "bloomberg.com",
-                "reuters.com/markets",
-                "ft.com/markets",
-                "wsj.com/market-data",
-                "cnbc.com/markets",
-                "marketwatch.com",
-                "investing.com",
-                "finance.yahoo.com"
-            ],
-            search_query_prefix="finance market stocks trading investment",
-            include_categories=["finance", "markets", "stocks", "investing", "trading"]
         )
-
-        # Test the retriever with a simple query
-        try:
-            st.write("DEBUG: Testing retriever...")
-            test_docs = retriever.get_relevant_documents("stock market today")
-            st.write(f"DEBUG: Retrieved {len(test_docs)} test documents")
-        except Exception as e:
-            st.error(f"Retriever test failed: {str(e)}")
-            raise
 
         # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
@@ -499,7 +474,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Updated Financial News Prompt with Stricter Guidelines
+        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a professional financial market analyst focused exclusively on market news, stock movements, and economic indicators. 
 
@@ -554,8 +529,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
-        st.error("Full error:", exc_info=True)
-        return None
+        raise
 
      
 
