@@ -681,26 +681,58 @@ def user_input(user_question):
         # Generate embedding for the user question FIRST
         question_embedding = embeddings_model.embed_query(user_question)
 
-        # First check PDF content
+        # Check both PDF and FAQ content first to compare similarities
+        # Get PDF similarity
         new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever = MultiQueryRetriever.from_llm(
             retriever=new_db1.as_retriever(search_kwargs={'k': 5}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
-        
         docs = mq_retriever.get_relevant_documents(query=user_question)
         
-        # Compute similarity scores for PDF content
+        # Compute PDF similarity scores
         pdf_similarity_scores = []
         for doc in docs:
             doc_embedding = embeddings_model.embed_query(doc.page_content)
             score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
             pdf_similarity_scores.append(score)
-
         max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
 
-        # If PDF similarity is high enough, use PDF response
-        if max_similarity_pdf >= 0.65:
+        # Get FAQ similarity
+        new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
+        mq_retriever_faq = MultiQueryRetriever.from_llm(
+            retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
+            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+        )
+        faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
+        
+        # Compute FAQ similarity scores
+        faq_similarity_scores = []
+        faq_with_scores = []
+        for faq in faqs:
+            faq_embedding = embeddings_model.embed_query(faq.page_content)
+            score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
+            faq_similarity_scores.append(score)
+            faq_with_scores.append((score, faq))
+        max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
+
+        # Compare similarities and choose the best source
+        if max_similarity_faq >= 0.65 and max_similarity_faq > max_similarity_pdf:
+            st.info("Using FAQ response")
+            best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
+            
+            with open('./faq.json', 'r') as f:
+                faq_data = json.load(f)
+            faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
+            
+            if best_faq.page_content in faq_dict:
+                return {"output_text": faq_dict[best_faq.page_content]}
+            elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+                return {"output_text": best_faq.metadata['answer']}
+            else:
+                return {"output_text": best_faq.page_content}
+        
+        elif max_similarity_pdf >= 0.65:
             st.info("Using PDF response")
             prompt_template = """
             Use the information from the provided PDF context to answer the question in detail.
@@ -716,43 +748,7 @@ def user_input(user_question):
             chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
             return chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
 
-        # If PDF similarity is low, check FAQ
-        new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
-        mq_retriever_faq = MultiQueryRetriever.from_llm(
-            retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
-            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
-        )
-        
-        faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
-        
-        # Compute FAQ similarity scores
-        faq_similarity_scores = []
-        faq_with_scores = []
-        for faq in faqs:
-            faq_embedding = embeddings_model.embed_query(faq.page_content)
-            score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
-            faq_similarity_scores.append(score)
-            faq_with_scores.append((score, faq))
-
-        max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
-
-        # If FAQ similarity is high enough, use FAQ response
-        if max_similarity_faq >= 0.65:
-            st.info("Using FAQ response")
-            best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-            
-            with open('./faq.json', 'r') as f:
-                faq_data = json.load(f)
-            faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
-            
-            if best_faq.page_content in faq_dict:
-                return {"output_text": faq_dict[best_faq.page_content]}
-            elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
-                return {"output_text": best_faq.metadata['answer']}
-            else:
-                return {"output_text": best_faq.page_content}
-
-        # Only if both PDF and FAQ similarities are low, check for stock queries
+        # If neither PDF nor FAQ have high similarity, proceed with other checks
         result = is_stock_query(user_question)
         if result.startswith("True "):
             # ... existing stock price logic ...
