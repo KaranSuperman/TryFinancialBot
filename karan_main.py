@@ -677,6 +677,9 @@ def user_input(user_question):
 
         # Initialize embeddings model
         embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        
+        # Generate embedding for the user question FIRST
+        question_embedding = embeddings_model.embed_query(user_question)
 
         # First check PDF content
         new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
