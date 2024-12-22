@@ -415,13 +415,32 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     try:
         start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
+        # Enhanced Retriever Configuration with stricter finance-specific filters
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
+            include_domains=[
+                "bloomberg.com",
+                "reuters.com/markets",
+                "ft.com/markets",
+                "wsj.com/market-data",
+                "cnbc.com/markets",
+                "marketwatch.com",
+                "investing.com",
+                "finance.yahoo.com",
+                "moneycontrol.com/markets",
+                "economictimes.indiatimes.com/markets",
+                "livemint.com/market",
+                "business-standard.com/markets",
+                "nseindia.com",
+                "bseindia.com"
+            ],
+            search_query_prefix="finance market stocks trading investment",
+            include_categories=["finance", "markets", "stocks", "investing", "trading"],
+            exclude_categories=["sports", "entertainment", "politics", "technology", "lifestyle", "general"]
         )
 
         # Ensure the API key is set in the headers
@@ -474,44 +493,46 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Updated Financial News Prompt with Stricter Guidelines
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trends, global markets, company performances, and stock indicators. Your goal is to provide concise, actionable financial insights focusing strictly on market-moving news and financial developments.
+            ("system", """You are a professional financial market analyst focused exclusively on market news, stock movements, and economic indicators. 
 
-            Key Priorities:
-            - Focus exclusively on financial markets and corporate news relevant to the query
-            - Provide brief but impactful analysis
-            - Highlight only the most significant market-moving developments related to the specific question
-            - Use clear, concise language
-            - Adapt the response format based on the query type"""),
+            STRICT RULES:
+            1. ONLY respond to queries about:
+               - Stock market movements
+               - Financial market trends
+               - Economic indicators
+               - Company financial performance
+               - Market indices
+               - Trading and investment data
+               
+            2. DO NOT respond to:
+               - General news
+               - Technology news (unless directly impacting market movements)
+               - Political news (unless directly affecting markets)
+               - Entertainment or social media news
+               
+            3. If the query or context is not strictly finance-related, respond with:
+               "Please provide a finance-related query about markets, stocks, or economic indicators."
+            """),
             
-            ("human", """Analyze the following financial query and context:
+            ("human", """Analyze this financial query and context:
 
             Query: {query}
-            Available Financial Context: {context}
+            Financial Context: {context}
 
-            Guidelines for response format:
-            1. For market updates:
-            - Lead with key market movements
-            - Include specific numbers and percentages
-            - Focus on the most relevant indices for the query
+            Response Guidelines:
+            1. Market Updates:
+               - Include specific market numbers/percentages
+               - Focus on financial indices and stock movements
+               - Highlight market-moving factors
 
-            2. For specific financial topics (e.g., taxes, policies):
-            - Start with a clear definition/explanation
-            - Outline key implications
-            - Provide relevant examples if applicable
+            2. Economic Data:
+               - Include relevant financial metrics
+               - Focus on market impact
+               - Provide context with market data
 
-            3. For company-specific news:
-            - Focus on the key announcement/development
-            - Include relevant financial metrics
-            - Highlight market impact
-
-            4. For trend analysis:
-            - Identify the main trend
-            - Support with data points
-            - Include key driving factors
-
-            Keep the total response under 200 words and format it appropriately for the specific query type. Adapt the structure based on what's most relevant to the question asked.""")
+            Keep response under 200 words and ONLY include finance-related information.""")
         ])
 
         chain = (
