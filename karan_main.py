@@ -408,14 +408,18 @@ def get_stock_price(symbol):
 
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
-        raise ValueError("Valid Exa API key is required")
-    
-    exa_api_key = exa_api_key.strip()
+        st.error("Invalid Exa API key")
+        return None
     
     try:
+        # Add debug logging
+        st.write("DEBUG: Initializing research chain")
+        
         start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
-
-        # Enhanced Retriever Configuration with stricter finance-specific filters
+        
+        # Add debug logging for API key
+        st.write(f"DEBUG: Using Exa API key: {exa_api_key[:5]}...")  # Only show first 5 chars for security
+        
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
@@ -430,18 +434,20 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "cnbc.com/markets",
                 "marketwatch.com",
                 "investing.com",
-                "finance.yahoo.com",
-                "moneycontrol.com/markets",
-                "economictimes.indiatimes.com/markets",
-                "livemint.com/market",
-                "business-standard.com/markets",
-                "nseindia.com",
-                "bseindia.com"
+                "finance.yahoo.com"
             ],
             search_query_prefix="finance market stocks trading investment",
-            include_categories=["finance", "markets", "stocks", "investing", "trading"],
-            exclude_categories=["sports", "entertainment", "politics", "technology", "lifestyle", "general"]
+            include_categories=["finance", "markets", "stocks", "investing", "trading"]
         )
+
+        # Test the retriever with a simple query
+        try:
+            st.write("DEBUG: Testing retriever...")
+            test_docs = retriever.get_relevant_documents("stock market today")
+            st.write(f"DEBUG: Retrieved {len(test_docs)} test documents")
+        except Exception as e:
+            st.error(f"Retriever test failed: {str(e)}")
+            raise
 
         # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
@@ -548,7 +554,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
-        raise
+        st.error("Full error:", exc_info=True)
+        return None
 
      
 
