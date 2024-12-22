@@ -483,7 +483,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0,
+            temperature=0.1,
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
@@ -518,57 +518,42 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a financial markets specialist. Transform ANY question into a financial context and provide ONLY finance-related information.
+            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trends, global markets, company performances, and stock indicators. Your goal is to provide concise, actionable financial insights focusing strictly on market-moving news and financial developments.
 
-            Response Rules:
-            1. For news queries: 
-            - Report ONLY market movements, stock updates, and financial news
-            - Include numbers, percentages, and market data
-            - Focus on SENSEX, NIFTY, stocks, commodities, and currencies
-            - Cite specific financial data sources (Bloomberg, Reuters, Financial Times, etc.)
+            Key Priorities:
+            - Focus exclusively on financial markets and corporate news relevant to the query
+            - Provide brief but impactful analysis
+            - Highlight only the most significant market-moving developments related to the specific question
+            - Use clear, concise language
+            - Adapt the response format based on the query type"""),
             
-            2. For general queries:
-            - Convert them to financial context
-            - Example: "How is the weather?" → "Market sentiment today shows... [Source: MarketWatch]"
-            - Example: "What's happening in sports?" → "Sports-related stocks and sponsorship deals show... [Source: Yahoo Finance]"
-            
-            3. Always Include:
-            - Market numbers and percentages with source attribution
-            - Trading volumes with exchange data sources
-            - Financial implications backed by analyst reports
-            - Stock movements with real-time market data sources
-            - Company financial metrics from official filings
-            
-            4. Source Requirements:
-            - Cite primary financial data sources (Bloomberg, Reuters, etc.)
-            - Reference specific market exchanges for data
-            - Include timestamps for market data when available
-            - Mention regulatory filings (SEC, etc.) when citing company data
-            - Attribution for analyst reports and market research
-            
-            5. Never Include:
-            - Non-financial news
-            - General current events
-            - Social or political news unless it has direct market impact
-            - Entertainment news unless it affects media stocks
-            
-            Required Financial Elements:
-            - Stock market updates (Source: Exchange Data)
-            - Corporate financial news (Source: Company Filings)
-            - Banking and financial services news (Source: Financial Media)
-            - Economic indicators (Source: Government Agencies)
-            - Market trends (Source: Market Analysis Firms)
-            - Investment-related developments (Source: Investment Banks)
-            - Trading data (Source: Market Exchanges)
-            - Company earnings and metrics (Source: Quarterly Reports)
+            ("human", """Analyze the following financial query and context:
 
-            Format for Source Citation:
-            - End each data point with [Source: Organization Name, Date if applicable]
-            - For multiple sources, separate with semicolons
-            - Include timestamps for real-time market data
-            - Specify "According to [Source]" for analyst predictions"""),
-            
-            ("human", "{query}")
+            Query: {query}
+            Available Financial Context: {context}
+
+            Guidelines for response format:
+            1. For market updates:
+            - Lead with key market movements
+            - Include specific numbers and percentages
+            - Focus on the most relevant indices for the query
+
+            2. For specific financial topics (e.g., taxes, policies):
+            - Start with a clear definition/explanation
+            - Outline key implications
+            - Provide relevant examples if applicable
+
+            3. For company-specific news:
+            - Focus on the key announcement/development
+            - Include relevant financial metrics
+            - Highlight market impact
+
+            4. For trend analysis:
+            - Identify the main trend
+            - Support with data points
+            - Include key driving factors
+
+            Keep the total response under 200 words and format it appropriately for the specific query type. Adapt the structure based on what's most relevant to the question asked.""")
         ])
 
         chain = (
@@ -735,14 +720,106 @@ def user_input(user_question):
         # Initialize embeddings model
         embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
+        # Check if question is relevant to finance
+        # if not is_relevant(user_question, embeddings_model, threshold=0.5):
+        #     st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
+        #     return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
+
+        # Check for stock query
+
+        result = is_stock_query(user_question)
+        # st.write(f"DEBUG: Processed query - Result: {result}")
+        
+        # Handle current stock price query
+        if result.startswith("True "):
+            _, symbol = result.split(maxsplit=1)
+            try:
+                st.info("Using Stocks response")
+                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
+                if stock_price is not None:
+                    output_text = (
+                        f"**Stock Update for {symbol}**\n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        # f"{'📈' if change_direction == 'up' else '📉'} "
+                        # f"The share price has {change_direction} by {currency_symbol}{abs(price_change):.2f} "
+                        # f"({percentage_change:+.2f}%) compared to the previous close!"
+                    )
+                    
+                    # Generate and return graph after text
+                    return {
+                        "output_text": output_text,
+                        "graph": plot_stock_graph(symbol),
+                        "display_order": ["text", "graph"]  # Optional: add explicit ordering
+                    }
+
+                else:
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
+            except Exception as e:
+                print(f"DEBUG: Stock price error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                }
+        
+        # Handle stock news/analysis query
+        elif result.startswith("News "):
+            try:
+                st.info("Exa logic")
+                # Remove "News " prefix to get the original research query
+                research_query = result[5:]
+                
+                # Retrieve API keys from Streamlit secrets or environment variables
+                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+
+                if not exa_api_key or not gemini_api_key:
+                    raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
+
+                # Create the research chain using the Gemini API key
+                research_chain = create_research_chain(exa_api_key, gemini_api_key)
+                
+                # Execute the research query
+                response = research_chain.invoke(research_query)
+                
+                # Extract and clean the content
+                if hasattr(response, 'content'):
+                    content = response.content.strip()
+                    # Preserve markdown formatting and line breaks
+                    return {"output_text": content}
+                else:
+                    return {"output_text": "No valid content received from the response."}
+
+            except Exception as e:
+                print(f"DEBUG: Research query error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while researching your query: {str(e)}"
+                }
+        
+        # Instead, use a more direct approach
+        # else:
+            # st.info("Using LLM response")
+        #     prompt1 = user_question + """ In the context of Finance       
+        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
+        #         for example, 
+        #         - which are the best stocks to invest 
+        #         - which stock is worst
+        #         - Suggest me best stocks )"""
+    
+        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
+
+
+        
         # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
-
+        
         # -----------------------------------------------------
         # Retrieve documents from FAISS for PDF content
         new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever = MultiQueryRetriever.from_llm(
-            retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
+            retriever=new_db1.as_retriever(search_kwargs={'k': 5}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
         
@@ -778,6 +855,40 @@ def user_input(user_question):
 
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
         
+        # ---------------------------------------------------------------------------
+        max_similarity = max(max_similarity_pdf, max_similarity_faq)
+
+        # -------------------------------------------------------------------------------------------
+
+        # Process based on similarity scores
+        if max_similarity < 0.65:
+            st.info("Using LLM response after similarity check")
+            prompt1 = user_question + """\
+            Don't response if the user_question is rather than financial terms.
+            If other question ask response with 'Please tell only finance related queries' .
+            Finance Term Query Guidelines:
+            1. Context: Finance domain
+            2. Response Requirements:
+            - Focus exclusively on defining finance-related terms
+            - Provide clear, concise explanations of financial terminology
+
+            Examples of Acceptable Queries:
+            - What is PE ratio?
+            - Define market capitalization
+            - Explain book value
+            - What does EBITDA mean?
+
+
+ 
+            Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
+            """
+    
+            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+            return {"output_text": response.content} if response else {"output_text": "No response generated."}
+
+        # -------------------------------------------------------------------------------------------
+
+
         # Handle FAQ and PDF responses
         try:
             with open('./faq.json', 'r') as f:
@@ -834,83 +945,30 @@ def user_input(user_question):
                 
                 # Check if we got a NO_PDF_ANSWER response
                 if "NO_PDF_ANSWER" in response["output_text"]:
-                    st.info("No relevant PDF or FAQ response found.")
-                    # Proceed to Exa news and stock logic
+                    st.info("Using LLM response after pdf fail")
+                    prompt1 = user_question + """\
+                    Finance Term Query Guidelines:
+                    1. Context: Finance domain
+                    2. Response Requirements:
+                    - Focus exclusively on defining finance-related terms
+                    - Provide clear, concise explanations of financial terminology
+                    - Avoid any specific investment advice
+                    - Keep responses factual and educational
 
-                    # Check for stock query
-                    result = is_stock_query(user_question)
-                    
-                    # Handle current stock price query
-                    if result.startswith("True "):
-                        _, symbol = result.split(maxsplit=1)
-                        try:
-                            st.info("Using Stocks response")
-                            stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-                            if stock_price is not None:
-                                output_text = (
-                                    f"**Stock Update for {symbol}**\n\n"
-                                    f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
-                                    f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                                )
-                                
-                                # Generate and return graph after text
-                                return {
-                                    "output_text": output_text,
-                                    "graph": plot_stock_graph(symbol),
-                                    "display_order": ["text", "graph"]  # Optional: add explicit ordering
-                                }
+                    Keep in mind do not provide any other information other than Finance domain.
 
-                            else:
-                                return {
-                                    "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
-                                }
-                        except Exception as e:
-                            print(f"DEBUG: Stock price error: {str(e)}")
-                            return {
-                                "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
-                            }
-                    
-                    # Handle stock news/analysis query
-                    elif result.startswith("News "):
-                        try:
-                            st.info("Exa logic")
-                            # Remove "News " prefix to get the original research query
-                            research_query = result[5:]
-                            
-                            # Retrieve API keys from Streamlit secrets or environment variables
-                            exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-                            gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+                    Note: Responses must be purely informative and educational about financial terms and up to date . Try to give response within 100 words with solid answer.\
+                    """
 
-                            if not exa_api_key or not gemini_api_key:
-                                raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
-
-                            # Create the research chain using the Gemini API key
-                            research_chain = create_research_chain(exa_api_key, gemini_api_key)
-                            
-                            # Execute the research query
-                            response = research_chain.invoke(research_query)
-                            
-                            # Extract and clean the content
-                            if hasattr(response, 'content'):
-                                content = response.content.strip()
-                                # Preserve markdown formatting and line breaks
-                                return {"output_text": content}
-                            else:
-                                return {"output_text": "No valid content received from the response."}
-
-                        except Exception as e:
-                            print(f"DEBUG: Research query error: {str(e)}")
-                            return {
-                                "output_text": f"An error occurred while researching your query: {str(e)}"
-                            }
-                    
-                    return {"output_text": "No relevant stock or news information found."}
-
+                    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+                    return {"output_text": response.content} if response else {"output_text": "No response generated."}
+                
                 return response
 
         except Exception as e:
             print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
             return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
+
 
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
