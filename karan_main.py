@@ -722,47 +722,43 @@ def user_input(user_question):
     try:
         MAX_INPUT_LENGTH = 500
 
-        # Check for input length
+        # Initial validation checks
         if len(user_question) > MAX_INPUT_LENGTH:
             st.error(f"Input is too long. Please limit your question to {MAX_INPUT_LENGTH} characters.")
             return {"output_text": f"Input exceeds the maximum length of {MAX_INPUT_LENGTH} characters."}
 
-        # Sanitize user input
         if not is_input_safe(user_question):
             st.error("Your input contains disallowed content. Please modify your question.")
             return {"output_text": "Input contains disallowed content."}
 
+        # First determine the type of query
+        result = is_stock_query(user_question)
+        
         # Initialize embeddings model
         embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-        
-        # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
         
-        # First check PDF content
+        # 1. Check PDF content
         new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever = MultiQueryRetriever.from_llm(
             retriever=new_db1.as_retriever(search_kwargs={'k': 5}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
-        
         docs = mq_retriever.get_relevant_documents(query=user_question)
         
-        # Compute similarity scores for PDF content
         pdf_similarity_scores = []
         for doc in docs:
             doc_embedding = embeddings_model.embed_query(doc.page_content)
             score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
             pdf_similarity_scores.append(score)
-
         max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
         
-        # Check FAQ content
+        # 2. Check FAQ content
         new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever_faq = MultiQueryRetriever.from_llm(
             retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
-        
         faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
         
         faq_similarity_scores = []
@@ -772,11 +768,10 @@ def user_input(user_question):
             score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
             faq_similarity_scores.append(score)
             faq_with_scores.append((score, faq))
-
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
-        
-        # Only use PDF/FAQ if we have a good match (similarity >= 0.85)
-        if max(max_similarity_pdf, max_similarity_faq) >= 0.85:
+
+        # If we have good matches in PDF or FAQ (similarity >= 0.65), use them
+        if max(max_similarity_pdf, max_similarity_faq) >= 0.65:
             try:
                 with open('./faq.json', 'r') as f:
                     faq_data = json.load(f)
@@ -829,31 +824,11 @@ def user_input(user_question):
 
             except Exception as e:
                 print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
-                # Fall through to other processing methods
+        
+        # If no good matches in PDF/FAQ, use alternative processing
         else:
-            # If no good matches in PDF/FAQ, check if it's a news/analysis query
-            result = is_stock_query(user_question)
-            
-            if result.startswith("News "):
-                st.info("Using Exa response")
-                research_query = result[5:]
-                
-                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
-
-                if not exa_api_key or not gemini_api_key:
-                    raise ValueError("API keys are missing")
-
-                research_chain = create_research_chain(exa_api_key, gemini_api_key)
-                response = research_chain.invoke(research_query)
-                
-                if hasattr(response, 'content'):
-                    return {"output_text": response.content.strip()}
-                else:
-                    return {"output_text": "No valid content received from the response."}
-            
-            # If it's a stock query
-            elif result.startswith("True "):
+            # Handle stock price queries
+            if result.startswith("True "):
                 st.info("Using Stocks response")
                 _, symbol = result.split(maxsplit=1)
                 try:
@@ -879,6 +854,24 @@ def user_input(user_question):
                     return {
                         "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
                     }
+            
+            # Handle news/analysis queries only if PDF/FAQ didn't have good matches
+            elif result.startswith("News "):
+                st.info("Using Exa response")
+                research_query = result[5:]
+                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+
+                if not exa_api_key or not gemini_api_key:
+                    raise ValueError("API keys are missing")
+
+                research_chain = create_research_chain(exa_api_key, gemini_api_key)
+                response = research_chain.invoke(research_query)
+                
+                if hasattr(response, 'content'):
+                    return {"output_text": response.content.strip()}
+                else:
+                    return {"output_text": "No valid content received from the response."}
             
             # Finally, fall back to LLM response
             else:
