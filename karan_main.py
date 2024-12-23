@@ -317,7 +317,7 @@ def is_stock_query(user_question):
        - Examples:
          "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
          "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
-         "What's the today news? → "News What is the today financial news?"
+         "What's the today news? → "News What is the today news?"
          "what happened today?"  → "News What happened today in indian and foreign market?"
          "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
 
