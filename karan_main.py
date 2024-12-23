@@ -788,13 +788,15 @@ def user_input(user_question):
                 doc_embedding = embeddings_model.embed_query(doc.page_content)
                 score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
                 pdf_similarity_scores.append(score)
-                st.debug(f"PDF Similarity score: {score}")  # Debug line
+                # Replace st.debug with st.write for debugging if needed
+                # st.write(f"PDF Similarity score: {score}")  # Optional debug line
         except Exception as e:
             st.error(f"Error calculating PDF similarity scores: {str(e)}")
             return {"output_text": "Error processing PDF content."}
 
         max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
-        st.debug(f"Max PDF similarity: {max_similarity_pdf}")  # Debug line
+        # Replace st.debug with st.write for debugging if needed
+        # st.write(f"Max PDF similarity: {max_similarity_pdf}")  # Optional debug line
 
         if max_similarity_pdf >= 0.65:
             st.info("Using PDF response")
