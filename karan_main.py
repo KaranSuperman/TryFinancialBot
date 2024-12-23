@@ -329,7 +329,7 @@ def is_stock_query(user_question):
          "What is the tax I pay on debt ETF's overseas?" → "News How is taxation applied to overseas debt ETFs?"
 
     4. Do not response on financial terms , respond: "False NONE"
-        - Example:
+        - Example: 
         "What is PE ratio?"
         "What is high risk portfolio?"
 
