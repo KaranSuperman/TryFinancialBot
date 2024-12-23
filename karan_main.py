@@ -456,16 +456,16 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Use a longer time window to get more comprehensive data
-        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Use a 3-day window for better news coverage
+        start_date = (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration with more specific parameters
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=10,  # Increased to get more context
+            k=10,
             highlights=True,
             start_published_date=start_date,
-            type="news"
+            type="news",
+            include_domains="moneycontrol.com,economictimes.indiatimes.com,financialexpress.com,livemint.com,business-standard.com,ndtv.com/business,bloomberg.com,reuters.com",
         )
 
         if hasattr(retriever, 'client'):
@@ -487,20 +487,19 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Enhanced document template with more structured data
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
             <source>{source}</source>
-            <key_data>
-                <numerical_values>{numerical_data}</numerical_values>
+            <content>
                 <key_points>{highlights}</key_points>
-            </key_data>
-            <verification>
+                <numerical_data>{numerical_data}</numerical_data>
+            </content>
+            <metadata>
                 <published_date>{published_date}</published_date>
                 <source_url>{url}</source_url>
-            </verification>
+            </metadata>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
@@ -511,8 +510,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "title": doc.metadata.get("title", ""),
                 "date": doc.metadata.get("published_date", ""),
                 "source": doc.metadata.get("source", ""),
-                "numerical_data": doc.metadata.get("numerical_data", ""),
                 "highlights": doc.metadata.get("highlights", ""),
+                "numerical_data": doc.metadata.get("numerical_data", ""),
                 "published_date": doc.metadata.get("published_date", ""),
                 "url": doc.metadata.get("url", "")
             }) | document_prompt
@@ -524,41 +523,56 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved prompt with strict accuracy requirements
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a highly precise financial analyst focusing on Indian markets and global financial impacts. Your primary responsibility is to provide accurate, verifiable financial information with specific numerical data.
+            ("system", """You are a precise financial analyst specializing in Indian markets and global financial impacts. Your role is to provide accurate financial updates while adapting to different query types.
 
-            Critical Requirements:
-            1. Accuracy Protocol:
-               - Only report news with specific numerical data and verifiable sources
-               - Include exact percentages, amounts, and dates
-               - If data seems outdated or unverifiable, exclude it
-               - For market movements, only report if source is within last 24 hours
-               - Respond with "No reliable current information available" if recent data cannot be verified
+            For general queries like "what happened today" or "latest news":
+            1. First check for major market updates (Sensex, Nifty, key stocks)
+            2. Look for significant economic data (GDP, inflation, fiscal numbers)
+            3. Include important corporate news with numerical data
+            4. Add relevant global market impacts
 
-            2. Priority Framework:
-               - Major economic indicators (GDP, inflation, fiscal data)
-               - Government financial policies and RBI actions
-               - Market-moving corporate developments
-               - Significant global financial impacts on Indian markets
+            Content Guidelines:
+            - Present information in bullet points with bold headlines
+            - Include specific numerical data whenever available
+            - Use "₹" symbol for Indian currency values
+            - Format dates consistently (DD Month YYYY)
+            - Include percentage changes and absolute values
+            - For market data, clearly state "as of [time] IST"
 
-            3. Data Verification:
-               - Cross-reference numerical data across sources
-               - Verify timestamps of market data
-               - Include specific values with "₹" symbol for Indian currency
-               - Use bullet points with bold headlines and specific numbers in the body"""),
+            Verification Framework:
+            - For market movements: Use most recent available data, stating the time
+            - For economic data: Use official sources within last 3 days
+            - For corporate news: Verify against multiple sources if possible
+            - If specific data point is unclear: Note it as "approximately" or exclude
+
+            Output Format:
+            * **Headline**: Key information with numerical data
+              - Supporting details with additional numbers
+              - Impact or implications if relevant"""),
             
-            ("human", """Analyze the following financial information:
+            ("human", """Process this financial information request:
 
             Query: {query}
             Context: {context}
 
-            Requirements:
-            - Each point must have specific numerical data
-            - Include source dates for verification
-            - Format as bulleted list with bold headlines
-            - Exclude any data older than 24 hours for market movements
-            - Maximum 6-8 key updates, prioritizing highest impact news""")
+            Guidelines:
+            1. For "today" or "latest news" queries:
+               - Include 6-8 most significant updates
+               - Prioritize items with specific numbers
+               - Include time stamps for market data
+               - Mix of market, economic, and corporate news
+
+            2. For specific queries:
+               - Focus on relevant numerical data
+               - Provide context if needed
+               - Include related market impact
+
+            3. Always maintain:
+               - Bullet point format
+               - Bold headlines
+               - Specific numbers
+               - Clear time references""")
         ])
 
         chain = (
