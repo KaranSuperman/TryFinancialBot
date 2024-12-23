@@ -819,7 +819,7 @@ def user_input(user_question):
         # Retrieve documents from FAISS for PDF content
         new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever = MultiQueryRetriever.from_llm(
-            retriever=new_db1.as_retriever(search_kwargs={'k': 3}),
+            retriever=new_db1.as_retriever(search_kwargs={'k': 5}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
         
@@ -929,14 +929,13 @@ def user_input(user_question):
             else:
                 st.info("Using PDF response")
                 prompt_template = """
-                Use only the information from the provided PDF context to answer the question precisely and concisely.
+                Use the information from the provided PDF context to answer the question in detail.
 
                 Context:\n{context}
 
                 Question: {question}
 
-                Answer in a clear, direct manner, using only the factual information available in the document. Keep the response within 100 words.
-                If the question cannot be answered from the PDF context, respond with: "NO_PDF_ANSWER"
+                Provide a comprehensive answer, including all relevant details and explanations. Ensure the response is clear and informative, using the factual information available in the document.
                 """
  
                 prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
