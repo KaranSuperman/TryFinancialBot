@@ -747,7 +747,7 @@ def user_input(user_question):
         if result.startswith("True "):
             _, symbol = result.split(maxsplit=1)
             try:
-                # st.info("Using Stocks response")
+                st.info("Using Stocks response")
                 stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
                 if stock_price is not None:
                     output_text = (
@@ -779,7 +779,7 @@ def user_input(user_question):
         # Handle stock news/analysis query
         elif result.startswith("News "):
             try:
-                # st.info("Exa logic")
+                st.info("Exa logic")
                 # Remove "News " prefix to get the original research query
                 research_query = result[5:]
                 
@@ -875,7 +875,7 @@ def user_input(user_question):
 
         # Process based on similarity scores
         if max_similarity < 0.65:
-            # st.info("Using LLM response after similarity check")
+            st.info("Using LLM response after similarity check")
             prompt1 = user_question + """\
             Don't response if the user_question is rather than financial terms.
             If other question ask response with 'Please tell only finance related queries' .
@@ -911,7 +911,7 @@ def user_input(user_question):
             faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
             if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                # st.info("Using FAQ response")
+                st.info("Using FAQ response")
                 best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                 
                 if best_faq.page_content in faq_dict:
@@ -940,7 +940,7 @@ def user_input(user_question):
                 else:
                     return {"output_text": best_faq.page_content}
             else:
-                # st.info("Using PDF response")
+                st.info("Using PDF response")
                 prompt_template = """
                 Use the information from the provided PDF context to answer the question in detail.
 
@@ -958,7 +958,7 @@ def user_input(user_question):
                 
                 # Check if we got a NO_PDF_ANSWER response
                 if "NO_PDF_ANSWER" in response["output_text"]:
-                    # st.info("Using LLM response after pdf fail")
+                    st.info("Using LLM response after pdf fail")
                     prompt1 = user_question + """\
                     Finance Term Query Guidelines:
                     1. Context: Finance domain
