@@ -720,25 +720,29 @@ def user_input(user_question):
     try:
         MAX_INPUT_LENGTH = 500
 
-        # Check for input length and safety first
+        # Check for input length
         if len(user_question) > MAX_INPUT_LENGTH:
             st.error(f"Input is too long. Please limit your question to {MAX_INPUT_LENGTH} characters.")
             return {"output_text": f"Input exceeds the maximum length of {MAX_INPUT_LENGTH} characters."}
 
+        # Sanitize user input
         if not is_input_safe(user_question):
             st.error("Your input contains disallowed content. Please modify your question.")
             return {"output_text": "Input contains disallowed content."}
 
         # Initialize embeddings model
         embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        
+        # Generate embedding for the user question
         question_embedding = embeddings_model.embed_query(user_question)
         
-        # 1. First check PDF content
+        # First check PDF content
         new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever = MultiQueryRetriever.from_llm(
             retriever=new_db1.as_retriever(search_kwargs={'k': 5}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
+        
         docs = mq_retriever.get_relevant_documents(query=user_question)
         
         # Compute similarity scores for PDF content
@@ -747,14 +751,16 @@ def user_input(user_question):
             doc_embedding = embeddings_model.embed_query(doc.page_content)
             score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
             pdf_similarity_scores.append(score)
+
         max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
         
-        # 2. Check FAQ content
+        # Check FAQ content
         new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever_faq = MultiQueryRetriever.from_llm(
             retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
+        
         faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
         
         faq_similarity_scores = []
@@ -764,6 +770,7 @@ def user_input(user_question):
             score = cosine_similarity([question_embedding], [faq_embedding])[0][0]
             faq_similarity_scores.append(score)
             faq_with_scores.append((score, faq))
+
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
         
         # If we have good matches in PDF or FAQ (similarity >= 0.65), use them
@@ -774,7 +781,7 @@ def user_input(user_question):
                 faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
                 # Use FAQ if it has higher similarity
-                if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
+                if max_similarity_faq >= max_similarity_pdf:
                     st.info("Using FAQ response")
                     best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                     
@@ -822,7 +829,7 @@ def user_input(user_question):
                 print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
                 # Fall through to other processing methods
         
-        # 3. If no good matches in PDF/FAQ, check if it's a stock query
+        # If no good matches in PDF/FAQ, check for stock queries
         result = is_stock_query(user_question)
         if result.startswith("True "):
             st.info("Using Stocks response")
@@ -851,26 +858,27 @@ def user_input(user_question):
                     "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
                 }
         
-        # 4. If it's a news query and no good PDF/FAQ matches, use Exa
+        # If it's a news query, use Exa
         elif result.startswith("News "):
             st.info("Using Exa response")
-            research_query = result[5:]  # Remove "News " prefix
+            research_query = result[5:]
             
             exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
             gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
 
             if not exa_api_key or not gemini_api_key:
-                raise ValueError("API keys are missing")
+                raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
 
             research_chain = create_research_chain(exa_api_key, gemini_api_key)
             response = research_chain.invoke(research_query)
             
             if hasattr(response, 'content'):
-                return {"output_text": response.content.strip()}
+                content = response.content.strip()
+                return {"output_text": content}
             else:
                 return {"output_text": "No valid content received from the response."}
         
-        # 5. Finally, fall back to LLM response
+        # Finally, fall back to LLM response
         else:
             st.info("Using LLM response")
             prompt1 = user_question + """\
