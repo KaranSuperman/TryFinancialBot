@@ -456,8 +456,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Use a shorter timeframe for more recent news
-        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Use a longer time window to get more comprehensive data
+        start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Enhanced Retriever Configuration with more specific parameters
         retriever = ExaSearchRetriever(
@@ -465,23 +465,9 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             k=10,  # Increased to get more context
             highlights=True,
             start_published_date=start_date,
-            type="news",
-            # Add specific news sources for better reliability
-            include_domains=[
-                "reuters.com",
-                "bloomberg.com",
-                "moneycontrol.com",
-                "economictimes.indiatimes.com",
-                "livemint.com",
-                "business-standard.com",
-                "nseindia.com",
-                "bseindia.com",
-                "rbi.org.in",
-                "yahoo.com"
-            ]
+            type="news"
         )
 
-        # Rest of the configuration remains same...
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
@@ -501,98 +487,85 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Enhanced document template with source verification
+        # Enhanced document template with more structured data
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
-            <key_insights>{highlights}</key_insights>
             <source>{source}</source>
-            <source_url>{url}</source_url>
-            <timestamp>{timestamp}</timestamp>
+            <key_data>
+                <numerical_values>{numerical_data}</numerical_values>
+                <key_points>{highlights}</key_points>
+            </key_data>
+            <verification>
+                <published_date>{published_date}</published_date>
+                <source_url>{url}</source_url>
+            </verification>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
-        # Enhanced document chain with timestamp validation
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
                 "title": doc.metadata.get("title", ""),
                 "date": doc.metadata.get("published_date", ""),
-                "highlights": doc.metadata.get("highlights", ""),
                 "source": doc.metadata.get("source", ""),
-                "url": doc.metadata.get("url", ""),
-                "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+                "numerical_data": doc.metadata.get("numerical_data", ""),
+                "highlights": doc.metadata.get("highlights", ""),
+                "published_date": doc.metadata.get("published_date", ""),
+                "url": doc.metadata.get("url", "")
             }) | document_prompt
         )
         
-        # Enhanced retrieval chain with data validation
-        def validate_and_format_news(docs):
-            valid_docs = []
-            for doc in docs:
-                # Skip if essential information is missing
-                if not all(key in str(doc) for key in ["headline", "date", "source"]):
-                    continue
-                valid_docs.append(str(doc))
-            
-            if not valid_docs:
-                return "No reliable financial information available at the moment."
-            
-            return "\n\n".join(valid_docs)
-
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
-            RunnableLambda(validate_and_format_news)
+            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Enhanced prompt with accuracy emphasis
+        # Improved prompt with strict accuracy requirements
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trends, global markets, company performances, and stock indicators. Your primary focus is on accuracy and reliability.
+            ("system", """You are a highly precise financial analyst focusing on Indian markets and global financial impacts. Your primary responsibility is to provide accurate, verifiable financial information with specific numerical data.
 
-            Key Requirements:
-            1. Only report information that includes specific sources and timestamps
-            2. For market data, only use figures from official exchanges (NSE, BSE)
-            3. For any information older than 24 hours, explicitly mention "No recent data available"
-            4. If market data is unavailable or unreliable, state "Current market data unavailable"
-            5. Always include sources for each piece of information
-            6. Round numbers to two decimal places for consistency
+            Critical Requirements:
+            1. Accuracy Protocol:
+               - Only report news with specific numerical data and verifiable sources
+               - Include exact percentages, amounts, and dates
+               - If data seems outdated or unverifiable, exclude it
+               - For market movements, only report if source is within last 24 hours
+               - Respond with "No reliable current information available" if recent data cannot be verified
 
-            Priority Order:
-            1. Indian market indices (only from NSE/BSE)
-            2. RBI and government announcements (only from official sources)
-            3. Major corporate news (from reliable financial news sources)
-            4. Global market impacts (from reputable international sources)"""),
+            2. Priority Framework:
+               - Major economic indicators (GDP, inflation, fiscal data)
+               - Government financial policies and RBI actions
+               - Market-moving corporate developments
+               - Significant global financial impacts on Indian markets
+
+            3. Data Verification:
+               - Cross-reference numerical data across sources
+               - Verify timestamps of market data
+               - Include specific values with "₹" symbol for Indian currency
+               - Use bullet points with bold headlines and specific numbers in the body"""),
             
             ("human", """Analyze the following financial information:
 
             Query: {query}
-            Available Financial Context: {context}
+            Context: {context}
 
-            Required Format:
-            1. Indian Markets Update:
-            - Specific index values with timestamps
-            - Source for each figure
-            - Percentage changes (if available)
-
-            2. Important Financial Developments:
-            - Only verified news with sources
-            - Timestamp for each development
-            - Official announcements only
-
-            3. Global Market Impact:
-            - Only include if directly affecting Indian markets
-            - Include specific figures and sources
-            - Mention timing of the information
-
-            If any section lacks reliable current data, state "No recent reliable data available" for that section.""")
+            Requirements:
+            - Each point must have specific numerical data
+            - Include source dates for verification
+            - Format as bulleted list with bold headlines
+            - Exclude any data older than 24 hours for market movements
+            - Return "No reliable current information available" if data cannot be verified
+            - Maximum 6-8 key updates, prioritizing highest impact news""")
         ])
 
         chain = (
             RunnableParallel({
-                "query": RunnablePassthrough(),  
-                "context": retrieval_chain,  
+                "query": RunnablePassthrough(),
+                "context": retrieval_chain,
             }) 
             | generation_prompt 
             | llm
