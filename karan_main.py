@@ -720,11 +720,12 @@ def user_input(user_question):
     try:
         MAX_INPUT_LENGTH = 500
 
-        # Initial input validation
+        # Check for input length
         if len(user_question) > MAX_INPUT_LENGTH:
             st.error(f"Input is too long. Please limit your question to {MAX_INPUT_LENGTH} characters.")
             return {"output_text": f"Input exceeds the maximum length of {MAX_INPUT_LENGTH} characters."}
 
+        # Sanitize user input
         if not is_input_safe(user_question):
             st.error("Your input contains disallowed content. Please modify your question.")
             return {"output_text": "Input contains disallowed content."}
@@ -753,7 +754,7 @@ def user_input(user_question):
 
         max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
         
-        # Then check FAQ content
+        # Check FAQ content
         new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever_faq = MultiQueryRetriever.from_llm(
             retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
@@ -772,37 +773,53 @@ def user_input(user_question):
 
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
         
-        # If we have good matches in PDF or FAQ, use them
-        if max_similarity_pdf >= 0.65 or max_similarity_faq >= 0.65:
+        # If we have good matches in PDF or FAQ (similarity >= 0.65), use them
+        if max(max_similarity_pdf, max_similarity_faq) >= 0.65:
             try:
                 with open('./faq.json', 'r') as f:
                     faq_data = json.load(f)
                 faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
+                # Use FAQ if it has higher similarity
                 if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
                     st.info("Using FAQ response")
                     best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-                    # ... rest of FAQ processing ...
+                    
                     if best_faq.page_content in faq_dict:
                         answer = faq_dict[best_faq.page_content]
                         prompt_template = """
                         Question: {question}
+
                         The provided answer is:
                         {answer}
+
                         Based on this information, let me response within 100 words:
+
                         {context}
-                        Please let me know if you have any other questions about Paasa or its services.
+
+                        Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
                         """
                         prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
                         chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                        return chain({"input_documents": docs, "question": user_question, "answer": answer, "context": "Paasa context..."}, return_only_outputs=True)
+                        response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
+                        Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
+                        """}, return_only_outputs=True)
+                        return response
+                    elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+                        return {"output_text": best_faq.metadata['answer']}
+                    else:
+                        return {"output_text": best_faq.page_content}
                 else:
+                    # Use PDF response
                     st.info("Using PDF response")
                     prompt_template = """
                     Use the information from the provided PDF context to answer the question in detail.
+
                     Context:\n{context}
+
                     Question: {question}
-                    Provide a comprehensive answer within 100 words.
+
+                    Provide a comprehensive answer, including all relevant details and explanations. Ensure the response is clear and informative, using the factual information available in the document.
                     """
                     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
                     chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
@@ -817,23 +834,73 @@ def user_input(user_question):
         if result.startswith("True "):
             st.info("Using Stocks response")
             _, symbol = result.split(maxsplit=1)
-            # ... rest of stock price processing ...
-            return get_stock_price_response(symbol)
-            
+            try:
+                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
+                if stock_price is not None:
+                    output_text = (
+                        f"**Stock Update for {symbol}**\n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                    )
+                    
+                    return {
+                        "output_text": output_text,
+                        "graph": plot_stock_graph(symbol),
+                        "display_order": ["text", "graph"]
+                    }
+                else:
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
+            except Exception as e:
+                print(f"DEBUG: Stock price error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                }
+        
+        # If it's a news query, use Exa
         elif result.startswith("News "):
             st.info("Using Exa response")
             research_query = result[5:]
-            # ... rest of news processing ...
-            return process_news_query(research_query)
             
+            exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+            gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+
+            if not exa_api_key or not gemini_api_key:
+                raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
+
+            research_chain = create_research_chain(exa_api_key, gemini_api_key)
+            response = research_chain.invoke(research_query)
+            
+            if hasattr(response, 'content'):
+                content = response.content.strip()
+                return {"output_text": content}
+            else:
+                return {"output_text": "No valid content received from the response."}
+        
+        # Finally, fall back to LLM response
         else:
             st.info("Using LLM response")
-            prompt1 = user_question + """ Finance Term Query Guidelines... """
+            prompt1 = user_question + """\
+            Don't response if the user_question is rather than financial terms.
+            If other question ask response with 'Please tell only finance related queries' .
+            Finance Term Query Guidelines:
+            1. Context: Finance domain
+            2. Response Requirements:
+            - Focus exclusively on defining finance-related terms
+            - Provide clear, concise explanations of financial terminology
+
+            Examples of Acceptable Queries:
+            - What is PE ratio?
+            - Define market capitalization
+            - Explain book value
+            - What does EBITDA mean?
+
+            Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
+            """
             response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
             return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
         return {"output_text": "An error occurred while processing your request. Please try again."}
-
-
