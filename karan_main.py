@@ -759,23 +759,60 @@ def user_input(user_question):
 
         # Check PDF and FAQ sources first
         # Retrieve documents from FAISS for PDF content
-        new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
-        mq_retriever = MultiQueryRetriever.from_llm(
-            retriever=new_db1.as_retriever(search_kwargs={'k': 5}),
-            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
-        )
+        st.info("Checking PDF sources...")
         
-        docs = mq_retriever.get_relevant_documents(query=user_question)
+        try:
+            new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
+        except Exception as e:
+            st.error(f"Error loading PDF index: {str(e)}")
+            return {"output_text": "Error loading PDF database. Please ensure the index exists."}
         
-        # Compute similarity scores for PDF content
+        try:
+            mq_retriever = MultiQueryRetriever.from_llm(
+                retriever=new_db1.as_retriever(search_kwargs={'k': 5}),
+                llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+            )
+            
+            docs = mq_retriever.get_relevant_documents(query=user_question)
+            
+            if not docs:
+                st.warning("No relevant PDF documents found")
+        except Exception as e:
+            st.error(f"Error retrieving PDF documents: {str(e)}")
+            return {"output_text": "Error retrieving documents from PDF database."}
+
+        # Process PDF results
         pdf_similarity_scores = []
-        for doc in docs:
-            doc_embedding = embeddings_model.embed_query(doc.page_content)
-            score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
-            pdf_similarity_scores.append(score)
+        try:
+            for doc in docs:
+                doc_embedding = embeddings_model.embed_query(doc.page_content)
+                score = cosine_similarity([question_embedding], [doc_embedding])[0][0]
+                pdf_similarity_scores.append(score)
+                st.debug(f"PDF Similarity score: {score}")  # Debug line
+        except Exception as e:
+            st.error(f"Error calculating PDF similarity scores: {str(e)}")
+            return {"output_text": "Error processing PDF content."}
 
         max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
-        
+        st.debug(f"Max PDF similarity: {max_similarity_pdf}")  # Debug line
+
+        if max_similarity_pdf >= 0.65:
+            st.info("Using PDF response")
+            prompt_template = """
+            Use the information from the provided PDF context to answer the question in detail.
+
+            Context:\n{context}
+
+            Question: {question}
+
+            Provide a comprehensive answer, including all relevant details and explanations. Ensure the response is clear and informative, using the factual information available in the document.
+            """
+
+            prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+            chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+            response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+            return response
+
         # Retrieve FAQs from FAISS
         new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever_faq = MultiQueryRetriever.from_llm(
