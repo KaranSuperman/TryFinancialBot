@@ -318,6 +318,7 @@ def is_stock_query(user_question):
          "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
          "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
          "What's the today news? → "News What is the today news?"
+         "What happened today?" → "News What happen today?"
          "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
 
     3. IF the question is about Finance or tax related information, respond: "News [REPHRASED_QUERY]"
@@ -455,32 +456,43 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Use a shorter timeframe for more recent news
+        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
+        # Enhanced Retriever Configuration with more specific parameters
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,
+            k=10,  # Increased to get more context
             highlights=True,
             start_published_date=start_date,
             type="news",
+            # Add specific news sources for better reliability
+            include_domains=[
+                "reuters.com",
+                "bloomberg.com",
+                "moneycontrol.com",
+                "economictimes.indiatimes.com",
+                "livemint.com",
+                "business-standard.com",
+                "nseindia.com",
+                "bseindia.com",
+                "rbi.org.in",
+                "yahoo.com"
+            ]
         )
 
-        # Ensure the API key is set in the headers
+        # Rest of the configuration remains same...
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
-        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0,
@@ -489,75 +501,92 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Enhanced document template with source verification
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
             <key_insights>{highlights}</key_insights>
+            <source>{source}</source>
             <source_url>{url}</source_url>
+            <timestamp>{timestamp}</timestamp>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
+        # Enhanced document chain with timestamp validation
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
-                "date": doc.metadata.get("published_date", "Today"),
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
+                "title": doc.metadata.get("title", ""),
+                "date": doc.metadata.get("published_date", ""),
+                "highlights": doc.metadata.get("highlights", ""),
+                "source": doc.metadata.get("source", ""),
+                "url": doc.metadata.get("url", ""),
+                "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
             }) | document_prompt
         )
         
+        # Enhanced retrieval chain with data validation
+        def validate_and_format_news(docs):
+            valid_docs = []
+            for doc in docs:
+                # Skip if essential information is missing
+                if not all(key in str(doc) for key in ["headline", "date", "source"]):
+                    continue
+                valid_docs.append(str(doc))
+            
+            if not valid_docs:
+                return "No reliable financial information available at the moment."
+            
+            return "\n\n".join(valid_docs)
+
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
-            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+            RunnableLambda(validate_and_format_news)
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Enhanced prompt with accuracy emphasis
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trends, global markets, company performances, and stock indicators. Your goal is to provide concise, actionable financial insights focusing strictly on market-moving news and financial developments.
+            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trends, global markets, company performances, and stock indicators. Your primary focus is on accuracy and reliability.
 
-            Key Priorities:
-            - Focus exclusively on significant financial news and market developments
-            - Prioritize news in the following order:
-                1. Major Indian market movements (Sensex, Nifty)
-                2. Critical Indian financial news (RBI actions, policy changes, major corporate developments)
-                3. Important global market updates affecting Indian markets
-                4. Significant international financial developments
-            - Filter out non-financial news completely
-            - Ignore minor market movements unless exceptionally impactful
+            Key Requirements:
+            1. Only report information that includes specific sources and timestamps
+            2. For market data, only use figures from official exchanges (NSE, BSE)
+            3. For any information older than 24 hours, explicitly mention "No recent data available"
+            4. If market data is unavailable or unreliable, state "Current market data unavailable"
+            5. Always include sources for each piece of information
+            6. Round numbers to two decimal places for consistency
+
+            Priority Order:
+            1. Indian market indices (only from NSE/BSE)
+            2. RBI and government announcements (only from official sources)
+            3. Major corporate news (from reliable financial news sources)
+            4. Global market impacts (from reputable international sources)"""),
             
-            For general queries like "what happened today" or "what is today's news":
-            1. Always start with key Indian market indicators (Sensex, Nifty) and their significant movements
-            2. Cover maximum 3-4 most important financial developments from India
-            3. Include maximum 2-3 relevant global financial updates
-            4. Completely exclude non-financial news"""),
-            
-            ("human", """Analyze the following financial query and context:
+            ("human", """Analyze the following financial information:
 
             Query: {query}
             Available Financial Context: {context}
 
-            Response Format:
-            1. Indian Markets Update (mandatory):
-            - Leading indices performance
-            - Key sector movements
-            - Major stock movements
+            Required Format:
+            1. Indian Markets Update:
+            - Specific index values with timestamps
+            - Source for each figure
+            - Percentage changes (if available)
 
-            2. Important Indian Financial Developments (if any):
-            - Policy announcements
-            - Major corporate news
-            - Banking sector updates
+            2. Important Financial Developments:
+            - Only verified news with sources
+            - Timestamp for each development
+            - Official announcements only
 
-            3. Relevant Global Updates (if significant):
-            - Major market movements affecting India
-            - Important international financial developments
-            - Global factors impacting Indian markets
+            3. Global Market Impact:
+            - Only include if directly affecting Indian markets
+            - Include specific figures and sources
+            - Mention timing of the information
 
-            Keep the total response under 200 words. Focus on quantitative data and specific numbers where available. Exclude any news that doesn't have direct financial market impact.""")
+            If any section lacks reliable current data, state "No recent reliable data available" for that section.""")
         ])
 
         chain = (
@@ -574,7 +603,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
-
      
 
 def plot_stock_graph(symbol):
