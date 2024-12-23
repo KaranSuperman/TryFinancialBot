@@ -719,18 +719,12 @@ def user_input(user_question):
 
         # Initialize embeddings model
         embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-
-        # Check if question is relevant to finance
-        # if not is_relevant(user_question, embeddings_model, threshold=0.5):
-        #     st.error("Your question is not relevant to Paasa or finance. Please ask a finance-related question.")
-        #     return {"output_text": "Your question is not relevant to Paasa or finance. Please ask a finance-related question."}
-
-        # Check for stock query
-
-        result = is_stock_query(user_question)
-        # st.write(f"DEBUG: Processed query - Result: {result}")
         
-        # Handle current stock price query
+        # Generate embedding for the user question
+        question_embedding = embeddings_model.embed_query(user_question)
+
+        # First check if it's a stock query
+        result = is_stock_query(user_question)
         if result.startswith("True "):
             _, symbol = result.split(maxsplit=1)
             try:
@@ -750,7 +744,7 @@ def user_input(user_question):
                     return {
                         "output_text": output_text,
                         "graph": plot_stock_graph(symbol),
-                        "display_order": ["text", "graph"]  # Optional: add explicit ordering
+                        "display_order": ["text", "graph"]
                     }
 
                 else:
@@ -762,60 +756,8 @@ def user_input(user_question):
                 return {
                     "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
                 }
-        
-        # Handle stock news/analysis query
-        elif result.startswith("News "):
-            try:
-                st.info("Exa logic")
-                # Remove "News " prefix to get the original research query
-                research_query = result[5:]
-                
-                # Retrieve API keys from Streamlit secrets or environment variables
-                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
 
-                if not exa_api_key or not gemini_api_key:
-                    raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
-
-                # Create the research chain using the Gemini API key
-                research_chain = create_research_chain(exa_api_key, gemini_api_key)
-                
-                # Execute the research query
-                response = research_chain.invoke(research_query)
-                
-                # Extract and clean the content
-                if hasattr(response, 'content'):
-                    content = response.content.strip()
-                    # Preserve markdown formatting and line breaks
-                    return {"output_text": content}
-                else:
-                    return {"output_text": "No valid content received from the response."}
-
-            except Exception as e:
-                print(f"DEBUG: Research query error: {str(e)}")
-                return {
-                    "output_text": f"An error occurred while researching your query: {str(e)}"
-                }
-        
-        # Instead, use a more direct approach
-        # else:
-            # st.info("Using LLM response")
-        #     prompt1 = user_question + """ In the context of Finance       
-        #     (STRICT NOTE: DO NOT PROVIDE ANY ADVISORY REGARDS ANY PARTICULAR STOCKS AND MUTUAL FUNDS
-        #         for example, 
-        #         - which are the best stocks to invest 
-        #         - which stock is worst
-        #         - Suggest me best stocks )"""
-    
-        #     response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-        #     return {"output_text": response.content} if response else {"output_text": "No response generated."}
-
-
-        
-        # Generate embedding for the user question
-        question_embedding = embeddings_model.embed_query(user_question)
-        
-        # -----------------------------------------------------
+        # Check PDF and FAQ sources first
         # Retrieve documents from FAISS for PDF content
         new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever = MultiQueryRetriever.from_llm(
@@ -834,7 +776,6 @@ def user_input(user_question):
 
         max_similarity_pdf = max(pdf_similarity_scores) if pdf_similarity_scores else 0
         
-        # ----------------------------------------------------------
         # Retrieve FAQs from FAISS
         new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever_faq = MultiQueryRetriever.from_llm(
@@ -844,7 +785,7 @@ def user_input(user_question):
         
         faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
         
-        # Compute similarity scores for FAQ content and store with their metadata
+        # Compute similarity scores for FAQ content
         faq_similarity_scores = []
         faq_with_scores = []
         for faq in faqs:
@@ -854,120 +795,109 @@ def user_input(user_question):
             faq_with_scores.append((score, faq))
 
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
-        
-        # ---------------------------------------------------------------------------
         max_similarity = max(max_similarity_pdf, max_similarity_faq)
 
-        # -------------------------------------------------------------------------------------------
+        # If we have a good match from PDF or FAQ (similarity >= 0.65), use it
+        if max_similarity >= 0.65:
+            try:
+                with open('./faq.json', 'r') as f:
+                    faq_data = json.load(f)
+                faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
-        # Process based on similarity scores
-        if max_similarity < 0.65:
-            st.info("Using LLM response after similarity check")
-            prompt1 = user_question + """\
-            Don't response if the user_question is rather than financial terms.
-            If other question ask response with 'Please tell only finance related queries' .
-            Finance Term Query Guidelines:
-            1. Context: Finance domain
-            2. Response Requirements:
-            - Focus exclusively on defining finance-related terms
-            - Provide clear, concise explanations of financial terminology
+                if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
+                    st.info("Using FAQ response")
+                    best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
+                    
+                    if best_faq.page_content in faq_dict:
+                        answer = faq_dict[best_faq.page_content]
+                        prompt_template = """
+                        Question: {question}
 
-            Examples of Acceptable Queries:
-            - What is PE ratio?
-            - Define market capitalization
-            - Explain book value
-            - What does EBITDA mean?
+                        The provided answer is:
+                        {answer}
 
+                        Based on this information, let me response within 100 words:
 
- 
-            Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
-            """
-    
-            response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-            return {"output_text": response.content} if response else {"output_text": "No response generated."}
+                        {context}
 
-        # -------------------------------------------------------------------------------------------
-
-
-        # Handle FAQ and PDF responses
-        try:
-            with open('./faq.json', 'r') as f:
-                faq_data = json.load(f)
-
-            # Create a dictionary to map questions to answers
-            faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
-
-            if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
-                st.info("Using FAQ response")
-                best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
-                
-                if best_faq.page_content in faq_dict:
-                    answer = faq_dict[best_faq.page_content]
+                        Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
+                        
+                        """
+                        prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
+                        chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+                        response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
+                        Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
+                        """}, return_only_outputs=True)
+                        return response
+                    elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
+                        return {"output_text": best_faq.metadata['answer']}
+                    else:
+                        return {"output_text": best_faq.page_content}
+                else:
+                    st.info("Using PDF response")
                     prompt_template = """
+                    Use the information from the provided PDF context to answer the question in detail.
+
+                    Context:\n{context}
+
                     Question: {question}
 
-                    The provided answer is:
-                    {answer}
-
-                    Based on this information, let me response within 100 words:
-
-                    {context}
-
-                    Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
-                    
+                    Provide a comprehensive answer, including all relevant details and explanations. Ensure the response is clear and informative, using the factual information available in the document.
                     """
-                    prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
-                    chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                    response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
-                    Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
-                    """}, return_only_outputs=True)
-                    return response
-                elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
-                    return {"output_text": best_faq.metadata['answer']}
-                else:
-                    return {"output_text": best_faq.page_content}
-            else:
-                st.info("Using PDF response")
-                prompt_template = """
-                Use the information from the provided PDF context to answer the question in detail.
-
-                Context:\n{context}
-
-                Question: {question}
-
-                Provide a comprehensive answer, including all relevant details and explanations. Ensure the response is clear and informative, using the factual information available in the document.
-                """
  
-                prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-                chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+                    prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+                    chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+                    response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+                    
+                    # Check if we got a NO_PDF_ANSWER response
+                    if "NO_PDF_ANSWER" in response["output_text"]:
+                        st.info("Using LLM response after pdf fail")
+                        prompt1 = user_question + """\
+                        Finance Term Query Guidelines:
+                        1. Context: Finance domain
+                        2. Response Requirements:
+                        - Focus exclusively on defining finance-related terms
+                        - Provide clear, concise explanations of financial terminology
+                        - Avoid any specific investment advice
+                        - Keep responses factual and educational
+
+                        Keep in mind do not provide any other information other than Finance domain.
+
+                        Note: Responses must be purely informative and educational about financial terms and up to date . Try to give response within 100 words with solid answer.\
+                        """
+
+                        response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+                        return {"output_text": response.content} if response else {"output_text": "No response generated."}
+                    
+                    return response
+
+            except Exception as e:
+                print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
+                return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
+
+        # If no good match from PDF or FAQ, try Exa logic for news/analysis
+        else:
+            try:
+                st.info("Using Exa for news/analysis")
+                # Get API keys
+                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+
+                if not exa_api_key or not gemini_api_key:
+                    raise ValueError("API keys are missing. Ensure they are in Streamlit secrets or environment variables.")
+
+                # Create and execute research chain
+                research_chain = create_research_chain(exa_api_key, gemini_api_key)
+                response = research_chain.invoke(user_question)
                 
-                # Check if we got a NO_PDF_ANSWER response
-                if "NO_PDF_ANSWER" in response["output_text"]:
-                    st.info("Using LLM response after pdf fail")
-                    prompt1 = user_question + """\
-                    Finance Term Query Guidelines:
-                    1. Context: Finance domain
-                    2. Response Requirements:
-                    - Focus exclusively on defining finance-related terms
-                    - Provide clear, concise explanations of financial terminology
-                    - Avoid any specific investment advice
-                    - Keep responses factual and educational
+                if hasattr(response, 'content'):
+                    return {"output_text": response.content.strip()}
+                else:
+                    return {"output_text": "No valid content received from the response."}
 
-                    Keep in mind do not provide any other information other than Finance domain.
-
-                    Note: Responses must be purely informative and educational about financial terms and up to date . Try to give response within 100 words with solid answer.\
-                    """
-
-                    response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
-                    return {"output_text": response.content} if response else {"output_text": "No response generated."}
-                
-                return response
-
-        except Exception as e:
-            print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
-            return {"output_text": "I apologize, but I encountered an error while processing your question. Please try again."}
-
+            except Exception as e:
+                print(f"DEBUG: Research query error: {str(e)}")
+                return {"output_text": f"An error occurred while researching your query: {str(e)}"}
 
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
