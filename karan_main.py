@@ -766,8 +766,8 @@ def user_input(user_question):
             faq_with_scores.append((score, faq))
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
         
-        # If we have good matches in PDF or FAQ (similarity >= 0.85), use them
-        if max(max_similarity_pdf, max_similarity_faq) >= 0.85:
+        # If we have good matches in PDF or FAQ (similarity >= 0.65), use them
+        if max(max_similarity_pdf, max_similarity_faq) >= 0.65:
             try:
                 with open('./faq.json', 'r') as f:
                     faq_data = json.load(f)
