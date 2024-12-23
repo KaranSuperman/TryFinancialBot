@@ -558,7 +558,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Include source dates for verification
             - Format as bulleted list with bold headlines
             - Exclude any data older than 24 hours for market movements
-            - Return "No reliable current information available" if data cannot be verified
             - Maximum 6-8 key updates, prioritizing highest impact news""")
         ])
 
