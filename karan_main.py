@@ -464,8 +464,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             k=10,
             highlights=True,
             start_published_date=start_date,
-            type="news",
-            include_domains="moneycontrol.com,economictimes.indiatimes.com,financialexpress.com,livemint.com,business-standard.com,ndtv.com/business,bloomberg.com,reuters.com",
+            type="news"
         )
 
         if hasattr(retriever, 'client'):
