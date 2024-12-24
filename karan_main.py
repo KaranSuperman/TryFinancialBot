@@ -476,7 +476,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "business-standard.com",
                 "financialexpress.com",
                 "bloomberg.com",
-                "reuters.com"
+                "reuters.com",
+                "yahoo.com"
             ]
         )
 
