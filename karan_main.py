@@ -458,6 +458,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
+        # Change to 0.5 days (12 hours) to get very recent news
         start_date = (datetime.now() - timedelta(days=0.5)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Enhanced Retriever Configuration
@@ -467,7 +468,16 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date"
+            sort="date",  # Ensure sorting by date
+            include_domains=[    # Add specific financial news domains
+                "moneycontrol.com",
+                "economictimes.indiatimes.com",
+                "livemint.com",
+                "business-standard.com",
+                "financialexpress.com",
+                "bloomberg.com",
+                "reuters.com"
+            ]
         )
 
         # Ensure the API key is set in the headers
