@@ -342,7 +342,7 @@ def is_stock_query(user_question):
     - Amazon = AMZN
     - Meta = META
     - Bitcoin = BTC-USD
-
+ 
 
     COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
     EXCHANGE SUFFIXES:
