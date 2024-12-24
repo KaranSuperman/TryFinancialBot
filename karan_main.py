@@ -458,7 +458,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
@@ -466,7 +466,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             k=5,
             highlights=True,
             start_published_date=start_date,
-            type="news"
+            type="news",
+            sort="date"
         )
 
         # Ensure the API key is set in the headers
