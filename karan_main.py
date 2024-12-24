@@ -791,7 +791,7 @@ def user_input(user_question):
 
                 # Use FAQ if it has higher similarity
                 if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
-                    # st.info("Using FAQ response")
+                    st.info("Using FAQ response")
                     best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                     
                     if best_faq.page_content in faq_dict:
@@ -820,7 +820,7 @@ def user_input(user_question):
                         return {"output_text": best_faq.page_content}
                 else:
                     # Use PDF response
-                    # st.info("Using PDF response")
+                    st.info("Using PDF response")
                     prompt_template = """
                     Use the information from the provided PDF context to answer the question in detail.
 
@@ -841,7 +841,7 @@ def user_input(user_question):
         else:
             # Handle stock price queries
             if result.startswith("True "):
-                # st.info("Using Stocks response")
+                st.info("Using Stocks response")
                 _, symbol = result.split(maxsplit=1)
                 try:
                     stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
@@ -869,7 +869,7 @@ def user_input(user_question):
             
             # Handle news/analysis queries only if PDF/FAQ didn't have good matches
             elif result.startswith("News "):
-                # st.info("Using Exa response")
+                st.info("Using Exa response")
                 research_query = result[5:]
                 exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
                 gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
@@ -887,7 +887,7 @@ def user_input(user_question):
             
             # Finally, fall back to LLM response
             else:
-                # st.info("Using LLM response")
+                st.info("Using LLM response")
                 prompt1 = user_question + """\
                 Don't response if the user_question is rather than financial terms.
                 If other question ask response with 'Please tell only finance related queries' .
