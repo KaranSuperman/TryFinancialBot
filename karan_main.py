@@ -547,7 +547,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Structure your response based on query category:
 
             1. Market Analysis:
-            - Key index movements with exact percentages
+            - Top breaking news finance related
             - Top performing/underperforming sectors
             - Trading volumes and FII/DII flows
             - Global market correlation if relevant
