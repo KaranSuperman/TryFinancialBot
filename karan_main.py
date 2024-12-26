@@ -780,8 +780,8 @@ def user_input(user_question):
             faq_with_scores.append((score, faq))
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
 
-        # If we have good matches in PDF or FAQ (similarity >= 0.65), use them
-        if max(max_similarity_pdf, max_similarity_faq) >= 0.65:
+        # If we have good matches in PDF or FAQ (similarity >= 0.75), use them
+        if max(max_similarity_pdf, max_similarity_faq) >= 0.75:
             try:
                 with open('./faq.json', 'r') as f:
                     faq_data = json.load(f)
@@ -899,6 +899,7 @@ def user_input(user_question):
                 - What is PE ratio?
                 - Define market capitalization
                 - Explain book value
+                - What is PB ratio?
                 - What does EBITDA mean?
 
                 Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
