@@ -565,7 +565,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Historical precedents if applicable
 
             4. Sources:
-            - When citing sources, use this format: [source name with inbuilt URL]
+            - When citing sources, use this format: (source)
+            - Source should be clickable
 
             5. Date and Time Context:
             - Specify analysis timeframe
