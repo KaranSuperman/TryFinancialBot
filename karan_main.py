@@ -468,8 +468,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date",  # Ensure sorting by date
-            
+            sort="date"  # Ensure sorting by date
         )
 
         # Ensure the API key is set in the headers
@@ -565,8 +564,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Timeline for implementation
             - Historical precedents if applicable
 
-            4. Source:
-            - Specify Sources
+            4. Date and Time Context:
+            - Specify analysis timeframe
             - Note any pre/post market developments
             - Mention relevant upcoming events/triggers
 
