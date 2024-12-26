@@ -477,7 +477,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "ft.com",
                 "marketwatch.com",
                 "investing.com",
-                "finance.yahoo.com",  # Added more financial news sources
+                "finance.yahoo.com",
                 "fool.com",
                 "seekingalpha.com"
             ]
@@ -506,13 +506,14 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Updated Document Template with Source Information
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
             <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
+            <source>{source}</source>
+            <url>{url}</url>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
@@ -523,6 +524,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "source": doc.metadata.get("source", "Unknown Source"),
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
@@ -533,7 +535,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Updated Generation Prompt to Include Sources
         generation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
 
@@ -556,32 +558,21 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Query: {query}
             Context: {context}
             
-            Structure your response based on query category:
+            Structure your response in two parts:
 
-            1. Market Analysis:
-            - Key index movements with exact percentages
-            - Top performing/underperforming sectors
-            - Trading volumes and FII/DII flows
-            - Global market correlation if relevant
+            1. Analysis:
+            - Key findings and insights
+            - Market implications
+            - Relevant data points
+            - Forward-looking perspective
 
-            2. Company Analysis:
-            - Latest quarterly metrics (YoY and QoQ)
-            - Management commentary highlights
-            - Peer comparison
-            - Technical indicators and support/resistance levels
+            2. Sources:
+            List the sources of information used in the analysis, including:
+            - Publication name
+            - Article date
+            - URL (if available)
 
-            3. Policy/Economic Updates:
-            - Immediate market impact
-            - Sector-wise implications
-            - Timeline for implementation
-            - Historical precedents if applicable
-
-            4. Date and Time Context:
-            - Specify analysis timeframe
-            - Note any pre/post market developments
-            - Mention relevant upcoming events/triggers
-
-            Maximum response length: 200 words
+            Maximum response length: 300 words
             Focus on actionable insights relevant to Indian market context.""")
         ])
 
