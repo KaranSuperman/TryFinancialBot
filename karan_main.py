@@ -494,7 +494,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Update the document template to use a simpler source format
+        # Update the document template to include clickable source links
         document_template = """
         <financial_news>
             <headline>{title}</headline>
@@ -565,9 +565,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Historical precedents if applicable
 
             4. Sources:
-            - When citing sources, remove any URLs or parentheses
-            - Simply append the source name at the end of the statement
-            - The source name should be exactly as provided in the markdown link
+            - When citing sources, include the source name as a clickable link in markdown format.
+            - The source name should be formatted as: [source_name](source_url)
 
             5. Date and Time Context:
             - Specify analysis timeframe
@@ -575,8 +574,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Mention relevant upcoming events/triggers
 
             IMPORTANT: For source citations, use this exact format:
-            "Your news statement. sourcename"
-            Do NOT include parentheses, URLs, or the word "source". Just the statement followed by the source name.
+            "Your news statement. [sourcename](source_url)"
+            Ensure the source name is clickable.
 
             Maximum response length: 200 words
             Focus on actionable insights relevant to Indian market context.""")
