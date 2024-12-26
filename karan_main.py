@@ -458,46 +458,46 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Reduced to 30 minutes for more recent news
+        # Change to 1 days (24 hours) to get very recent news
         start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=8,  # Increased to get more results for better filtering
+            k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date",
-            query_override="""
-                site:(nseindia.com OR bseindia.com OR moneycontrol.com OR economictimes.indiatimes.com OR livemint.com)
-                (
-                    (nifty AND point* AND (rise OR fall OR jump OR drop OR surge))
-                    OR (sensex AND point* AND (rise OR fall OR jump OR drop OR surge))
-                    OR ("stock market" AND (today OR current OR latest))
-                    OR ("market update" AND (today OR current OR latest))
-                    OR ("trading session" AND (today OR current OR latest))
-                )
-            """.strip(),
+            sort="date",  # Ensure sorting by date
+            query_override="site:(moneycontrol.com OR economictimes.indiatimes.com OR livemint.com OR reuters.com OR bloomberg.com OR cnbctv18.com OR businesstoday.in OR financialexpress.com OR yahoo.com) (stock OR market OR sensex OR nifty OR bse OR nse OR shares)",
             include_domains=[
-                "nseindia.com",
-                "bseindia.com",
                 "moneycontrol.com",
-                "economictimes.indiatimes.com",
-                "livemint.com"
+                "economictimes.indiatimes.com", 
+                "livemint.com",
+                "reuters.com",
+                "bloomberg.com",
+                "cnbctv18.com",
+                "businesstoday.in",
+                "financialexpress.com",
+                "yahoo.com"
             ]
         )
 
+        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
+        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
+        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
+        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0,
@@ -506,107 +506,88 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Enhanced template with validation markers
+        # Detailed Document Template
         document_template = """
         <financial_news>
-            <timestamp>{date}</timestamp>
             <headline>{title}</headline>
-            <market_data>
-                <index_values>{highlights}</index_values>
-                <trading_session>{trading_session}</trading_session>
-            </market_data>
-            <verification>
-                <source>{source}</source>
-                <url>{url}</url>
-                <publish_time>{publish_time}</publish_time>
-            </verification>
+            <date>{date}</date>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
-        # Enhanced document processing with time validation
-        def process_document(doc):
-            publish_date = doc.metadata.get("published_date", "")
-            current_time = datetime.now()
-            
-            # Parse the published date
-            try:
-                pub_time = datetime.strptime(publish_date, "%Y-%m-%dT%H:%M:%SZ")
-                time_diff = current_time - pub_time
-                
-                # Only process if news is less than 30 minutes old
-                if time_diff.total_seconds() <= 1800:  # 30 minutes in seconds
-                    return {
-                        "title": doc.metadata.get("title", ""),
-                        "date": publish_date,
-                        "highlights": doc.metadata.get("highlights", ""),
-                        "trading_session": "Current Trading Session",
-                        "source": doc.metadata.get("source", ""),
-                        "url": doc.metadata.get("url", ""),
-                        "publish_time": publish_date
-                    }
-                return None
-            except:
-                return None
-        
         document_chain = (
             RunnablePassthrough() | 
-            RunnableLambda(process_document) |
-            RunnableLambda(lambda x: x if x else "") |
-            document_prompt
+            RunnableLambda(lambda doc: {
+                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "date": doc.metadata.get("published_date", "Today"),
+                "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "url": doc.metadata.get("url", "No source URL")
+            }) | document_prompt
         )
-        
-        # Filter out empty documents
-        def filter_documents(docs):
-            filtered = [doc for doc in docs if doc and len(str(doc).strip()) > 0]
-            return "\n\n".join(str(doc) for doc in filtered)
         
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
-            RunnableLambda(filter_documents)
+            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
+        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a real-time market data analyst specializing in Indian markets. Your primary focus is on providing accurate, current market information.
+            ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
 
-            Key Requirements:
-            - Only report market data from the current trading session
-            - Include exact index values with points and percentages
-            - Verify data consistency across multiple sources
-            - Flag any discrepancies or outdated information
-            - Include timestamps for all market data
+            Core Expertise:
+            - Indian equity markets and sectoral analysis
+            - Global market correlations affecting Indian markets
+            - Technical and fundamental analysis
+            - Corporate earnings and valuations
+            - Macroeconomic indicators
+
+            Response Style:
+            - Quantitative: Always include specific numbers, percentages, and time periods
+            - Evidence-based: Support insights with recent data points and trends
+            - Market-focused: Emphasize market implications and trading volumes
+            - Forward-looking: Include potential impact on future market movements
+            - Risk-aware: Highlight key risks and uncertainties"""),
             
-            Critical Checks:
-            - Confirm data is from official exchange sources when possible
-            - Validate trading session status (pre-market, trading, post-market)
-            - Cross-reference index values with official figures
-            - Ensure all reported movements match official exchange data"""),
-            
-            ("human", """Analyze and verify this market data:
+            ("human", """Analyze this financial query within the given context:
 
             Query: {query}
             Context: {context}
             
-            Required Structure:
-            1. Current Market Status:
-               - Trading session (pre/post/current)
-               - Exact timestamp of data
-               - Official exchange source
+            Structure your response based on query category:
 
-            2. Index Values:
-               - Nifty 50 (current value, points change, % change)
-               - Sensex (current value, points change, % change)
-               - Data verification status
+            1. Market Analysis:
+            - Key index movements with exact percentages
+            - Top performing/underperforming sectors
+            - Trading volumes and FII/DII flows
+            - Global market correlation if relevant
 
-            3. Market Breadth:
-               - Advancing vs declining stocks
-               - Trading volume verification
-               - Market mood indicators
+            2. Company Analysis:
+            - Latest quarterly metrics (YoY and QoQ)
+            - Management commentary highlights
+            - Peer comparison
+            - Technical indicators and support/resistance levels
 
-            Format all sources as: [sourcename](source_url)
-            Maximum response length: 150 words
-            Focus on verified current market data only.""")
+            3. Policy/Economic Updates:
+            - Immediate market impact
+            - Sector-wise implications
+            - Timeline for implementation
+            - Historical precedents if applicable
+
+            4. Date and Time Context:
+            - Specify analysis timeframe
+            - Note any pre/post market developments
+            - Mention relevant upcoming events/triggers
+
+
+            IMPORTANT: For source citations, use this exact format:
+            "Your news statement. [sourcename](source_url)"
+            Ensure the source name is clickable.
+
+            Maximum response length: 200 words
+            Focus on actionable insights relevant to Indian market context.""")
         ])
 
         chain = (
@@ -623,6 +604,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
+
      
 
 def plot_stock_graph(symbol):
