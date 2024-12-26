@@ -469,7 +469,15 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             start_published_date=start_date,
             type="news",
             sort="date",  # Ensure sorting by date
-            include_domains="reuters.com,bloomberg.com,cnbc.com,wsj.com,ft.com,marketwatch.com,investing.com"
+            include_domains=[  # Changed to a list
+            "reuters.com",
+            "bloomberg.com",
+            "cnbc.com",
+            "wsj.com",
+            "ft.com",
+            "marketwatch.com",
+            "investing.com"
+            ]
         )
 
         # Ensure the API key is set in the headers
