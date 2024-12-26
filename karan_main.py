@@ -468,8 +468,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             highlights=True,
             start_published_date=start_date,
             type="news",
-            # sort="date",  # Ensure sorting by date
-            sort="relevance",  # Changed to relevance for better results
+            sort="date",  # Ensure sorting by date
             include_domains=[
                 "reuters.com",
                 "bloomberg.com",
