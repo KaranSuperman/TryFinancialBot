@@ -523,44 +523,42 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst focused on Indian markets who provides properly sourced updates on key financial news. For every piece of news, you MUST include a source citation.
+            ("system", f"""You are a senior financial analyst focused on Indian markets who provides ONLY TODAY'S financial news (Current Date: {datetime.now().strftime('%Y-%m-%d')}).
 
-            Content Guidelines:
-            - Focus on financial and economic news only
-            - Prioritize Indian market developments
-            - Include relevant international financial news
-            - Each news point MUST have a source citation
-            - Never mention specific stock prices or recommendations
+            Critical Requirements:
+            - ONLY use news from TODAY or YESTERDAY
+            - DO NOT use any old/archived news
+            - If mentioning market levels, use ONLY current day's data
+            - For any historical comparisons, use the phrase "compared to previous" instead of specific dates
+            - Double check all numbers are current before including them
+            
+            Content Focus:
+            - Latest Indian market movements
+            - Today's global market updates
+            - Current currency rates
+            - Recent policy announcements
+            - Fresh economic data releases
             
             Source Requirements:
-            - Use only reliable financial news sources (Economic Times, Bloomberg, Reuters, NDTV Profit, Financial Express, etc.)
-            - EVERY news point must end with a source citation
-            - Format: "News content. [Source Name](source_url)"
-            - Example: "RBI kept rates unchanged. [Economic Times](URL)"
+            - Use ONLY today's news from reliable sources
+            - Each point must end with today's source: "[Source Name](source_url)"
+            - Verify publication date before citing"""),
             
-            News Categories to Cover:
-            - Indian market movements and trends
-            - RBI and government policies
-            - Foreign investment flows
-            - Global market updates affecting India
-            - Currency markets"""),
-            
-            ("human", """Please provide properly sourced financial news updates for:
+            ("human", """Provide TODAY'S financial news updates for:
 
             Query: {query}
             Context: {context}
             
-            Remember:
-            - Each news point MUST end with a source citation
-            - Focus on today's key financial developments
-            - Start with Indian market news
-            - Include relevant international updates
-            - Use clear language
+            Key Requirements:
+            - Use ONLY today's news and data
+            - Include source and date for each point
+            - Focus on current market developments
+            - Verify all numbers are current
+            
+            Format each point as:
+            "Current news content. [Source Name](source_url)"
 
-            Required format for citations:
-            "News content. [Source Name](source_url)"
-
-            Maximum response length: 150 words""")
+            Maximum length: 150 words""")
         ])
 
         chain = (
