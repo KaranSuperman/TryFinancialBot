@@ -521,7 +521,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Update the generation prompt to handle source formatting
         generation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
 
@@ -565,14 +565,18 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Historical precedents if applicable
 
             4. Sources:
-            - When citing sources, use this format: (source)
-            - Source should be clickable
+            - When citing sources, remove any URLs or parentheses
+            - Simply append the source name at the end of the statement
+            - The source name should be exactly as provided in the markdown link
 
             5. Date and Time Context:
             - Specify analysis timeframe
             - Note any pre/post market developments
             - Mention relevant upcoming events/triggers
 
+            IMPORTANT: For source citations, use this exact format:
+            "Your news statement. sourcename"
+            Do NOT include parentheses, URLs, or the word "source". Just the statement followed by the source name.
 
             Maximum response length: 200 words
             Focus on actionable insights relevant to Indian market context.""")
@@ -619,7 +623,7 @@ def plot_stock_graph(symbol):
             return False
             
         # Determine currency symbol based on exchange
-        currency_symbol = "���" if symbol.endswith(('.NS', '.BO')) else "$"
+        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
         
         # Calculate price changes
         price_change = hist['Close'][-1] - hist['Close'][0]
