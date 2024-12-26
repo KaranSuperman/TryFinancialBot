@@ -458,34 +458,41 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
         start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
+        # Enhanced retriever with specific financial filters
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date"  # Ensure sorting by date
+            sort="date",
+            # Add specific financial news filters
+            query_override="site:(moneycontrol.com OR economictimes.indiatimes.com OR livemint.com OR reuters.com OR bloomberg.com OR cnbctv18.com OR businesstoday.in OR financialexpress.com) (stock OR market OR sensex OR nifty OR bse OR nse OR shares)",
+            include_domains=[
+                "moneycontrol.com",
+                "economictimes.indiatimes.com", 
+                "livemint.com",
+                "reuters.com",
+                "bloomberg.com",
+                "cnbctv18.com",
+                "businesstoday.in",
+                "financialexpress.com"
+            ]
         )
 
-        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
-        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0,
@@ -494,7 +501,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
         document_template = """
         <financial_news>
             <headline>{title}</headline>
@@ -521,7 +527,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
 
@@ -568,7 +573,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Specify analysis timeframe
             - Note any pre/post market developments
             - Mention relevant upcoming events/triggers
-
 
             IMPORTANT: For source citations, use this exact format:
             "Your news statement. [sourcename](source_url)"
