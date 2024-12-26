@@ -564,10 +564,15 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Timeline for implementation
             - Historical precedents if applicable
 
-            4. Date and Time Context:
+            4. Sources:
+            - Add Source like this [yahoo with inbuilt link]
+            - Add Source like this [cnbc with inbuilt link]
+
+            5. Date and Time Context:
             - Specify analysis timeframe
             - Note any pre/post market developments
             - Mention relevant upcoming events/triggers
+
 
             Maximum response length: 200 words
             Focus on actionable insights relevant to Indian market context.""")
