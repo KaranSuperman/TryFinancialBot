@@ -523,42 +523,54 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", f"""You are a senior financial analyst focused on Indian markets who provides ONLY TODAY'S financial news (Current Date: {datetime.now().strftime('%Y-%m-%d')}).
+            ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
 
-            Critical Requirements:
-            - ONLY use news from TODAY or YESTERDAY
-            - DO NOT use any old/archived news
-            - If mentioning market levels, use ONLY current day's data
-            - For any historical comparisons, use the phrase "compared to previous" instead of specific dates
-            - Double check all numbers are current before including them
+            Core Expertise:
+            - Indian equity markets and sectoral analysis
+            - Global market correlations affecting Indian markets
+            - Technical and fundamental analysis
+            - Corporate earnings and valuations
+            - Macroeconomic indicators
+
+            Response Style:
+            - Quantitative: Always include specific numbers, percentages, and time periods
+            - Evidence-based: Support insights with recent data points and trends
+            - Market-focused: Emphasize market implications and trading volumes
+            - Forward-looking: Include potential impact on future market movements
+            - Risk-aware: Highlight key risks and uncertainties"""),
             
-            Content Focus:
-            - Latest Indian market movements
-            - Today's global market updates
-            - Current currency rates
-            - Recent policy announcements
-            - Fresh economic data releases
-            
-            Source Requirements:
-            - Use ONLY today's news from reliable sources
-            - Each point must end with today's source: "[Source Name](source_url)"
-            - Verify publication date before citing"""),
-            
-            ("human", """Provide TODAY'S financial news updates for:
+            ("human", """Analyze this financial query within the given context:
 
             Query: {query}
             Context: {context}
             
-            Key Requirements:
-            - Use ONLY today's news and data
-            - Include source and date for each point
-            - Focus on current market developments
-            - Verify all numbers are current
-            
-            Format each point as:
-            "Current news content. [Source Name](source_url)"
+            Structure your response based on query category:
 
-            Maximum length: 150 words""")
+            1. Market Analysis:
+            - Key index movements with exact percentages
+            - Top performing/underperforming sectors
+            - Trading volumes and FII/DII flows
+            - Global market correlation if relevant
+
+            2. Company Analysis:
+            - Latest quarterly metrics (YoY and QoQ)
+            - Management commentary highlights
+            - Peer comparison
+            - Technical indicators and support/resistance levels
+
+            3. Policy/Economic Updates:
+            - Immediate market impact
+            - Sector-wise implications
+            - Timeline for implementation
+            - Historical precedents if applicable
+
+            4. Date and Time Context:
+            - Specify analysis timeframe
+            - Note any pre/post market developments
+            - Mention relevant upcoming events/triggers
+
+            Maximum response length: 200 words
+            Focus on actionable insights relevant to Indian market context.""")
         ])
 
         chain = (
@@ -878,6 +890,7 @@ def user_input(user_question):
                 Examples of Acceptable Queries:
                 - What is PE ratio?
                 - Define market capitalization
+                - What is PB ratio?
                 - Explain book value
                 - What does EBITDA mean?
 
