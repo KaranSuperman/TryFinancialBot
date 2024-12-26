@@ -494,13 +494,13 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Update the document template to use a simpler source format
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
             <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
+            <source>{source_name}</source>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
@@ -511,7 +511,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
+                "source_name": f"[{doc.metadata.get('source', 'Unknown')}]({doc.metadata.get('url', '#')})"  # Format source as markdown link
             }) | document_prompt
         )
         
@@ -619,7 +619,7 @@ def plot_stock_graph(symbol):
             return False
             
         # Determine currency symbol based on exchange
-        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
+        currency_symbol = "���" if symbol.endswith(('.NS', '.BO')) else "$"
         
         # Calculate price changes
         price_change = hist['Close'][-1] - hist['Close'][0]
