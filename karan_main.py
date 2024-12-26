@@ -468,15 +468,19 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date",  # Ensure sorting by date
-            include_domains=[  # Changed to a list
-            "reuters.com",
-            "bloomberg.com",
-            "cnbc.com",
-            "wsj.com",
-            "ft.com",
-            "marketwatch.com",
-            "investing.com"
+            # sort="date",  # Ensure sorting by date
+            sort="relevance",  # Changed to relevance for better results
+            include_domains=[
+                "reuters.com",
+                "bloomberg.com",
+                "cnbc.com",
+                "wsj.com",
+                "ft.com",
+                "marketwatch.com",
+                "investing.com",
+                "finance.yahoo.com",  # Added more financial news sources
+                "fool.com",
+                "seekingalpha.com"
             ]
         )
 
@@ -781,15 +785,15 @@ def user_input(user_question):
             faq_with_scores.append((score, faq))
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
 
-        # If we have good matches in PDF or FAQ (similarity >= 0.85), use them
-        if max(max_similarity_pdf, max_similarity_faq) >= 0.85:
+        # If we have good matches in PDF or FAQ (similarity >= 0.65), use them
+        if max(max_similarity_pdf, max_similarity_faq) >= 0.65:
             try:
                 with open('./faq.json', 'r') as f:
                     faq_data = json.load(f)
                 faq_dict = {entry['question']: entry['answer'] for entry in faq_data}
 
                 # Use FAQ if it has higher similarity
-                if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.85:
+                if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
                     st.info("Using FAQ response")
                     best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                     
