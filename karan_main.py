@@ -469,19 +469,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             start_published_date=start_date,
             type="news",
             sort="date",  # Ensure sorting by date
-            include_domains=[
-                "reuters.com",
-                "bloomberg.com",
-                "cnbc.com",
-                "wsj.com",
-                "ft.com",
-                "marketwatch.com",
-                "investing.com",
-                "finance.yahoo.com",
-                "fool.com",
-                "seekingalpha.com",
-                "investors.com"
-            ]
+            
         )
 
         # Ensure the API key is set in the headers
@@ -507,14 +495,13 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Updated Document Template with Source Information
+        # Detailed Document Template
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
             <key_insights>{highlights}</key_insights>
-            <source>{source}</source>
-            <url>{url}</url>
+            <source_url>{url}</source_url>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
@@ -525,7 +512,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "source": doc.metadata.get("source", "Unknown Source"),
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
@@ -536,72 +522,56 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Updated Generation Prompt with stronger emphasis on accuracy and verification
+        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in markets with over 15 years of experience. Your primary focus is on providing ACCURATE, DATA-DRIVEN insights by analyzing market trends, corporate performance, and economic indicators.
+            ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
 
-            CRITICAL REQUIREMENTS:
-            1. ACCURACY: 
-               - Only state facts that are explicitly supported by the provided sources
-               - Include specific dates for all market data and statistics
-               - Quote exact figures and percentages from reliable sources
-               - If data seems outdated or contradictory, acknowledge this limitation
+            Core Expertise:
+            - Indian equity markets and sectoral analysis
+            - Global market correlations affecting Indian markets
+            - Technical and fundamental analysis
+            - Corporate earnings and valuations
+            - Macroeconomic indicators
 
-            2. VERIFICATION:
-               - Cross-reference claims across multiple sources when possible
-               - Clearly distinguish between facts and market speculation
-               - Include time stamps or dates for all market data
-               - Specify the exact source for each major claim
-
-            3. TRANSPARENCY:
-               - If information is incomplete or unclear, state this explicitly
-               - Avoid making predictions without substantial supporting evidence
-               - Acknowledge any limitations in the available data
-
-            Response Structure:
-            1. Market Data (with exact dates and times):
-               - Specific index/security movements
-               - Key statistics with source attribution
-               - Time period covered by the analysis
-
-            2. Supporting Evidence:
-               - Direct quotes from sources (with attribution)
-               - Specific data points and their sources
-               - Time stamps for market data
-
-            3. Sources:
-               - Publication name
-               - Article title
-               - Publication date and time
-               - URL
-               - Key quotes from the source"""),
+            Response Style:
+            - Quantitative: Always include specific numbers, percentages, and time periods
+            - Evidence-based: Support insights with recent data points and trends
+            - Market-focused: Emphasize market implications and trading volumes
+            - Forward-looking: Include potential impact on future market movements
+            - Risk-aware: Highlight key risks and uncertainties"""),
             
-            ("human", """Analyze this financial query using ONLY the provided context:
+            ("human", """Analyze this financial query within the given context:
 
             Query: {query}
             Context: {context}
             
-            Structure your response as follows:
+            Structure your response based on query category:
 
-            1. Market Update:
-            - Date and time of data
-            - Specific market movements with exact figures
-            - Key statistics from reliable sources
+            1. Market Analysis:
+            - Key index movements with exact percentages
+            - Top performing/underperforming sectors
+            - Trading volumes and FII/DII flows
+            - Global market correlation if relevant
 
-            2. Analysis:
-            - Evidence-based insights
-            - Direct quotes from sources
-            - Data-supported trends
+            2. Company Analysis:
+            - Latest quarterly metrics (YoY and QoQ)
+            - Management commentary highlights
+            - Peer comparison
+            - Technical indicators and support/resistance levels
 
-            3. Sources:
-            For each source used:
-            - Publication name
-            - Article title
-            - Publication date and time
-            - Direct URL
-            - Key quotes used
+            3. Policy/Economic Updates:
+            - Immediate market impact
+            - Sector-wise implications
+            - Timeline for implementation
+            - Historical precedents if applicable
 
-            Note: If you cannot verify any claim with the provided sources, explicitly state this limitation.""")
+            4. Source:
+            - Specify Sources
+            - Note any pre/post market developments
+            - Mention relevant upcoming events/triggers
+
+            Maximum response length: 200 words
+            Focus on actionable insights relevant to Indian market context.""")
         ])
 
         chain = (
