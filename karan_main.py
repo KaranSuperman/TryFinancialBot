@@ -611,7 +611,7 @@ def plot_stock_graph(symbol):
         hist = stock.history(period=period)
         
         if hist.empty:
-            st.error(f"No data found for {symbol}")
+            st.error(f"No data found for {symbol}") 
             return False
             
         # Determine currency symbol based on exchange
