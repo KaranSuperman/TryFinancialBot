@@ -494,13 +494,13 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Update the document template to include clickable source links
+        # Detailed Document Template
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
             <key_insights>{highlights}</key_insights>
-            <source>{source_name}</source>
+            <source_url>{url}</source_url>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
@@ -511,7 +511,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "source_name": f"[{doc.metadata.get('source', 'Unknown')}]({doc.metadata.get('url', '#')})"  # Format source as markdown link
+                "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
         
@@ -521,7 +521,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Update the generation prompt to handle source formatting
+        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
 
@@ -564,14 +564,11 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Timeline for implementation
             - Historical precedents if applicable
 
-            4. Sources:
-            - When citing sources, include the source name as a clickable link in markdown format.
-            - The source name should be formatted as: [source_name](source_url)
-
-            5. Date and Time Context:
+            4. Date and Time Context:
             - Specify analysis timeframe
             - Note any pre/post market developments
             - Mention relevant upcoming events/triggers
+
 
             IMPORTANT: For source citations, use this exact format:
             "Your news statement. [sourcename](source_url)"
@@ -780,7 +777,7 @@ def user_input(user_question):
             faq_with_scores.append((score, faq))
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
 
-        # If we have good matches in PDF or FAQ (similarity >= 0.65), use them
+        # If we have good matches in PDF or FAQ (similarity >= 0.67), use them
         if max(max_similarity_pdf, max_similarity_faq) >= 0.67:
             try:
                 with open('./faq.json', 'r') as f:
@@ -789,7 +786,7 @@ def user_input(user_question):
 
                 # Use FAQ if it has higher similarity
                 if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
-                    st.info("Using FAQ response")
+                    # st.info("Using FAQ response")
                     best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                     
                     if best_faq.page_content in faq_dict:
@@ -818,7 +815,7 @@ def user_input(user_question):
                         return {"output_text": best_faq.page_content}
                 else:
                     # Use PDF response
-                    st.info("Using PDF response")
+                    # st.info("Using PDF response")
                     prompt_template = """
                     Use the information from the provided PDF context to answer the question in detail.
 
@@ -839,7 +836,7 @@ def user_input(user_question):
         else:
             # Handle stock price queries
             if result.startswith("True "):
-                st.info("Using Stocks response")
+                # st.info("Using Stocks response")
                 _, symbol = result.split(maxsplit=1)
                 try:
                     stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
@@ -867,7 +864,7 @@ def user_input(user_question):
             
             # Handle news/analysis queries only if PDF/FAQ didn't have good matches
             elif result.startswith("News "):
-                st.info("Using Exa response")
+                # st.info("Using Exa response")
                 research_query = result[5:]
                 exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
                 gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
@@ -885,7 +882,7 @@ def user_input(user_question):
             
             # Finally, fall back to LLM response
             else:
-                st.info("Using LLM response")
+                # st.info("Using LLM response")
                 prompt1 = user_question + """\
                 Don't response if the user_question is rather than financial terms.
                 If other question ask response with 'Please tell only finance related queries' .
@@ -899,7 +896,6 @@ def user_input(user_question):
                 - What is PE ratio?
                 - Define market capitalization
                 - Explain book value
-                - What is PB ratio?
                 - What does EBITDA mean?
 
                 Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
@@ -910,3 +906,12 @@ def user_input(user_question):
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
         return {"output_text": "An error occurred while processing your request. Please try again."}
+
+
+
+
+
+
+
+
+
