@@ -565,8 +565,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Historical precedents if applicable
 
             4. Sources:
-            - Add Source like this with inbuilt link [yahoo]
-            - Add Source like this with inbuilt link [cnbc]
+            - When citing sources, use this format: [source name with inbuilt URL]
 
             5. Date and Time Context:
             - Specify analysis timeframe
