@@ -312,7 +312,6 @@ def is_stock_query(user_question):
          "What is the price of google?" → "True GOOGL"
          "What is price of cspx" → "True CSPX.L"
          "csndx price" → "True CSNDX.SW"
-         "What is bitcoin price"  → "True BTC-USD"
 
     2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
        - Examples:
@@ -611,7 +610,7 @@ def plot_stock_graph(symbol):
         hist = stock.history(period=period)
         
         if hist.empty:
-            st.error(f"No data found for {symbol}") 
+            st.error(f"No data found for {symbol}")
             return False
             
         # Determine currency symbol based on exchange
@@ -773,8 +772,8 @@ def user_input(user_question):
             faq_with_scores.append((score, faq))
         max_similarity_faq = max(faq_similarity_scores) if faq_similarity_scores else 0
 
-        # If we have good matches in PDF or FAQ (similarity >= 0.68), use them
-        if max(max_similarity_pdf, max_similarity_faq) >= 0.68:
+        # If we have good matches in PDF or FAQ (similarity >= 0.67), use them
+        if max(max_similarity_pdf, max_similarity_faq) >= 0.67:
             try:
                 with open('./faq.json', 'r') as f:
                     faq_data = json.load(f)
@@ -782,7 +781,7 @@ def user_input(user_question):
 
                 # Use FAQ if it has higher similarity
                 if max_similarity_faq >= max_similarity_pdf and max_similarity_faq >= 0.65:
-                    st.info("Using FAQ response")
+                    # st.info("Using FAQ response")
                     best_faq = max(faq_with_scores, key=lambda x: x[0])[1]
                     
                     if best_faq.page_content in faq_dict:
@@ -811,7 +810,7 @@ def user_input(user_question):
                         return {"output_text": best_faq.page_content}
                 else:
                     # Use PDF response
-                    st.info("Using PDF response")
+                    # st.info("Using PDF response")
                     prompt_template = """
                     Use the information from the provided PDF context to answer the question in detail.
 
@@ -832,7 +831,7 @@ def user_input(user_question):
         else:
             # Handle stock price queries
             if result.startswith("True "):
-                st.info("Using Stocks response")
+                # st.info("Using Stocks response")
                 _, symbol = result.split(maxsplit=1)
                 try:
                     stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
@@ -860,7 +859,7 @@ def user_input(user_question):
             
             # Handle news/analysis queries only if PDF/FAQ didn't have good matches
             elif result.startswith("News "):
-                st.info("Using Exa response")
+                # st.info("Using Exa response")
                 research_query = result[5:]
                 exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
                 gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
@@ -878,7 +877,7 @@ def user_input(user_question):
             
             # Finally, fall back to LLM response
             else:
-                st.info("Using LLM response")
+                # st.info("Using LLM response")
                 prompt1 = user_question + """\
                 Don't response if the user_question is rather than financial terms.
                 If other question ask response with 'Please tell only finance related queries' .
@@ -891,7 +890,6 @@ def user_input(user_question):
                 Examples of Acceptable Queries:
                 - What is PE ratio?
                 - Define market capitalization
-                - What is PB ratio?
                 - Explain book value
                 - What does EBITDA mean?
 
