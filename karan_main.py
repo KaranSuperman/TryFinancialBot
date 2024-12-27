@@ -462,14 +462,14 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Change to 1 days (24 hours) to get very recent news
         start_date = (datetime.now() - timedelta(days=0.5)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
+        # Enhanced Retriever Configuration with broader search
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
             highlights=True,
             start_published_date=start_date,
-            type="news",
-            sort="date"  # Ensure sorting by date
+            type=["news", "analysis", "research"],  # Include more content types
+            sort="relevance"  # Changed to relevance for non-news queries
         )
 
         # Ensure the API key is set in the headers
@@ -495,99 +495,113 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Fallback response for when no relevant context is found
+        def generate_fallback_response(query: str) -> str:
+            fallback_prompt = ChatPromptTemplate.from_messages([
+                ("system", """You are a senior financial analyst specializing in Indian markets. 
+                When no recent news or context is available, provide general guidance based on:
+                - Current regulatory frameworks
+                - Standard market practices
+                - Historical patterns
+                - General financial principles
+                Always clarify that this is general information and specific cases may vary."""),
+                ("human", "{query}")
+            ])
+            
+            return fallback_prompt | llm
+
+        # Enhanced Document Template with broader scope
         document_template = """
-        <financial_news>
-            <headline>{title}</headline>
+        <financial_content>
+            <title>{title}</title>
             <date>{date}</date>
-            <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
-        </financial_news>
+            <type>{content_type}</type>
+            <key_points>{highlights}</key_points>
+            <source>{url}</source>
+        </financial_content>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
-                "date": doc.metadata.get("published_date", "Today"),
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "title": doc.metadata.get("title", "Financial Update"),
+                "date": doc.metadata.get("published_date", "Current"),
+                "content_type": doc.metadata.get("type", "general"),
+                "highlights": doc.metadata.get("highlights", "No key points available."),
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
         
+        # Enhanced retrieval chain with context validation
+        def validate_and_process_context(docs):
+            processed_docs = "\n\n".join(str(doc) for doc in docs)
+            if not processed_docs.strip() or "No key points available" in processed_docs:
+                return None
+            return processed_docs
+
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
-            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+            RunnableLambda(validate_and_process_context)
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Improved Financial Analysis Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
+            ("system", """You are a senior financial analyst specializing in Indian markets with expertise in:
+            - Market analysis and trends
+            - Regulatory frameworks and taxation
+            - Investment products and strategies
+            - Economic policies and their impact
 
-            Core Expertise:
-            - Indian equity markets and sectoral analysis
-            - Global market correlations affecting Indian markets
-            - Technical and fundamental analysis
-            - Corporate earnings and valuations
-            - Macroeconomic indicators
+            When analyzing:
+            1. For news-based queries:
+               - Focus on recent developments
+               - Provide market implications
+               - Include relevant data points
 
-            Response Style:
-            - Quantitative: Always include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points and trends
-            - Market-focused: Emphasize market implications and trading volumes
-            - Forward-looking: Include potential impact on future market movements
-            - Risk-aware: Highlight key risks and uncertainties"""),
+            2. For general financial queries:
+               - Explain applicable regulations
+               - Provide practical considerations
+               - Include relevant examples
+               - Cite specific policies when available
+
+            3. For tax-related queries:
+               - Outline general tax implications
+               - Mention relevant tax regulations
+               - Highlight important considerations
+               - Suggest professional consultation for specific cases
+
+            Always maintain accuracy and clarity in your responses."""),
             
-            ("human", """Analyze this financial query within the given context:
-
+            ("human", """Analyze this financial query:
             Query: {query}
             Context: {context}
-            
-            Structure your response based on query category:
 
-            1. Market Analysis:
-            - Key index movements with exact percentages
-            - Top performing/underperforming sectors
-            - Trading volumes and FII/DII flows
-            - Global market correlation if relevant
-
-            2. Company Analysis:
-            - Latest quarterly metrics (YoY and QoQ)
-            - Management commentary highlights
-            - Peer comparison
-            - Technical indicators and support/resistance levels
-
-            3. Policy/Economic Updates:
-            - Immediate market impact
-            - Sector-wise implications
-            - Timeline for implementation
-            - Historical precedents if applicable
-
-            4. Date and Time Context:
-            - Specify analysis timeframe
-            - Note any pre/post market developments
-            - Mention relevant upcoming events/triggers
-
-            Maximum response length: 200 words
-            Focus on actionable insights relevant to Indian market context.""")
+            If the context is missing or not relevant:
+            - Provide general guidance based on standard practices
+            - Explain basic principles
+            - Recommend professional consultation for specific cases""")
         ])
+
+        # Enhanced chain with fallback handling
+        def process_query(inputs):
+            if inputs["context"] is None:
+                return generate_fallback_response(inputs["query"])
+            return generation_prompt | llm
 
         chain = (
             RunnableParallel({
-                "query": RunnablePassthrough(),  
-                "context": retrieval_chain,  
+                "query": RunnablePassthrough(),
+                "context": retrieval_chain,
             }) 
-            | generation_prompt 
-            | llm
+            | RunnableLambda(process_query)
         )
         
         return chain
 
     except Exception as e:
-        st.error(f"Error in create_research_chain: {str(e)}")
-        raise
+        raise Exception(f"Error creating research chain: {str(e)}")
 
      
 
