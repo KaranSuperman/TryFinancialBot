@@ -322,7 +322,7 @@ def is_stock_query(user_question):
          "what happened today?" → "News What is top 5 financial news"
          "what is top 10 news?" → "News What is top 10 financial news?"
          "What is the updates of US" → "News What is the financial updates of US market?"
-         "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
+         "What happened to nifty50 down today?" → "News What happened to nifty50 down today?"
 
     3. IF the question is about Finance or tax related information, respond: "News [REPHRASED_QUERY]"
        - Examples:
@@ -468,7 +468,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             k=5,
             highlights=True,
             type="article",  
-            sort="relevance"  # Use relevance instead of date for general queries
+            sort="date"  # Use relevance instead of date for general queries
         )
 
         # Ensure the API key is set in the headers
