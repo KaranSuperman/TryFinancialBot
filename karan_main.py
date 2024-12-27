@@ -304,6 +304,11 @@ def is_stock_query(user_question):
     SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. ALSO [PAASA] is a fintech company if 
     any user ask query related to the company then donot response to that query.
 
+    SPECIAL NOTES: 
+    - ALL news queries MUST be rephrased to focus ONLY on financial markets, economy, or business news
+    - ANY general news query should be automatically converted to a financial news query
+    - DO NOT include general news, political news, or non-financial news in rephrasing
+
     RULES:
     1. IF the question is about STOCK PRICE then Generate only [Yahoo Finance] compatible symbol, respond: "True [STOCK_SYMBOL]"
        - Examples:
@@ -314,16 +319,21 @@ def is_stock_query(user_question):
          "csndx price" → "True CSNDX.SW"
          "What is bitcoin price"  → "True BTC-USD"
 
-    2. IF the question is about NEWS/ANALYSIS of STOCKS and COMPANIES, respond: "News [REPHRASED_QUERY]"
-       - Examples:
+    2. IF the question is about NEWS/ANALYSIS (ANY GENERAL NEWS QUERY), respond: "News [FINANCIAL_REPHRASED_QUERY]"
+       - All general news queries MUST be rephrased to focus on financial markets/economy
+       - Always add specific financial context when rephrasing
+       Examples:
+         "What's happening today?" → "News What are the key financial market events today?"
+         "Give me latest news" → "News What are the latest financial market updates?"
+         "Top stories" → "News What are today's top financial market stories?"
+         "US news" → "News What are the major US financial market developments?"
          "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
          "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
-         "What's the today news? → "News What is the today top 5 financial news?"
-         "What is the today news? → "News Describe today top 5 financial news?"
-         "what happened today?" → "News What is top 5 financial news"
-         "what is top 10 news?" → "News What is top 10 financial news?"
-         "What is the updates of US" → "News What is the financial updates of US market?"
-         "What happened to nifty50 down today?" → "News What happened to nifty50 down today?"
+         "What's the today news?" → "News What are today's top financial market updates?"
+         "What happened today?" → "News What are the major financial market movements today?"
+         "what is top 10 news?" → "News What are the top 10 financial market developments?"
+         "What is the updates of US" → "News What are the latest US financial market updates?"
+         "What happened to nifty50 down today?" → "News What caused the decline in Nifty50 today?"
 
     3. IF the question is about Finance or tax related information, respond: "News [REPHRASED_QUERY]"
        - Examples:
