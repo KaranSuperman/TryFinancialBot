@@ -318,7 +318,7 @@ def is_stock_query(user_question):
          "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
          "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
          "What's the today news? → "News What is the today top 5 financial news?"
-         "what happened today?" → "News What is top 5 financial news"
+         "what happened today?" → "News What is top 10 financial news"
          "what is top 10 news?" → "News What is top 10 financial news?"
          "What is the updates of US" → "News What is the financial updates of US market?"
          "What happened to nifty50 down today? → "News What happened to nifty50 down today?"
@@ -467,7 +467,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             k=5,
             highlights=True,
             start_published_date=start_date,
-            type="news",
+            type="article",
             sort="date"  # Ensure sorting by date
         )
 
