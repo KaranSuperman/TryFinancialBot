@@ -460,7 +460,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     
     try:
         # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
@@ -568,6 +568,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             - Specify analysis timeframe
             - Note any pre/post market developments
             - Mention relevant upcoming events/triggers
+
+            IMPORTANT: For source citations, use this exact format:
+            "Your news statement. [sourcename](source_url)"
+            Ensure the source name is clickable.
 
             Maximum response length: 200 words
             Focus on actionable insights relevant to Indian market context.""")
