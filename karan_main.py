@@ -758,7 +758,7 @@ def user_input(user_question):
         # 2. Check FAQ content
         new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever_faq = MultiQueryRetriever.from_llm(
-            retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
+            retriever=new_db2.as_retriever(search_kwargs={'k': 5}),
             llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
         )
         faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
