@@ -458,34 +458,18 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     
     exa_api_key = exa_api_key.strip()
     
-    # Verify Gemini API key
-    if not gemini_api_key or not isinstance(gemini_api_key, str):
-        raise ValueError("Valid Gemini API key is required")
-
-    # Configure Gemini
-    genai.configure(api_key=gemini_api_key)
-    
-    # Enhanced LLM Configuration
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-pro",
-        temperature=0,
-        google_api_key=gemini_api_key,
-        max_output_tokens=2048,
-        convert_system_message_to_human=True
-    )
-
     try:
         # Change to 1 days (24 hours) to get very recent news
         start_date = (datetime.now() - timedelta(days=0.5)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration with broader search
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
             highlights=True,
             start_published_date=start_date,
             type=["news", "analysis", "research"],
-            sort="relevance"
+            sort="date"  # Ensure sorting by date
         )
 
         # Ensure the API key is set in the headers
@@ -494,113 +478,117 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
+        
+        # Verify Gemini API key
+        if not gemini_api_key or not isinstance(gemini_api_key, str):
+            raise ValueError("Valid Gemini API key is required")
 
-        # Base prompt for financial analysis
-        base_system_prompt = """You are a senior financial analyst specializing in Indian markets with expertise in:
-        - Market analysis and trends
-        - Regulatory frameworks and taxation
-        - Investment products and strategies
-        - Economic policies and their impact
+        # Configure Gemini
+        genai.configure(api_key=gemini_api_key)
+        
+        # Enhanced LLM Configuration
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-pro",
+            temperature=0,
+            google_api_key=gemini_api_key,
+            max_output_tokens=2048,
+            convert_system_message_to_human=True
+        )
 
-        When analyzing:
-        1. For news-based queries:
-           - Focus on recent developments
-           - Provide market implications
-           - Include relevant data points
-
-        2. For general financial queries:
-           - Explain applicable regulations
-           - Provide practical considerations
-           - Include relevant examples
-           - Cite specific policies when available
-
-        3. For tax-related queries:
-           - Outline general tax implications
-           - Mention relevant tax regulations
-           - Highlight important considerations
-           - Suggest professional consultation for specific cases
-
-        Always maintain accuracy and clarity in your responses."""
-
-        # Fallback chain for when no context is found
-        fallback_prompt = ChatPromptTemplate.from_messages([
-            ("system", base_system_prompt + "\n\nProvide general guidance when no recent context is available."),
-            ("human", "Query: {query}\n\nPlease provide general guidance based on standard practices and regulations.")
-        ])
-
-        fallback_chain = fallback_prompt | llm
-
-        # Document processing for when context is found
+        # Detailed Document Template
         document_template = """
-        <financial_content>
-            <title>{title}</title>
+        <financial_news>
+            <headline>{title}</headline>
             <date>{date}</date>
-            <type>{content_type}</type>
-            <key_points>{highlights}</key_points>
-            <source>{url}</source>
-        </financial_content>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
+        </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Financial Update"),
-                "date": doc.metadata.get("published_date", "Current"),
-                "content_type": doc.metadata.get("type", "general"),
-                "highlights": doc.metadata.get("highlights", "No key points available."),
+                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "date": doc.metadata.get("published_date", "Today"),
+                "highlights": doc.metadata.get("highlights", "No key insights available."),
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
+        
+        retrieval_chain = (
+            retriever | 
+            document_chain.map() | 
+            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+        )
 
-        # Main analysis prompt
-        analysis_prompt = ChatPromptTemplate.from_messages([
-            ("system", base_system_prompt),
-            ("human", "Query: {query}\nContext: {context}\n\nProvide analysis based on this information.")
+        # Improved Financial News Prompt with Better Formatting
+        generation_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
+
+            Core Expertise:
+            - Indian equity markets and sectoral analysis
+            - Global market correlations affecting Indian markets
+            - Technical and fundamental analysis
+            - Corporate earnings and valuations
+            - Macroeconomic indicators
+
+            Response Style:
+            - Quantitative: Always include specific numbers, percentages, and time periods
+            - Evidence-based: Support insights with recent data points and trends
+            - Market-focused: Emphasize market implications and trading volumes
+            - Forward-looking: Include potential impact on future market movements
+            - Risk-aware: Highlight key risks and uncertainties"""),
+            
+            ("human", """Analyze this financial query within the given context:
+
+            Query: {query}
+            Context: {context}
+            
+            Structure your response based on query category:
+
+            1. Market Analysis:
+            - Key index movements with exact percentages
+            - Top performing/underperforming sectors
+            - Trading volumes and FII/DII flows
+            - Global market correlation if relevant
+
+            2. Company Analysis:
+            - Latest quarterly metrics (YoY and QoQ)
+            - Management commentary highlights
+            - Peer comparison
+            - Technical indicators and support/resistance levels
+
+            3. Policy/Economic Updates:
+            - Immediate market impact
+            - Sector-wise implications
+            - Timeline for implementation
+            - Historical precedents if applicable
+
+            4. Date and Time Context:
+            - Specify analysis timeframe
+            - Note any pre/post market developments
+            - Mention relevant upcoming events/triggers
+
+            Maximum response length: 200 words
+            Focus on actionable insights relevant to Indian market context.""")
         ])
 
-        def safe_retrieve(query):
-            try:
-                docs = retriever.get_relevant_documents(query)
-                if not docs:
-                    return None
-                return docs
-            except Exception:
-                return None
-
-        def process_retrieved_docs(docs):
-            if docs is None:
-                return None
-            processed_docs = document_chain.batch(docs)
-            combined_docs = "\n\n".join(str(doc) for doc in processed_docs)
-            return combined_docs if combined_docs.strip() else None
-
-        def route_to_appropriate_chain(inputs):
-            query = inputs["query"]
-            context = inputs["context"]
-            
-            if context is None:
-                return fallback_chain.invoke({"query": query})
-            return analysis_prompt.invoke({"query": query, "context": context}) | llm
-
-        # Main chain
         chain = (
             RunnableParallel({
-                "query": RunnablePassthrough(),
-                "context": RunnableLambda(safe_retrieve) | RunnableLambda(process_retrieved_docs)
+                "query": RunnablePassthrough(),  
+                "context": retrieval_chain,  
             }) 
-            | RunnableLambda(route_to_appropriate_chain)
+            | generation_prompt 
+            | llm
         )
         
         return chain
 
     except Exception as e:
-        # If chain creation fails, return a simple fallback chain
-        emergency_prompt = ChatPromptTemplate.from_messages([
-            ("system", "You are a financial analyst. Provide general guidance when technical issues prevent detailed analysis."),
-            ("human", "{query}")
-        ])
-        return emergency_prompt | llm
+        st.error(f"Error in create_research_chain: {str(e)}")
+        raise
+
      
 
 def plot_stock_graph(symbol):
