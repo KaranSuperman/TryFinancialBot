@@ -326,8 +326,8 @@ def is_stock_query(user_question):
 
     3. IF the question is about Finance or tax related information, respond: "News [REPHRASED_QUERY]"
        - Examples:
-         "What is the market cap to gdp ratio of India?" → "News What is India's market capitalization-to-GDP ratio?"
-         "What is the tax I pay on debt ETF's overseas?" → "News How is taxation applied to overseas debt ETFs?"
+         "What is the market cap to gdp ratio of India?" → "News What is the market cap to gdp ratio of India?"
+         "What is the tax I pay on debt ETF's overseas?" → "News What is the tax I pay on debt ETF's overseas?"
 
     4. Do not response on financial terms , respond: "False NONE"
         - Example: 
