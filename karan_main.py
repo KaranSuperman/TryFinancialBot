@@ -458,6 +458,22 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     
     exa_api_key = exa_api_key.strip()
     
+    # Verify Gemini API key
+    if not gemini_api_key or not isinstance(gemini_api_key, str):
+        raise ValueError("Valid Gemini API key is required")
+
+    # Configure Gemini
+    genai.configure(api_key=gemini_api_key)
+    
+    # Enhanced LLM Configuration
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-pro",
+        temperature=0,
+        google_api_key=gemini_api_key,
+        max_output_tokens=2048,
+        convert_system_message_to_human=True
+    )
+
     try:
         # Change to 1 days (24 hours) to get very recent news
         start_date = (datetime.now() - timedelta(days=0.5)).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -468,8 +484,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             k=5,
             highlights=True,
             start_published_date=start_date,
-            type=["news", "analysis", "research"],  # Include more content types
-            sort="relevance"  # Changed to relevance for non-news queries
+            type=["news", "analysis", "research"],
+            sort="relevance"
         )
 
         # Ensure the API key is set in the headers
@@ -478,39 +494,43 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
-        
-        # Verify Gemini API key
-        if not gemini_api_key or not isinstance(gemini_api_key, str):
-            raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
-        genai.configure(api_key=gemini_api_key)
-        
-        # Enhanced LLM Configuration
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-pro",
-            temperature=0,
-            google_api_key=gemini_api_key,
-            max_output_tokens=2048,
-            convert_system_message_to_human=True
-        )
+        # Base prompt for financial analysis
+        base_system_prompt = """You are a senior financial analyst specializing in Indian markets with expertise in:
+        - Market analysis and trends
+        - Regulatory frameworks and taxation
+        - Investment products and strategies
+        - Economic policies and their impact
 
-        # Fallback response for when no relevant context is found
-        def generate_fallback_response(query: str) -> str:
-            fallback_prompt = ChatPromptTemplate.from_messages([
-                ("system", """You are a senior financial analyst specializing in Indian markets. 
-                When no recent news or context is available, provide general guidance based on:
-                - Current regulatory frameworks
-                - Standard market practices
-                - Historical patterns
-                - General financial principles
-                Always clarify that this is general information and specific cases may vary."""),
-                ("human", "{query}")
-            ])
-            
-            return fallback_prompt | llm
+        When analyzing:
+        1. For news-based queries:
+           - Focus on recent developments
+           - Provide market implications
+           - Include relevant data points
 
-        # Enhanced Document Template with broader scope
+        2. For general financial queries:
+           - Explain applicable regulations
+           - Provide practical considerations
+           - Include relevant examples
+           - Cite specific policies when available
+
+        3. For tax-related queries:
+           - Outline general tax implications
+           - Mention relevant tax regulations
+           - Highlight important considerations
+           - Suggest professional consultation for specific cases
+
+        Always maintain accuracy and clarity in your responses."""
+
+        # Fallback chain for when no context is found
+        fallback_prompt = ChatPromptTemplate.from_messages([
+            ("system", base_system_prompt + "\n\nProvide general guidance when no recent context is available."),
+            ("human", "Query: {query}\n\nPlease provide general guidance based on standard practices and regulations.")
+        ])
+
+        fallback_chain = fallback_prompt | llm
+
+        # Document processing for when context is found
         document_template = """
         <financial_content>
             <title>{title}</title>
@@ -532,77 +552,55 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
-        
-        # Enhanced retrieval chain with context validation
-        def validate_and_process_context(docs):
-            processed_docs = "\n\n".join(str(doc) for doc in docs)
-            if not processed_docs.strip() or "No key points available" in processed_docs:
-                return None
-            return processed_docs
 
-        retrieval_chain = (
-            retriever | 
-            document_chain.map() | 
-            RunnableLambda(validate_and_process_context)
-        )
-
-        # Improved Financial Analysis Prompt
-        generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian markets with expertise in:
-            - Market analysis and trends
-            - Regulatory frameworks and taxation
-            - Investment products and strategies
-            - Economic policies and their impact
-
-            When analyzing:
-            1. For news-based queries:
-               - Focus on recent developments
-               - Provide market implications
-               - Include relevant data points
-
-            2. For general financial queries:
-               - Explain applicable regulations
-               - Provide practical considerations
-               - Include relevant examples
-               - Cite specific policies when available
-
-            3. For tax-related queries:
-               - Outline general tax implications
-               - Mention relevant tax regulations
-               - Highlight important considerations
-               - Suggest professional consultation for specific cases
-
-            Always maintain accuracy and clarity in your responses."""),
-            
-            ("human", """Analyze this financial query:
-            Query: {query}
-            Context: {context}
-
-            If the context is missing or not relevant:
-            - Provide general guidance based on standard practices
-            - Explain basic principles
-            - Recommend professional consultation for specific cases""")
+        # Main analysis prompt
+        analysis_prompt = ChatPromptTemplate.from_messages([
+            ("system", base_system_prompt),
+            ("human", "Query: {query}\nContext: {context}\n\nProvide analysis based on this information.")
         ])
 
-        # Enhanced chain with fallback handling
-        def process_query(inputs):
-            if inputs["context"] is None:
-                return generate_fallback_response(inputs["query"])
-            return generation_prompt | llm
+        def safe_retrieve(query):
+            try:
+                docs = retriever.get_relevant_documents(query)
+                if not docs:
+                    return None
+                return docs
+            except Exception:
+                return None
 
+        def process_retrieved_docs(docs):
+            if docs is None:
+                return None
+            processed_docs = document_chain.batch(docs)
+            combined_docs = "\n\n".join(str(doc) for doc in processed_docs)
+            return combined_docs if combined_docs.strip() else None
+
+        def route_to_appropriate_chain(inputs):
+            query = inputs["query"]
+            context = inputs["context"]
+            
+            if context is None:
+                return fallback_chain.invoke({"query": query})
+            return analysis_prompt.invoke({"query": query, "context": context}) | llm
+
+        # Main chain
         chain = (
             RunnableParallel({
                 "query": RunnablePassthrough(),
-                "context": retrieval_chain,
+                "context": RunnableLambda(safe_retrieve) | RunnableLambda(process_retrieved_docs)
             }) 
-            | RunnableLambda(process_query)
+            | RunnableLambda(route_to_appropriate_chain)
         )
         
         return chain
 
     except Exception as e:
-        raise Exception(f"Error creating research chain: {str(e)}")
-
+        # If chain creation fails, return a simple fallback chain
+        emergency_prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are a financial analyst. Provide general guidance when technical issues prevent detailed analysis."),
+            ("human", "{query}")
+        ])
+        return emergency_prompt | llm
      
 
 def plot_stock_graph(symbol):
