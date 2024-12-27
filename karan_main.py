@@ -468,7 +468,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             k=5,
             highlights=True,
             start_published_date=start_date,
-            type="article",
+            type="news",
             sort="date"  # Ensure sorting by date
         )
 
