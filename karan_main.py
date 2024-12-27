@@ -467,7 +467,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             api_key=exa_api_key,
             k=5,
             highlights=True,
-            type="news",
+            type="article",
             sort="date"  # Use relevance instead of date for general queries
         )
 
