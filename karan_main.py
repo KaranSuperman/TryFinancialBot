@@ -323,7 +323,7 @@ def is_stock_query(user_question):
        - All general news queries MUST be rephrased to focus on financial markets/economy
        - Always add specific financial context when rephrasing
        Examples:
-         "What's happening today?" → "News What are the key financial or economic in the term of finance events today?"
+         "What's happening today?" → "News Give 5 finance news of today?"
          "Give me latest news" → "News What are the latest financial market updates?"
          "Top stories" → "News What are today's top financial market stories?"
          "US news" → "News What are the major US financial market developments?"
