@@ -354,6 +354,7 @@ def is_stock_query(user_question):
     - Amazon = AMZN
     - Meta = META
     - Bitcoin = BTC-USD
+    - Sensex = ^BSESN
  
 
     COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
