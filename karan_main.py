@@ -863,7 +863,7 @@ def user_input(user_question):
                 if hasattr(response, 'content'):
                     return {"output_text": response.content.strip()}
                 else:
-                    return {"output_text": "No valid content received from the response."}
+                    return {"output_text": "Sorry! No information avaiable for this question."}
             
             # Finally, fall back to LLM response
             else:
