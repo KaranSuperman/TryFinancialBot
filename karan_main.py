@@ -470,121 +470,181 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Reduce to 15 minutes for extremely recent news
+        start_date = (datetime.now() - timedelta(minutes=15)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
+        # Enhanced Retriever Configuration with better filtering
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=10,
+            k=15,  # Increased from 10 to get more context
             highlights=True,
             start_published_date=start_date,
             type="article",
-            sort="date"  # Ensure sorting by date
+            sort="date",  # Sort by date
+            use_cache=False,  # Disable caching to always get fresh data
+            extra_search_kwargs={
+                "min_score": 0.7,  # Only high-relevance articles
+                "source_domain_in": [
+                    "moneycontrol.com", "economictimes.indiatimes.com", 
+                    "livemint.com", "bloomberg.com", "reuters.com",
+                    "nseindia.com", "bseindia.com"
+                ],  # Trusted financial sources
+                "language": "en"
+            }
         )
 
-        # Ensure the API key is set in the headers
+        # Enhanced headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "User-Agent": "FinancialResearchBot/1.0"
             })
         
-        # Verify Gemini API key
+        # Verify and configure Gemini
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
+        # Enhanced LLM Configuration with better parameters
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0,
+            temperature=0.1,  # Slightly increased for more natural language
             google_api_key=gemini_api_key,
-            max_output_tokens=2048,
+            max_output_tokens=4096,  # Increased for more detailed responses
+            top_p=0.95,
+            top_k=40,
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Enhanced Document Template with more metadata
         document_template = """
         <financial_news>
             <headline>{title}</headline>
-            <date>{date}</date>
-            <key_insights>{highlights}</key_insights>
+            <publication_timestamp>{timestamp}</publication_timestamp>
+            <source>{source}</source>
+            <key_insights>
+                <highlight>{highlights}</highlight>
+                <categories>{categories}</categories>
+                <entities>{entities}</entities>
+            </key_insights>
+            <metrics>
+                <relevance_score>{relevance}</relevance_score>
+                <source_credibility>{credibility}</source_credibility>
+            </metrics>
             <source_url>{url}</source_url>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
+        # Enhanced document chain with more metadata
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
-                "date": doc.metadata.get("published_date", "Today"),
+                "timestamp": doc.metadata.get("published_date", datetime.now().isoformat()),
+                "source": doc.metadata.get("source_domain", "Unknown Source"),
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "categories": doc.metadata.get("categories", []),
+                "entities": doc.metadata.get("entities", []),
+                "relevance": doc.metadata.get("score", 0.0),
+                "credibility": doc.metadata.get("source_credibility", "unknown"),
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
         
+        # Enhanced retrieval chain with deduplication
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
-            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+            RunnableLambda(lambda docs: "\n\n".join(
+                str(doc) for doc in sorted(
+                    set(docs),  # Remove duplicates
+                    key=lambda x: x.metadata.get("published_date", ""),
+                    reverse=True  # Most recent first
+                )
+            ))
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Enhanced Financial Analysis Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
+            ("system", """You are an elite financial analyst specializing in Indian markets with real-time analysis capabilities. Your responses must be:
 
-            Core Expertise:
-            - Indian equity markets and sectoral analysis
-            - Global market correlations affecting Indian markets
-            - Technical and fundamental analysis
-            - Corporate earnings and valuations
-            - Macroeconomic indicators
+            1. Time-Critical:
+            - Include exact timestamps for all data points
+            - Specify "as of [current_timestamp]" for all metrics
+            - Highlight data freshness for each insight
 
-            Response Style:
-            - Quantitative: Always include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points and trends
-            - Market-focused: Emphasize market implications and trading volumes
-            - Forward-looking: Include potential impact on future market movements
-            - Risk-aware: Highlight key risks and uncertainties"""),
+            2. Data-Driven:
+            - Include specific numbers with 2 decimal precision
+            - Compare with previous timeframes (1h, 24h, 7d)
+            - Reference trading volumes in exact figures
+
+            3. Source-Verified:
+            - Cite specific sources for each major claim
+            - Include credibility scores for sources
+            - Flag any conflicting information
+
+            4. Market Context:
+            - Real-time index movements
+            - Live sector rotation analysis
+            - Current market breadth metrics
+            - Ongoing trading patterns
+
+            5. Risk Assessment:
+            - Confidence levels for predictions
+            - Statistical significance of trends
+            - Known data limitations
+            - Alternative scenarios
+
+            Format all numbers with proper units and international notation."""),
             
-            ("human", """Analyze this financial query within the given context:
+            ("human", """Analyze this financial query with real-time precision:
 
             Query: {query}
             Context: {context}
             
-            Structure your response based on query category:
+            Required Response Structure:
 
-            1. Market Analysis:
-            - Key index movements with exact percentages
-            - Top performing/underperforming sectors
-            - Trading volumes and FII/DII flows
-            - Global market correlation if relevant
+            1. Timestamp and Data Freshness:
+            [Provide exact analysis timestamp and data freshness metrics]
 
-            2. Company Analysis:
-            - Latest quarterly metrics (YoY and QoQ)
-            - Management commentary highlights
-            - Peer comparison
-            - Technical indicators and support/resistance levels
+            2. Market Dynamics:
+            - Index Movements (1min, 5min, 15min intervals)
+            - Sector Rotations (with exact percentages)
+            - Market Breadth Indicators
+            - Volume Analysis (FII/DII with exact figures)
 
-            3. Policy/Economic Updates:
-            - Immediate market impact
-            - Sector-wise implications
-            - Timeline for implementation
-            - Historical precedents if applicable
+            3. Technical Analysis:
+            - Key Support/Resistance Levels
+            - Moving Averages (5/10/20 period)
+            - Momentum Indicators
+            - Volume Profile
 
-            4. Date and Time Context:
-            - Specify analysis timeframe
-            - Note any pre/post market developments
-            - Mention relevant upcoming events/triggers
+            4. Fundamental Factors:
+            - Latest Corporate Actions
+            - Results Impact
+            - Regulatory Updates
+            - Global Market Correlations
 
-            Maximum response length: 200 words
-            Focus on actionable insights relevant to Indian market context.""")
+            5. Risk Metrics:
+            - VIX Movements
+            - Put-Call Ratios
+            - Market Sentiment Indicators
+            - Systemic Risk Factors
+
+            6. Actionable Insights:
+            - Key Levels to Watch
+            - Risk-Reward Scenarios
+            - Timeline for Expected Events
+            - Trading Volume Triggers
+
+            Maximum response length: 400 words
+            Focus on quantitative metrics and real-time market movements.""")
         ])
 
+        # Final chain assembly with error handling
         chain = (
             RunnableParallel({
                 "query": RunnablePassthrough(),  
@@ -597,9 +657,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         return chain
 
     except Exception as e:
-        st.error(f"Error in create_research_chain: {str(e)}")
+        logging.error(f"Error in create_research_chain: {str(e)}", exc_info=True)
         raise
-
      
 
 def plot_stock_graph(symbol):
