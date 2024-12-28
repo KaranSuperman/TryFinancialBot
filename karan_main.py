@@ -470,149 +470,107 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Get current timestamp for strict time filtering
+        # Get current timestamp for 24-hour window
         current_time = datetime.now()
+        start_date = (current_time - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
         
-        # Only get news from the last 5 minutes to ensure absolute freshness
-        start_date = (current_time - timedelta(minutes=5)).strftime('%Y-%m-%dT%H:%M:%SZ')
-        
-        # Enhanced Retriever Configuration with strict time controls
+        # Enhanced Retriever Configuration for news
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=20,  # Increased to get more recent articles
+            k=15,  # Number of news items to fetch
             highlights=True,
             start_published_date=start_date,
-            end_published_date=current_time.strftime('%Y-%m-%dT%H:%M:%SZ'),  # Add end date for strict time window
-            type="article",
+            end_published_date=current_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            type="news",
             sort="date",
             use_cache=False,
             extra_search_kwargs={
-                "min_score": 0.8,  # Increased relevance threshold
+                "min_score": 0.7,
                 "source_domain_in": [
-                    "moneycontrol.com", "economictimes.indiatimes.com", 
-                    "livemint.com", "bloomberg.com", "reuters.com",
-                    "nseindia.com", "bseindia.com", "tradingview.com",
-                    "investing.com", "marketwatch.com"
+                    "economictimes.indiatimes.com", "livemint.com", 
+                    "business-standard.com", "moneycontrol.com",
+                    "financialexpress.com", "thehindubusinessline.com",
+                    "bloomberg.com", "reuters.com"
                 ],
                 "language": "en",
-                "time_sort": "desc",  # Ensure newest first
-                "real_time_boost": True  # Prioritize real-time updates
+                "categories": ["finance", "business", "economy", "markets", "industry"],
+                "exclude_categories": ["opinion", "blog", "sponsored"],
+                "time_sort": "desc"
             }
         )
 
-        # Add real-time data verification
-        def verify_data_freshness(docs):
-            current_time = datetime.now()
-            fresh_docs = []
+        # Function to process and format news
+        def format_news_content(docs):
+            processed_news = []
+            seen_headlines = set()
+            
             for doc in docs:
-                pub_date = datetime.fromisoformat(doc.metadata.get("published_date").replace('Z', '+00:00'))
-                time_diff = (current_time - pub_date).total_seconds() / 60  # in minutes
-                
-                if time_diff <= 5:  # Only keep documents less than 5 minutes old
-                    doc.metadata["freshness"] = f"{time_diff:.1f} minutes old"
-                    fresh_docs.append(doc)
+                headline = doc.metadata.get("title", "").strip()
+                if headline and headline not in seen_headlines:
+                    content = {
+                        "headline": headline,
+                        "content": doc.page_content,
+                        "source": doc.metadata.get("source_domain", ""),
+                        "timestamp": doc.metadata.get("published_date", ""),
+                        "url": doc.metadata.get("url", "")
+                    }
+                    processed_news.append(content)
+                    seen_headlines.add(headline)
             
-            if not fresh_docs:
-                raise ValueError("No real-time data available. All sources are outdated.")
-            
-            return fresh_docs
+            return processed_news
 
-        # Enhanced document template with real-time markers
+        # Enhanced document template for news format
         document_template = """
-        <financial_news>
-            <metadata>
-                <timestamp>{timestamp}</timestamp>
-                <freshness>{freshness}</freshness>
-                <source>{source}</source>
-                <reliability_score>{reliability}</reliability_score>
-            </metadata>
-            <content>
-                <headline>{title}</headline>
-                <key_points>{highlights}</key_points>
-                <market_data>{market_data}</market_data>
-            </content>
-            <verification>
-                <last_updated>{last_updated}</last_updated>
-                <source_url>{url}</source_url>
-            </verification>
-        </financial_news>
+        {%- for news in news_items %}
+        * **{{ news.headline }}**: {{ news.content|truncate(200) }}
+        {%- endfor %}
         """
         
-        # Enhanced document chain with freshness verification
-        document_chain = (
-            RunnablePassthrough() | 
-            RunnableLambda(lambda doc: {
-                "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "freshness": doc.metadata.get("freshness", "Unknown"),
-                "title": doc.metadata.get("title", "Real-time Update"),
-                "source": doc.metadata.get("source_domain", "Direct Feed"),
-                "reliability": doc.metadata.get("score", 1.0),
-                "highlights": doc.metadata.get("highlights", ""),
-                "market_data": doc.page_content,
-                "last_updated": datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "url": doc.metadata.get("url", "Direct Market Feed")
-            }) | document_prompt
+        document_prompt = PromptTemplate(
+            template=document_template,
+            input_variables=["news_items"]
         )
 
-        # Enhanced retrieval chain with freshness verification
+        # Enhanced retrieval chain for news
         retrieval_chain = (
             retriever | 
-            RunnableLambda(verify_data_freshness) |
-            document_chain.map() | 
-            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+            RunnableLambda(format_news_content) |
+            RunnableLambda(lambda news: {"news_items": news}) |
+            document_prompt
         )
 
-        # Enhanced system prompt focusing on real-time data
-        system_prompt = """You are a real-time financial market analyst specialized in Indian markets. Your primary focus is providing ONLY current market data with timestamp verification.
-
-        Critical Requirements:
-        1. ONLY use data from the last 5 minutes
-        2. Every single metric must include its exact timestamp
-        3. Verify and state the age of each data point
-        4. Include "Data as of [EXACT_TIMESTAMP]" for every section
-        5. If data is older than 5 minutes, flag it as "OUTDATED - DO NOT USE"
+        # Enhanced system prompt for news summarization
+        system_prompt = """You are a financial news curator specializing in Indian markets and business news. 
         
-        Format all responses with:
-        - Exact timestamps (HH:MM:SS)
-        - Data age in minutes and seconds
-        - Source reliability score
-        - Real-time verification status
+        For queries like "what happened today" or "what is today's news":
+        1. Focus on significant financial, corporate, and economic news
+        2. Present each news item in a clear, bulleted format
+        3. Start with the most impactful news
+        4. Include specific numbers and percentages
+        5. Keep each news item concise but informative
+        6. Cover diverse sectors: economy, markets, corporate, policy
+        7. Only include news from the last 24 hours
         
-        IMPORTANT: Reject and flag any data older than 5 minutes as unusable."""
+        Format Requirements:
+        - Use bullet points with bold headlines
+        - Include specific figures and percentages
+        - Keep each item to 2-3 sentences
+        - Focus on facts, avoid opinions
+        - Include source attribution when relevant"""
 
         # Enhanced generation prompt
         generation_prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
-            ("human", """Analyze this real-time market data:
+            ("human", """Process and summarize this financial news:
 
             Query: {query}
-            Real-time Context: {context}
+            Latest News: {context}
             
-            Required Structure:
-            1. Data Timestamp Verification
-                - Exact timestamp of analysis
-                - Age of each data point
-                - Data freshness verification
-            
-            2. Real-time Market Indicators
-                - Live index values (with second-by-second changes)
-                - Current trading volume (last 1 minute)
-                - Active market sentiment indicators
-            
-            3. Immediate Market Movements
-                - Tick-by-tick changes
-                - Volume spikes
-                - Price action alerts
-            
-            4. Breaking Updates
-                - Last 5-minute developments
-                - Real-time news impact
-                - Immediate market reactions
-            
-            Remember: ONLY use data from the last 5 minutes. Flag any older data as unusable.""")
+            Format each news item as:
+            * **Headline**: Concise description with specific numbers and facts.""")
         ])
 
-        # Final chain with enhanced error handling
+        # Final chain assembly
         chain = (
             RunnableParallel({
                 "query": RunnablePassthrough(),
@@ -625,9 +583,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         return chain
 
     except Exception as e:
-        logging.error(f"Real-time data error: {str(e)}", exc_info=True)
-        raise ValueError("Unable to fetch real-time data. Please verify market hours and data feeds.")
-     
+        logging.error(f"News processing error: {str(e)}", exc_info=True)
+        raise ValueError("Unable to fetch latest news. Please try again.")
 
 def plot_stock_graph(symbol):
     try:
