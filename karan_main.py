@@ -470,185 +470,153 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Reduce to 15 minutes for extremely recent news
-        start_date = (datetime.now() - timedelta(minutes=15)).strftime('%Y-%m-%dT%H:%M:%SZ')
-
-        # Enhanced Retriever Configuration with better filtering
+        # Get current timestamp for strict time filtering
+        current_time = datetime.now()
+        
+        # Only get news from the last 5 minutes to ensure absolute freshness
+        start_date = (current_time - timedelta(minutes=5)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        
+        # Enhanced Retriever Configuration with strict time controls
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=15,  # Increased from 10 to get more context
+            k=20,  # Increased to get more recent articles
             highlights=True,
             start_published_date=start_date,
+            end_published_date=current_time.strftime('%Y-%m-%dT%H:%M:%SZ'),  # Add end date for strict time window
             type="article",
-            sort="date",  # Sort by date
-            use_cache=False,  # Disable caching to always get fresh data
+            sort="date",
+            use_cache=False,
             extra_search_kwargs={
-                "min_score": 0.7,  # Only high-relevance articles
+                "min_score": 0.8,  # Increased relevance threshold
                 "source_domain_in": [
                     "moneycontrol.com", "economictimes.indiatimes.com", 
                     "livemint.com", "bloomberg.com", "reuters.com",
-                    "nseindia.com", "bseindia.com"
-                ],  # Trusted financial sources
-                "language": "en"
+                    "nseindia.com", "bseindia.com", "tradingview.com",
+                    "investing.com", "marketwatch.com"
+                ],
+                "language": "en",
+                "time_sort": "desc",  # Ensure newest first
+                "real_time_boost": True  # Prioritize real-time updates
             }
         )
 
-        # Enhanced headers
-        if hasattr(retriever, 'client'):
-            retriever.client.headers.update({
-                "x-api-key": exa_api_key,
-                "Content-Type": "application/json",
-                "User-Agent": "FinancialResearchBot/1.0"
-            })
-        
-        # Verify and configure Gemini
-        if not gemini_api_key or not isinstance(gemini_api_key, str):
-            raise ValueError("Valid Gemini API key is required")
+        # Add real-time data verification
+        def verify_data_freshness(docs):
+            current_time = datetime.now()
+            fresh_docs = []
+            for doc in docs:
+                pub_date = datetime.fromisoformat(doc.metadata.get("published_date").replace('Z', '+00:00'))
+                time_diff = (current_time - pub_date).total_seconds() / 60  # in minutes
+                
+                if time_diff <= 5:  # Only keep documents less than 5 minutes old
+                    doc.metadata["freshness"] = f"{time_diff:.1f} minutes old"
+                    fresh_docs.append(doc)
+            
+            if not fresh_docs:
+                raise ValueError("No real-time data available. All sources are outdated.")
+            
+            return fresh_docs
 
-        genai.configure(api_key=gemini_api_key)
-        
-        # Enhanced LLM Configuration with better parameters
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-pro",
-            temperature=0.1,  # Slightly increased for more natural language
-            google_api_key=gemini_api_key,
-            max_output_tokens=4096,  # Increased for more detailed responses
-            top_p=0.95,
-            top_k=40,
-            convert_system_message_to_human=True
-        )
-
-        # Enhanced Document Template with more metadata
+        # Enhanced document template with real-time markers
         document_template = """
         <financial_news>
-            <headline>{title}</headline>
-            <publication_timestamp>{timestamp}</publication_timestamp>
-            <source>{source}</source>
-            <key_insights>
-                <highlight>{highlights}</highlight>
-                <categories>{categories}</categories>
-                <entities>{entities}</entities>
-            </key_insights>
-            <metrics>
-                <relevance_score>{relevance}</relevance_score>
-                <source_credibility>{credibility}</source_credibility>
-            </metrics>
-            <source_url>{url}</source_url>
+            <metadata>
+                <timestamp>{timestamp}</timestamp>
+                <freshness>{freshness}</freshness>
+                <source>{source}</source>
+                <reliability_score>{reliability}</reliability_score>
+            </metadata>
+            <content>
+                <headline>{title}</headline>
+                <key_points>{highlights}</key_points>
+                <market_data>{market_data}</market_data>
+            </content>
+            <verification>
+                <last_updated>{last_updated}</last_updated>
+                <source_url>{url}</source_url>
+            </verification>
         </financial_news>
         """
-        document_prompt = PromptTemplate.from_template(document_template)
         
-        # Enhanced document chain with more metadata
+        # Enhanced document chain with freshness verification
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
-                "timestamp": doc.metadata.get("published_date", datetime.now().isoformat()),
-                "source": doc.metadata.get("source_domain", "Unknown Source"),
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "categories": doc.metadata.get("categories", []),
-                "entities": doc.metadata.get("entities", []),
-                "relevance": doc.metadata.get("score", 0.0),
-                "credibility": doc.metadata.get("source_credibility", "unknown"),
-                "url": doc.metadata.get("url", "No source URL")
+                "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "freshness": doc.metadata.get("freshness", "Unknown"),
+                "title": doc.metadata.get("title", "Real-time Update"),
+                "source": doc.metadata.get("source_domain", "Direct Feed"),
+                "reliability": doc.metadata.get("score", 1.0),
+                "highlights": doc.metadata.get("highlights", ""),
+                "market_data": doc.page_content,
+                "last_updated": datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "url": doc.metadata.get("url", "Direct Market Feed")
             }) | document_prompt
         )
-        
-        # Enhanced retrieval chain with deduplication
+
+        # Enhanced retrieval chain with freshness verification
         retrieval_chain = (
             retriever | 
+            RunnableLambda(verify_data_freshness) |
             document_chain.map() | 
-            RunnableLambda(lambda docs: "\n\n".join(
-                str(doc) for doc in sorted(
-                    set(docs),  # Remove duplicates
-                    key=lambda x: x.metadata.get("published_date", ""),
-                    reverse=True  # Most recent first
-                )
-            ))
+            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Enhanced Financial Analysis Prompt
+        # Enhanced system prompt focusing on real-time data
+        system_prompt = """You are a real-time financial market analyst specialized in Indian markets. Your primary focus is providing ONLY current market data with timestamp verification.
+
+        Critical Requirements:
+        1. ONLY use data from the last 5 minutes
+        2. Every single metric must include its exact timestamp
+        3. Verify and state the age of each data point
+        4. Include "Data as of [EXACT_TIMESTAMP]" for every section
+        5. If data is older than 5 minutes, flag it as "OUTDATED - DO NOT USE"
+        
+        Format all responses with:
+        - Exact timestamps (HH:MM:SS)
+        - Data age in minutes and seconds
+        - Source reliability score
+        - Real-time verification status
+        
+        IMPORTANT: Reject and flag any data older than 5 minutes as unusable."""
+
+        # Enhanced generation prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are an elite financial analyst specializing in Indian markets with real-time analysis capabilities. Your responses must be:
-
-            1. Time-Critical:
-            - Include exact timestamps for all data points
-            - Specify "as of [current_timestamp]" for all metrics
-            - Highlight data freshness for each insight
-
-            2. Data-Driven:
-            - Include specific numbers with 2 decimal precision
-            - Compare with previous timeframes (1h, 24h, 7d)
-            - Reference trading volumes in exact figures
-
-            3. Source-Verified:
-            - Cite specific sources for each major claim
-            - Include credibility scores for sources
-            - Flag any conflicting information
-
-            4. Market Context:
-            - Real-time index movements
-            - Live sector rotation analysis
-            - Current market breadth metrics
-            - Ongoing trading patterns
-
-            5. Risk Assessment:
-            - Confidence levels for predictions
-            - Statistical significance of trends
-            - Known data limitations
-            - Alternative scenarios
-
-            Format all numbers with proper units and international notation."""),
-            
-            ("human", """Analyze this financial query with real-time precision:
+            ("system", system_prompt),
+            ("human", """Analyze this real-time market data:
 
             Query: {query}
-            Context: {context}
+            Real-time Context: {context}
             
-            Required Response Structure:
-
-            1. Timestamp and Data Freshness:
-            [Provide exact analysis timestamp and data freshness metrics]
-
-            2. Market Dynamics:
-            - Index Movements (1min, 5min, 15min intervals)
-            - Sector Rotations (with exact percentages)
-            - Market Breadth Indicators
-            - Volume Analysis (FII/DII with exact figures)
-
-            3. Technical Analysis:
-            - Key Support/Resistance Levels
-            - Moving Averages (5/10/20 period)
-            - Momentum Indicators
-            - Volume Profile
-
-            4. Fundamental Factors:
-            - Latest Corporate Actions
-            - Results Impact
-            - Regulatory Updates
-            - Global Market Correlations
-
-            5. Risk Metrics:
-            - VIX Movements
-            - Put-Call Ratios
-            - Market Sentiment Indicators
-            - Systemic Risk Factors
-
-            6. Actionable Insights:
-            - Key Levels to Watch
-            - Risk-Reward Scenarios
-            - Timeline for Expected Events
-            - Trading Volume Triggers
-
-            Maximum response length: 400 words
-            Focus on quantitative metrics and real-time market movements.""")
+            Required Structure:
+            1. Data Timestamp Verification
+                - Exact timestamp of analysis
+                - Age of each data point
+                - Data freshness verification
+            
+            2. Real-time Market Indicators
+                - Live index values (with second-by-second changes)
+                - Current trading volume (last 1 minute)
+                - Active market sentiment indicators
+            
+            3. Immediate Market Movements
+                - Tick-by-tick changes
+                - Volume spikes
+                - Price action alerts
+            
+            4. Breaking Updates
+                - Last 5-minute developments
+                - Real-time news impact
+                - Immediate market reactions
+            
+            Remember: ONLY use data from the last 5 minutes. Flag any older data as unusable.""")
         ])
 
-        # Final chain assembly with error handling
+        # Final chain with enhanced error handling
         chain = (
             RunnableParallel({
-                "query": RunnablePassthrough(),  
-                "context": retrieval_chain,  
+                "query": RunnablePassthrough(),
+                "context": retrieval_chain,
             }) 
             | generation_prompt 
             | llm
@@ -657,8 +625,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         return chain
 
     except Exception as e:
-        logging.error(f"Error in create_research_chain: {str(e)}", exc_info=True)
-        raise
+        logging.error(f"Real-time data error: {str(e)}", exc_info=True)
+        raise ValueError("Unable to fetch real-time data. Please verify market hours and data feeds.")
      
 
 def plot_stock_graph(symbol):
