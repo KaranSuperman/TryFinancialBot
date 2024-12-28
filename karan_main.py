@@ -562,7 +562,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Structure your response based on user query.
             For time-sensitive queries (today/latest), focus only on the most recent updates.
             If no specific recent news is found, clearly state that no recent updates are available.
-            Cite source also.
+
+            IMPORTANT: For source citations, use this exact format:
+            "Your news statement. [sourcename](source_url)"
+            Ensure the source name is clickable.
 
             Maximum response length: 200 words
             Focus on actionable insights relevant to the query context.""")
