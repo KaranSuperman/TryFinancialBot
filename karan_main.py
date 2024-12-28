@@ -536,20 +536,22 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
+            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
 
-            Core Expertise:
+            Core Areas:
             - Indian equity markets and sectoral analysis
-            - Global market correlations affecting Indian markets
+            - Cryptocurrency markets and blockchain technology
+            - Global market correlations and trends
             - Technical and fundamental analysis
-            - Corporate earnings and valuations
-            - Macroeconomic indicators
+            - Macroeconomic indicators and ratios
+            - Market valuations and metrics
 
             Response Style:
-            - Quantitative: Always include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points and trends
-            - Market-focused: Emphasize market implications and trading volumes
-            - Forward-looking: Include potential impact on future market movements
+            - Time-sensitive: Prioritize the most recent information
+            - Quantitative: Include specific numbers, percentages, and time periods
+            - Evidence-based: Support insights with recent data points
+            - Comprehensive: Cover both traditional and digital assets
+            - Forward-looking: Include potential market implications
             - Risk-aware: Highlight key risks and uncertainties"""),
             
             ("human", """Analyze this financial query within the given context:
@@ -558,10 +560,11 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Context: {context}
             
             Structure your response based on user query.
-
+            For time-sensitive queries (today/latest), focus only on the most recent updates.
+            If no specific recent news is found, clearly state that no recent updates are available.
 
             Maximum response length: 200 words
-            Focus on actionable insights relevant to Indian market context.""")
+            Focus on actionable insights relevant to the query context.""")
         ])
 
         chain = (
