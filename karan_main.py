@@ -471,49 +471,69 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Function to determine time window based on query
+        def get_time_window(query: str) -> tuple:
+            query_lower = query.lower()
+            
+            # Check for time-specific keywords
+            if any(word in query_lower for word in ['today', 'latest', 'now', 'current']):
+                # For today's news, use last 12 hours
+                return (datetime.now() - timedelta(hours=12)).strftime('%Y-%m-%dT%H:%M:%SZ'), "date"
+            elif 'yesterday' in query_lower:
+                # For yesterday's news
+                return (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%dT%H:%M:%SZ'), "date"
+            elif 'this week' in query_lower:
+                # For this week's news
+                return (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ'), "date"
+            else:
+                # Default to 7 days with relevance sorting for general queries
+                return (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ'), "relevance"
 
-        # Enhanced Retriever Configuration
-        retriever = ExaSearchRetriever(
-            api_key=exa_api_key,
-            k=5,
-            highlights=True,
-            start_published_date=start_date,
-            type="news",
-            sort="date"  # Ensure sorting by date
-        )
+        # Enhanced Retriever Configuration with dynamic time window
+        def create_retriever(query: str):
+            start_date, sort_order = get_time_window(query)
+            
+            return ExaSearchRetriever(
+                api_key=exa_api_key,
+                k=8,
+                highlights=True,
+                start_published_date=start_date,
+                type=["news", "research", "blogs"],
+                sort=sort_order,
+                include_domains=[
+                    "bloomberg.com",
+                    "reuters.com",
+                    "moneycontrol.com",
+                    "economictimes.indiatimes.com",
+                    "livemint.com",
+                    "financialexpress.com",
+                    "coindesk.com",
+                    "cointelegraph.com"
+                ]
+            )
 
-        # Ensure the API key is set in the headers
-        if hasattr(retriever, 'client'):
-            retriever.client.headers.update({
-                "x-api-key": exa_api_key,
-                "Content-Type": "application/json"
-            })
-        
-        # Verify Gemini API key
+        # Rest of the configuration
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0,
+            temperature=0.2,
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
             <key_insights>{highlights}</key_insights>
+            <source>{source}</source>
             <source_url>{url}</source_url>
+            <time_published>{time}</time_published>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
@@ -524,32 +544,50 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
+                "source": doc.metadata.get("source", "Unknown Source"),
+                "url": doc.metadata.get("url", "No source URL"),
+                "time": doc.metadata.get("published_time", "Unknown Time")
             }) | document_prompt
         )
         
+        def combine_docs(docs):
+            if not docs:
+                return "No recent relevant information found. Please try rephrasing your query or checking broader market updates."
+            return "\n\n".join(str(doc) for doc in docs)
+        
+        # Modified retrieval chain to use dynamic retriever
+        def dynamic_retrieval(query: str):
+            retriever = create_retriever(query)
+            if hasattr(retriever, 'client'):
+                retriever.client.headers.update({
+                    "x-api-key": exa_api_key,
+                    "Content-Type": "application/json"
+                })
+            return retriever.get_relevant_documents(query)
+
         retrieval_chain = (
-            retriever | 
+            RunnableLambda(dynamic_retrieval) | 
             document_chain.map() | 
-            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+            RunnableLambda(combine_docs)
         )
 
-        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
+            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
 
-            Core Expertise:
+            Core Areas:
             - Indian equity markets and sectoral analysis
-            - Global market correlations affecting Indian markets
+            - Cryptocurrency markets and blockchain technology
+            - Global market correlations and trends
             - Technical and fundamental analysis
-            - Corporate earnings and valuations
-            - Macroeconomic indicators
+            - Macroeconomic indicators and ratios
+            - Market valuations and metrics
 
             Response Style:
-            - Quantitative: Always include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points and trends
-            - Market-focused: Emphasize market implications and trading volumes
-            - Forward-looking: Include potential impact on future market movements
+            - Time-sensitive: Prioritize the most recent information
+            - Quantitative: Include specific numbers, percentages, and time periods
+            - Evidence-based: Support insights with recent data points
+            - Comprehensive: Cover both traditional and digital assets
+            - Forward-looking: Include potential market implications
             - Risk-aware: Highlight key risks and uncertainties"""),
             
             ("human", """Analyze this financial query within the given context:
@@ -558,10 +596,11 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Context: {context}
             
             Structure your response based on user query.
-
+            For time-sensitive queries (today/latest), focus only on the most recent updates.
+            If no specific recent news is found, clearly state that no recent updates are available.
 
             Maximum response length: 200 words
-            Focus on actionable insights relevant to Indian market context.""")
+            Focus on actionable insights relevant to the query context.""")
         ])
 
         chain = (
