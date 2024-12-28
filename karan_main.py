@@ -470,111 +470,125 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Get current timestamp for 24-hour window
-        current_time = datetime.now()
-        start_date = (current_time - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
-        
-        # Enhanced Retriever Configuration for news
+        # Change to 1 days (24 hours) to get very recent news
+        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=15,  # Number of news items to fetch
+            k=5,
             highlights=True,
             start_published_date=start_date,
-            end_published_date=current_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
             type="news",
-            sort="date",
-            use_cache=False,
-            extra_search_kwargs={
-                "min_score": 0.7,
-                "source_domain_in": [
-                    "economictimes.indiatimes.com", "livemint.com", 
-                    "business-standard.com", "moneycontrol.com",
-                    "financialexpress.com", "thehindubusinessline.com",
-                    "bloomberg.com", "reuters.com"
-                ],
-                "language": "en",
-                "categories": ["finance", "business", "economy", "markets", "industry"],
-                "exclude_categories": ["opinion", "blog", "sponsored"],
-                "time_sort": "desc"
-            }
+            sort="date"  # Ensure sorting by date
         )
 
-        # Function to process and format news
-        def format_news_content(docs):
-            processed_news = []
-            seen_headlines = set()
-            
-            for doc in docs:
-                headline = doc.metadata.get("title", "").strip()
-                if headline and headline not in seen_headlines:
-                    content = {
-                        "headline": headline,
-                        "content": doc.page_content,
-                        "source": doc.metadata.get("source_domain", ""),
-                        "timestamp": doc.metadata.get("published_date", ""),
-                        "url": doc.metadata.get("url", "")
-                    }
-                    processed_news.append(content)
-                    seen_headlines.add(headline)
-            
-            return processed_news
-
-        # Enhanced document template for news format
-        document_template = """
-        {%- for news in news_items %}
-        * **{{ news.headline }}**: {{ news.content|truncate(200) }}
-        {%- endfor %}
-        """
+        # Ensure the API key is set in the headers
+        if hasattr(retriever, 'client'):
+            retriever.client.headers.update({
+                "x-api-key": exa_api_key,
+                "Content-Type": "application/json"
+            })
         
-        document_prompt = PromptTemplate(
-            template=document_template,
-            input_variables=["news_items"]
+        # Verify Gemini API key
+        if not gemini_api_key or not isinstance(gemini_api_key, str):
+            raise ValueError("Valid Gemini API key is required")
+
+        # Configure Gemini
+        genai.configure(api_key=gemini_api_key)
+        
+        # Enhanced LLM Configuration
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-pro",
+            temperature=0,
+            google_api_key=gemini_api_key,
+            max_output_tokens=2048,
+            convert_system_message_to_human=True
         )
 
-        # Enhanced retrieval chain for news
+        # Detailed Document Template
+        document_template = """
+        <financial_news>
+            <headline>{title}</headline>
+            <date>{date}</date>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
+        </financial_news>
+        """
+        document_prompt = PromptTemplate.from_template(document_template)
+        
+        document_chain = (
+            RunnablePassthrough() | 
+            RunnableLambda(lambda doc: {
+                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "date": doc.metadata.get("published_date", "Today"),
+                "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "url": doc.metadata.get("url", "No source URL")
+            }) | document_prompt
+        )
+        
         retrieval_chain = (
             retriever | 
-            RunnableLambda(format_news_content) |
-            RunnableLambda(lambda news: {"news_items": news}) |
-            document_prompt
+            document_chain.map() | 
+            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Enhanced system prompt for news summarization
-        system_prompt = """You are a financial news curator specializing in Indian markets and business news. 
-        
-        For queries like "what happened today" or "what is today's news":
-        1. Focus on significant financial, corporate, and economic news
-        2. Present each news item in a clear, bulleted format
-        3. Start with the most impactful news
-        4. Include specific numbers and percentages
-        5. Keep each news item concise but informative
-        6. Cover diverse sectors: economy, markets, corporate, policy
-        7. Only include news from the last 24 hours
-        
-        Format Requirements:
-        - Use bullet points with bold headlines
-        - Include specific figures and percentages
-        - Keep each item to 2-3 sentences
-        - Focus on facts, avoid opinions
-        - Include source attribution when relevant"""
-
-        # Enhanced generation prompt
+        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("human", """Process and summarize this financial news:
+            ("system", """You are a senior financial analyst specializing in Indian markets with over 15 years of experience. You provide data-driven insights by analyzing market trends, corporate performance, and economic indicators.
+
+            Core Expertise:
+            - Indian equity markets and sectoral analysis
+            - Global market correlations affecting Indian markets
+            - Technical and fundamental analysis
+            - Corporate earnings and valuations
+            - Macroeconomic indicators
+
+            Response Style:
+            - Quantitative: Always include specific numbers, percentages, and time periods
+            - Evidence-based: Support insights with recent data points and trends
+            - Market-focused: Emphasize market implications and trading volumes
+            - Forward-looking: Include potential impact on future market movements
+            - Risk-aware: Highlight key risks and uncertainties"""),
+            
+            ("human", """Analyze this financial query within the given context:
 
             Query: {query}
-            Latest News: {context}
+            Context: {context}
             
-            Format each news item as:
-            * **Headline**: Concise description with specific numbers and facts.""")
+            Structure your response based on query category:
+
+            1. Market Analysis:
+            - Key index movements with exact percentages
+            - Top performing/underperforming sectors
+            - Trading volumes and FII/DII flows
+            - Global market correlation if relevant
+
+            2. Company Analysis:
+            - Latest quarterly metrics (YoY and QoQ)
+            - Management commentary highlights
+            - Peer comparison
+            - Technical indicators and support/resistance levels
+
+            3. Policy/Economic Updates:
+            - Immediate market impact
+            - Sector-wise implications
+            - Timeline for implementation
+            - Historical precedents if applicable
+
+            4. Date and Time Context:
+            - Specify analysis timeframe
+            - Note any pre/post market developments
+            - Mention relevant upcoming events/triggers
+
+            Maximum response length: 200 words
+            Focus on actionable insights relevant to Indian market context.""")
         ])
 
-        # Final chain assembly
         chain = (
             RunnableParallel({
-                "query": RunnablePassthrough(),
-                "context": retrieval_chain,
+                "query": RunnablePassthrough(),  
+                "context": retrieval_chain,  
             }) 
             | generation_prompt 
             | llm
@@ -583,8 +597,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         return chain
 
     except Exception as e:
-        logging.error(f"News processing error: {str(e)}", exc_info=True)
-        raise ValueError("Unable to fetch latest news. Please try again.")
+        st.error(f"Error in create_research_chain: {str(e)}")
+        raise
+
+     
 
 def plot_stock_graph(symbol):
     try:
