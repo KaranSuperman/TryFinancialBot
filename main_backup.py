@@ -460,11 +460,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,  # Increase number of documents
+            k=5,
             highlights=True,
-            start_published_date=start_date,  # Use ISO 8601 format
-            type="news",  # Specifically request news content
-        
+            start_published_date=start_date,
+            type="news",
         )
 
         # Ensure the API key is set in the headers
@@ -500,8 +499,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
-
-
         
         document_chain = (
             RunnablePassthrough() | 
@@ -519,36 +516,44 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Professional Financial News Prompt
+        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a professional financial analyst with deep expertise in current market trends, company performances, and economic indicators. Your goal is to provide comprehensive, engaging, and actionable financial insights in a clear, journalistic style.
+            ("system", """You are a professional financial analyst of India with deep expertise in current Indian market trends, global markets, company performances, and stock indicators. Your goal is to provide concise, actionable financial insights focusing strictly on market-moving news and financial developments.
 
             Key Priorities:
-            - Deliver comprehensive market coverage
-            - Provide context and nuanced analysis
-            - Highlight key trends and potential implications
-            - Use clear, accessible language
-            - Balance factual reporting with strategic insights"""),
-            ("human", """Generate a comprehensive financial market briefing based on the following query and contextual information:
+            - Focus exclusively on financial markets and corporate news relevant to the query
+            - Provide brief but impactful analysis
+            - Highlight only the most significant market-moving developments related to the specific question
+            - Use clear, concise language
+            - Adapt the response format based on the query type"""),
+            
+            ("human", """Analyze the following financial query and context:
 
             Query: {query}
+            Available Financial Context: {context}
 
-            Available Financial Context:
-            {context}
+            Guidelines for response format:
+            1. For market updates:
+            - Lead with key market movements
+            - Include specific numbers and percentages
+            - Focus on the most relevant indices for the query
 
-            Briefing Guidelines:
-            - Create a concise, informative summary of key financial developments
-            - Use a clear, engaging narrative structure
-            - Organize insights into distinct, digestible headlines
-            - Include:
-            * Precise financial details
-            * Context for each development
-            * Potential market implications
-            - Maintain a professional yet conversational tone
+            2. For specific financial topics (e.g., taxes, policies):
+            - Start with a clear definition/explanation
+            - Outline key implications
+            - Provide relevant examples if applicable
 
-            Output Format:
-            **Financial Market Briefing should ne only in plain text**
-            """)
+            3. For company-specific news:
+            - Focus on the key announcement/development
+            - Include relevant financial metrics
+            - Highlight market impact
+
+            4. For trend analysis:
+            - Identify the main trend
+            - Support with data points
+            - Include key driving factors
+
+            Keep the total response under 200 words and format it appropriately for the specific query type. Adapt the structure based on what's most relevant to the question asked.""")
         ])
 
         chain = (
@@ -558,7 +563,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             }) 
             | generation_prompt 
             | llm
-
         )
         
         return chain
@@ -567,49 +571,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
 
-
-def execute_research_query(question: str):
-    try:
-        # Get API keys
-        exa_api_key = st.secrets.get("exa", {}).get("api_key") or os.getenv("EXA_API_KEY")
-        gemini_api_key = st.secrets.get("gemini", {}).get("api_key") or os.getenv("GEMINI_API_KEY")
-
-        # Validate API keys
-        if not exa_api_key:
-            return {"output_text": "Configuration error: Exa API key is not set"}
-        
-        if not gemini_api_key:
-            return {"output_text": "Configuration error: Gemini API key is not set"}
-
-        # Execute chain with error handling
-        try:
-            chain = create_research_chain(exa_api_key, gemini_api_key)
-            response = chain.invoke(question)
-            
-            # Handle response
-            if hasattr(response, 'content'):
-                return {"output_text": response.content}
-            else:
-                return {"output_text": str(response)}
-            
-        except Exception as e:
-            error_msg = str(e)
-            st.error(f"Chain execution error: {error_msg}")
-            
-            # Extract detailed error information
-            if hasattr(e, 'response'):
-                try:
-                    error_details = e.response.json() if hasattr(e.response, 'json') else e.response.text
-                    st.error(f"API Response details: {error_details}")
-                except:
-                    st.error(f"Raw response: {e.response}")
-                    
-            return {"output_text": f"Error during execution: {error_msg}"}
-
-    except Exception as e:
-        st.error(f"Critical error: {str(e)}")
-        return {"output_text": f"An unexpected error occurred: {str(e)}"}
-        
+     
 
 def plot_stock_graph(symbol):
     try:
@@ -823,7 +785,8 @@ def user_input(user_question):
                 
                 # Extract and clean the content
                 if hasattr(response, 'content'):
-                    content = response.content.replace('\n', ' ').replace('  ', ' ').strip()
+                    content = response.content.strip()
+                    # Preserve markdown formatting and line breaks
                     return {"output_text": content}
                 else:
                     return {"output_text": "No valid content received from the response."}
@@ -924,7 +887,7 @@ def user_input(user_question):
             return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
         # -------------------------------------------------------------------------------------------
-
+ 
 
         # Handle FAQ and PDF responses
         try:
