@@ -887,7 +887,7 @@ def user_input(user_question):
             return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
         # -------------------------------------------------------------------------------------------
-
+ 
 
         # Handle FAQ and PDF responses
         try:
