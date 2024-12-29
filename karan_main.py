@@ -418,7 +418,7 @@ def get_stock_price(symbol):
     try:
         # Initialize variables
         stock = yf.Ticker(symbol)
-        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
+        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO','^NSEI')) else "$"
         
         # Fetch historical data with error checking
         hist = stock.history(period="5d")
