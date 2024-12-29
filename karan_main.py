@@ -355,6 +355,7 @@ def is_stock_query(user_question):
     - Meta = META
     - Bitcoin = BTC-USD
     - Sensex = ^BSESN
+    - Nifyt = ^NSEI
  
 
     COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
