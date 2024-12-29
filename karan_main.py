@@ -418,7 +418,7 @@ def get_stock_price(symbol):
     try:
         # Initialize variables
         stock = yf.Ticker(symbol)
-        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) or symbol == '^NSEI' else "$"
+        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) or symbol in ('^NSEI', '^BSESN') else "$"
         
         # Fetch historical data with error checking
         hist = stock.history(period="5d")
@@ -613,7 +613,7 @@ def plot_stock_graph(symbol):
             return False
             
         # Determine currency symbol based on exchange
-        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) else "$"
+        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) or symbol in ('^NSEI', '^BSESN') else "$"
         
         # Calculate price changes
         price_change = hist['Close'][-1] - hist['Close'][0]
