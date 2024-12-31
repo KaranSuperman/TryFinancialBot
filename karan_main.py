@@ -472,104 +472,125 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
         start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
+        # Enhanced Retriever with better filtering
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,
+            k=8,  # Increased to get more candidates
             highlights=True,
             start_published_date=start_date,
-            type="article",
-            sort="date"  # Ensure sorting by date
+            type="news",
+            sort="date",
+            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com"]  # Trusted sources
         )
 
-        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
-        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0.2,
+            temperature=0.1,  # Reduced for more factual responses
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Enhanced document template with data validation
         document_template = """
         <financial_news>
-            <headline>{title}</headline>
-            <date>{date}</date>
-            <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
+            <headline>{clean_title}</headline>
+            <date>{validated_date}</date>
+            <key_insights>{validated_highlights}</key_insights>
+            <source>{source_name}</source>
+            <source_url>{validated_url}</source_url>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
+        def validate_data(doc):
+            # Data validation and cleaning
+            try:
+                published_date = datetime.strptime(
+                    doc.metadata.get("published_date", ""), 
+                    "%Y-%m-%dT%H:%M:%SZ"
+                )
+                validated_date = published_date.strftime("%Y-%m-%d %H:%M UTC")
+            except:
+                validated_date = "Date unavailable"
+
+            url = doc.metadata.get("url", "")
+            source_name = urlparse(url).netloc.replace("www.", "") if url else "Unknown source"
+            
+            return {
+                "clean_title": doc.metadata.get("title", "").strip(),
+                "validated_date": validated_date,
+                "validated_highlights": doc.metadata.get("highlights", "").strip(),
+                "source_name": source_name,
+                "validated_url": url if url.startswith("http") else ""
+            }
+        
         document_chain = (
             RunnablePassthrough() | 
-            RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
-                "date": doc.metadata.get("published_date", "Today"),
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
-            }) | document_prompt
+            RunnableLambda(validate_data) | 
+            document_prompt
         )
+        
+        def filter_recent_docs(docs):
+            # Only keep news from last hour
+            current_time = datetime.now(timezone.utc)
+            filtered_docs = []
+            
+            for doc in docs:
+                try:
+                    doc_date = datetime.strptime(
+                        doc.metadata.get("published_date", ""), 
+                        "%Y-%m-%dT%H:%M:%SZ"
+                    ).replace(tzinfo=timezone.utc)
+                    
+                    if (current_time - doc_date).total_seconds() <= 3600:
+                        filtered_docs.append(doc)
+                except:
+                    continue
+            
+            return filtered_docs
         
         retrieval_chain = (
             retriever | 
+            RunnableLambda(filter_recent_docs) |
             document_chain.map() | 
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Enhanced system prompt 
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
-
-            Core Areas:
-            - Indian equity markets and sectoral analysis
-            - Cryptocurrency markets and blockchain technology
-            - Global market correlations and trends
-            - Technical and fundamental analysis
-            - Macroeconomic indicators and ratios
-            - Market valuations and metrics
-
-            Response Style:
-            - Time-sensitive: Prioritize the most recent information
-            - Quantitative: Include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points
-            - Comprehensive: Cover both traditional and digital assets
-            - Forward-looking: Include potential market implications
-            - Risk-aware: Highlight key risks and uncertainties"""),
+            ("system", """You are a senior financial analyst specializing in Indian and global markets. When reporting cryptocurrency prices:
+            1. Only use price data from the last 60 minutes
+            2. Always include the exact timestamp of the price
+            3. Only cite trusted sources (Reuters, Bloomberg, CoinDesk, Cointelegraph)
+            4. If no recent reliable price data is available, state that explicitly"""),
             
-            ("human", """Analyze this financial query within the given context:
+            ("human", """Analyze this query with recent context:
 
             Query: {query}
             Context: {context}
             
-            Structure your response based on user query.
-            For time-sensitive queries (today/latest), focus only on the most recent updates.
-            If no specific recent news is found, clearly state that no recent updates are available.
-
-            IMPORTANT: For source citations, use this exact format:
-            "Your news statement. [sourcename](source_url)"
-            Ensure the source name is clickable.
-
-            Maximum response length: 200 words
-            Focus on actionable insights relevant to the query context.""")
+            For price updates:
+            - Only use data from the last hour
+            - Include timestamp for any price quote
+            - State if no recent reliable data is available
+            
+            Format: "Your statement. [sourcename](source_url)"
+            
+            Maximum length: 200 words""")
         ])
 
         chain = (
@@ -586,7 +607,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
-
      
 
 def plot_stock_graph(symbol):
