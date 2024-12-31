@@ -465,6 +465,7 @@ def get_stock_price(symbol):
         # Return None values for all expected return values
         return None, None, None, None, None, None
 
+
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
@@ -482,33 +483,28 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date"  # Ensure sorting by date
+            sort="date"
         )
 
-        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
-        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0.1,
+            temperature=0.2,
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
         document_template = """
         <financial_news>
             <headline>{title}</headline>
@@ -517,6 +513,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             <source_url>{url}</source_url>
         </financial_news>
         """
+        
         document_prompt = PromptTemplate.from_template(document_template)
         
         document_chain = (
@@ -535,25 +532,21 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
+            ("system", """You are a senior financial analyst specializing in market analysis. Follow these rules strictly:
 
-            Core Areas:
-            - Indian equity markets and sectoral analysis
-            - Cryptocurrency markets and blockchain technology
-            - Global market correlations and trends
-            - Technical and fundamental analysis
-            - Macroeconomic indicators and ratios
-            - Market valuations and metrics
+            1. NEVER include current stock prices or specific percentage changes in your responses
+            2. Focus instead on:
+               - Company news and events
+               - Market sentiment
+               - Analyst opinions
+               - Industry trends
+               - Company announcements
+               - Trading volume trends
+            3. If asked about stock price movement, discuss the general trend without specific numbers
+            4. Use phrases like "trended upward", "showed weakness", "remained stable" instead of exact prices
 
-            Response Style:
-            - Time-sensitive: Prioritize the most recent information
-            - Quantitative: Include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points
-            - Comprehensive: Cover both traditional and digital assets
-            - Forward-looking: Include potential market implications
-            - Risk-aware: Highlight key risks and uncertainties"""),
+            Keep responses focused on qualitative analysis rather than specific price data."""),
             
             ("human", """Analyze this financial query within the given context:
 
@@ -564,12 +557,11 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             For time-sensitive queries (today/latest), focus only on the most recent updates.
             If no specific recent news is found, clearly state that no recent updates are available.
 
-            IMPORTANT: For source citations, use this exact format:
+            For source citations, use this format:
             "Your news statement. [sourcename](source_url)"
-            Ensure the source name is clickable.
 
             Maximum response length: 200 words
-            Focus on actionable insights relevant to the query context.""")
+            Focus on qualitative insights relevant to the query context.""")
         ])
 
         chain = (
@@ -584,9 +576,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         return chain
 
     except Exception as e:
-        st.error(f"Error in create_research_chain: {str(e)}")
-        raise
-
+        raise Exception(f"Error in create_research_chain: {str(e)}")
      
 
 def plot_stock_graph(symbol):
