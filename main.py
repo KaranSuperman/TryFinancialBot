@@ -472,60 +472,62 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Reduce time window to 30 minutes for more recent news
+        start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
+        # Enhanced Retriever Configuration with better filtering
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,
+            k=3,  # Reduced to focus on most relevant results
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date"  # Ensure sorting by date
+            sort="date",
+            filter="relevance_score>0.7"  # Add relevance filtering
         )
 
-        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
-        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0.2,
+            temperature=0.1,  # Reduced for more consistent outputs
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Enhanced document template with source reliability score
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
+            <source>{source}</source>
+            <reliability_score>{reliability}</reliability_score>
             <key_insights>{highlights}</key_insights>
             <source_url>{url}</source_url>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
+        # Enhanced document chain with source reliability scoring
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "title": doc.metadata.get("title", "Untitled"),
                 "date": doc.metadata.get("published_date", "Today"),
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
+                "source": doc.metadata.get("source", "Unknown Source"),
+                "reliability": calculate_source_reliability(doc.metadata.get("source", "")),
+                "highlights": doc.metadata.get("highlights", "No highlights available."),
+                "url": doc.metadata.get("url", "No URL")
             }) | document_prompt
         )
         
@@ -535,41 +537,43 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Enhanced prompt with strict data verification instructions
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
+            ("system", """You are a senior financial analyst specializing in market data verification and analysis. Your key responsibilities include:
 
-            Core Areas:
-            - Indian equity markets and sectoral analysis
-            - Cryptocurrency markets and blockchain technology
-            - Global market correlations and trends
-            - Technical and fundamental analysis
-            - Macroeconomic indicators and ratios
-            - Market valuations and metrics
+            1. Data Verification:
+               - Cross-reference all price data across multiple sources
+               - Flag and exclude inconsistent or contradictory information
+               - Prioritize data from reliable financial sources
+               - Always include specific timestamps for price data
 
-            Response Style:
-            - Time-sensitive: Prioritize the most recent information
-            - Quantitative: Include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points
-            - Comprehensive: Cover both traditional and digital assets
-            - Forward-looking: Include potential market implications
-            - Risk-aware: Highlight key risks and uncertainties"""),
+            2. Source Evaluation:
+               - Assess source reliability using provided reliability scores
+               - Prioritize established financial data providers
+               - Cross-validate numerical data across sources
+               - Exclude outdated or conflicting price information
+
+            3. Response Format:
+               - Lead with the most recent verified price data
+               - Include specific timestamps for all price points
+               - Clearly state data sources and their reliability
+               - Note any discrepancies or conflicts in data
+               - Provide context only after establishing accurate price data"""),
             
-            ("human", """Analyze this financial query within the given context:
+            ("human", """Analyze this financial query with strict data verification:
 
             Query: {query}
             Context: {context}
-            
-            Structure your response based on user query.
-            For time-sensitive queries (today/latest), focus only on the most recent updates.
-            If no specific recent news is found, clearly state that no recent updates are available.
 
-            IMPORTANT: For source citations, use this exact format:
-            "Your news statement. [sourcename](source_url)"
-            Ensure the source name is clickable.
+            Requirements:
+            1. For price data: Include exact timestamps and cross-reference multiple sources
+            2. If sources conflict: Report the discrepancy and use most reliable source
+            3. For historical data: Show clear date ranges and price changes
+            4. Format: "[Price] at [Exact Time] ([Source])"
+            5. Maximum response length: 150 words
+            6. For source citations use: "[sourcename](source_url)"
 
-            Maximum response length: 200 words
-            Focus on actionable insights relevant to the query context.""")
+            If price data cannot be verified with high confidence, state this explicitly.""")
         ])
 
         chain = (
@@ -586,6 +590,20 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
+
+def calculate_source_reliability(source: str) -> float:
+    """Calculate reliability score for news sources."""
+    reliable_sources = {
+        "Bloomberg": 0.95,
+        "Reuters": 0.95,
+        "Financial Times": 0.9,
+        "Wall Street Journal": 0.9,
+        "CNBC": 0.85,
+        "MarketWatch": 0.85,
+        "Yahoo Finance": 0.8,
+        "Seeking Alpha": 0.75
+    }
+    return reliable_sources.get(source, 0.5)  # Default score for unknown sources
 
      
 
