@@ -472,8 +472,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Set start time to current time minus 5 minutes to get very recent data
+        start_date = (datetime.now() - timedelta(minutes=5)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
@@ -481,25 +481,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             k=5,
             highlights=True,
             start_published_date=start_date,
+            end_published_date=datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),  # Add end date
             type="news",
-            sort="date"  # Ensure sorting by date
+            sort="date",  # Ensure sorting by date
+            min_relevance=0.7  # Add relevance threshold
         )
 
-        # Ensure the API key is set in the headers
+        # Rest of the code remains the same...
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
-        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0.2,
@@ -508,7 +507,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
         document_template = """
         <financial_news>
             <headline>{title}</headline>
@@ -535,7 +533,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
 
@@ -586,7 +583,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
-
      
 
 def plot_stock_graph(symbol):
