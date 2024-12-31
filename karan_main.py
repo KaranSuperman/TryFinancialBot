@@ -473,12 +473,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     
     try:
         # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=3,
+            k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
