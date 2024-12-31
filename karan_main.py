@@ -473,10 +473,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
         start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
@@ -546,14 +544,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             3. If asked about stock price movement, discuss the general trend without specific numbers
             4. Use phrases like "trended upward", "showed weakness", "remained stable" instead of exact prices
 
-            Keep responses focused on qualitative analysis rather than specific price data."""),
+            FORMATTING RULES:
+            1. Use clear paragraphs with line breaks between them
+            2. For lists or multiple items, put each on a new line with proper spacing
+            3. When mentioning insider transactions:
+               - List each transaction on a separate line
+               - Use a consistent format: "[Name] ([Title]) - [Action] [Number] shares"
+               - Include dates for each transaction
+            4. Use proper punctuation and spacing throughout
+            5. Ensure all numerical values are properly formatted with commas and spaces
+
+            Keep responses focused on qualitative analysis with clean, consistent formatting."""),
             
             ("human", """Analyze this financial query within the given context:
 
             Query: {query}
             Context: {context}
             
-            Structure your response based on user query.
+            Structure your response in clear paragraphs with proper spacing.
             For time-sensitive queries (today/latest), focus only on the most recent updates.
             If no specific recent news is found, clearly state that no recent updates are available.
 
@@ -561,7 +569,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             "Your news statement. [sourcename](source_url)"
 
             Maximum response length: 200 words
-            Focus on qualitative insights relevant to the query context.""")
+            Focus on qualitative insights with clean formatting.""")
         ])
 
         chain = (
