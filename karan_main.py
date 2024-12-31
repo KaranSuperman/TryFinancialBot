@@ -34,8 +34,6 @@ from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from typing import Dict, Any, Tuple
-
 
 
 
@@ -467,56 +465,6 @@ def get_stock_price(symbol):
         # Return None values for all expected return values
         return None, None, None, None, None, None
 
-def get_market_data(symbol: str) -> Dict[str, Any]:
-    """
-    Get real-time and historical market data using yfinance.
-    Returns both current and historical price data with timestamps.
-    """
-    try:
-        stock = yf.Ticker(symbol)
-        
-        # Get current price data
-        current_data = stock.info
-        
-        # Get historical data for the past week
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=7)
-        hist_data = stock.history(start=start_date, end=end_date)
-        
-        return {
-            'current_price': current_data.get('regularMarketPrice'),
-            'previous_close': current_data.get('regularMarketPreviousClose'),
-            'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'weekly_data': {
-                'start_price': hist_data.iloc[0]['Close'] if not hist_data.empty else None,
-                'end_price': hist_data.iloc[-1]['Close'] if not hist_data.empty else None,
-                'start_date': start_date.strftime('%Y-%m-%d'),
-                'end_date': end_date.strftime('%Y-%m-%d')
-            }
-        }
-    except Exception as e:
-        raise ValueError(f"Error fetching market data: {str(e)}")
-
-def validate_price_data(market_data: Dict[str, Any], news_data: str) -> Tuple[bool, str]:
-    """
-    Validate price data from news against real market data.
-    Returns tuple of (is_valid, validation_message)
-    """
-    if not market_data.get('current_price'):
-        return False, "Unable to verify price data - market data unavailable"
-        
-    current_price = market_data['current_price']
-    weekly_data = market_data['weekly_data']
-    
-    validation_message = f"""
-    Verified Market Data:
-    Current Price: ${current_price:.2f} (as of {market_data['last_updated']})
-    Weekly Change: {((current_price - weekly_data['start_price']) / weekly_data['start_price'] * 100):.2f}%
-    Period: {weekly_data['start_date']} to {weekly_data['end_date']}
-    """
-    
-    return True, validation_message
-
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
@@ -524,80 +472,61 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Reduce time window to 15 minutes for very recent news
-        start_date = (datetime.now() - timedelta(minutes=15)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Change to 1 days (24 hours) to get very recent news
+        start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=3,
+            k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date",
-            filter="relevance_score>0.8"  # Increased relevance threshold
+            sort="date"  # Ensure sorting by date
         )
 
+        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
+        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
+        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
+        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0.1,
+            temperature=0.2,
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
         )
 
-        # Enhanced document template with market data validation
+        # Detailed Document Template
         document_template = """
-        <financial_update>
-            <market_data>{market_data}</market_data>
-            <news>
-                <headline>{title}</headline>
-                <date>{date}</date>
-                <source>{source}</source>
-                <reliability_score>{reliability}</reliability_score>
-                <key_insights>{highlights}</key_insights>
-                <source_url>{url}</source_url>
-            </news>
-        </financial_update>
+        <financial_news>
+            <headline>{title}</headline>
+            <date>{date}</date>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
+        </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
-        def process_document(doc):
-            # Extract stock symbol from query if present
-            query = doc.get('query', '').upper()
-            symbol = extract_stock_symbol(query)
-            
-            if symbol:
-                market_data = get_market_data(symbol)
-                is_valid, validation_msg = validate_price_data(market_data, doc.page_content)
-            else:
-                market_data = {}
-                validation_msg = "No stock symbol detected"
-            
-            return {
-                "market_data": validation_msg,
-                "title": doc.metadata.get("title", "Untitled"),
-                "date": doc.metadata.get("published_date", "Today"),
-                "source": doc.metadata.get("source", "Unknown Source"),
-                "reliability": calculate_source_reliability(doc.metadata.get("source", "")),
-                "highlights": doc.metadata.get("highlights", "No highlights available."),
-                "url": doc.metadata.get("url", "No URL")
-            }
-        
         document_chain = (
             RunnablePassthrough() | 
-            RunnableLambda(process_document) | 
-            document_prompt
+            RunnableLambda(lambda doc: {
+                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "date": doc.metadata.get("published_date", "Today"),
+                "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "url": doc.metadata.get("url", "No source URL")
+            }) | document_prompt
         )
         
         retrieval_chain = (
@@ -606,31 +535,41 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Updated prompt with strict market data validation
+        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a financial analyst with access to real-time market data. Your primary responsibilities:
+            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
 
-            1. ALWAYS lead with verified market data before any news
-            2. Only report price data from the market_data section
-            3. Clearly separate verified data from news context
-            4. Format prices with 2 decimal places
-            5. Include exact timestamps for all price data
-            6. Never mix unverified news prices with verified market data"""),
+            Core Areas:
+            - Indian equity markets and sectoral analysis
+            - Cryptocurrency markets and blockchain technology
+            - Global market correlations and trends
+            - Technical and fundamental analysis
+            - Macroeconomic indicators and ratios
+            - Market valuations and metrics
+
+            Response Style:
+            - Time-sensitive: Prioritize the most recent information
+            - Quantitative: Include specific numbers, percentages, and time periods
+            - Evidence-based: Support insights with recent data points
+            - Comprehensive: Cover both traditional and digital assets
+            - Forward-looking: Include potential market implications
+            - Risk-aware: Highlight key risks and uncertainties"""),
             
-            ("human", """Analyze this query using only verified market data and recent news:
+            ("human", """Analyze this financial query within the given context:
 
             Query: {query}
             Context: {context}
+            
+            Structure your response based on user query.
+            For time-sensitive queries (today/latest), focus only on the most recent updates.
+            If no specific recent news is found, clearly state that no recent updates are available.
 
-            Response Requirements:
-            1. Start with "VERIFIED MARKET DATA:" section
-            2. Then "RECENT NEWS:" section if relevant
-            3. Use exact format: "$XX.XX at [timestamp]"
-            4. For news citations: "[sourcename](source_url)"
-            5. Maximum length: 150 words
-            6. If market data is unavailable, state this clearly
+            IMPORTANT: For source citations, use this exact format:
+            "Your news statement. [sourcename](source_url)"
+            Ensure the source name is clickable.
 
-            Never include price data from news sources unless it matches verified market data.""")
+            Maximum response length: 200 words
+            Focus on actionable insights relevant to the query context.""")
         ])
 
         chain = (
@@ -647,36 +586,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
-
-def extract_stock_symbol(query: str) -> str:
-    """Extract stock symbol from query text."""
-    # Common stock symbols and their variations
-    symbol_patterns = {
-        'MSFT': ['MICROSOFT', 'MSFT'],
-        'AAPL': ['APPLE', 'AAPL'],
-        'GOOGL': ['GOOGLE', 'GOOGL', 'ALPHABET'],
-        # Add more as needed
-    }
-    
-    query_upper = query.upper()
-    for symbol, patterns in symbol_patterns.items():
-        if any(pattern in query_upper for pattern in patterns):
-            return symbol
-    return ""
-
-def calculate_source_reliability(source: str) -> float:
-    """Calculate reliability score for news sources."""
-    reliable_sources = {
-        "Bloomberg": 0.95,
-        "Reuters": 0.95,
-        "Financial Times": 0.9,
-        "Wall Street Journal": 0.9,
-        "CNBC": 0.85,
-        "MarketWatch": 0.85,
-        "Yahoo Finance": 0.8,
-        "Seeking Alpha": 0.75
-    }
-    return reliable_sources.get(source, 0.5)
 
      
 
