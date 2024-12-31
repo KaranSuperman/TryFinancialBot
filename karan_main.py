@@ -322,6 +322,8 @@ def is_stock_query(user_question):
     2. IF the question is about NEWS/ANALYSIS (ANY GENERAL NEWS QUERY), respond: "News [FINANCIAL_REPHRASED_QUERY]"
        - All general news queries MUST be rephrased to focus on financial markets/economy
        - Always add specific financial context when rephrasing
+       - If any stock yahoo finance symbol coming in question then add their yahoo finance ticker at the end.
+        for example-    "What happened to apple today?"  → "News What happened to apple stock today?AAPL"
        Examples:
          "What's happening today?" → "News Give 5 finance news of today?"
          "Give me latest news" → "News What are the latest financial market updates?"
