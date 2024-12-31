@@ -333,7 +333,8 @@ def is_stock_query(user_question):
          "What happened today?" → "News What are the major financial market movements today?"
          "what is top 10 news?" → "News What are the top 10 financial market developments?"
          "What is the updates of US" → "News What are the latest US financial market updates?"
-         "What happened to nifty50 down today?" → "News What caused the decline in Nifty50 today?"
+         "What happened to nifty50 down today?" → "News What caused the decline in Nifty50 today?^NSEI"
+         "What happened to apple today?"  → "News What happened to apple stock today?AAPL"
 
     3. IF the question is about Finance or tax related information, respond: "News [REPHRASED_QUERY]"
        - Examples:
@@ -718,6 +719,11 @@ def plot_stock_graph(symbol):
     except Exception as e:
         st.error(f"Error plotting graph: {str(e)}")
         return False
+
+def extract_last_word(query):
+    # Find the last word after the question mark
+    match = re.search(r'\?([^\s]+)$', query)
+    return match.group(1) if match else None
 # ----------------------------------------------------------------------------------------------------------
 
 def user_input(user_question):
@@ -869,11 +875,15 @@ def user_input(user_question):
 
                 research_chain = create_research_chain(exa_api_key, gemini_api_key)
                 response = research_chain.invoke(research_query)
+
+                symbol = extract_last_word(research_query)  
                 
                 if hasattr(response, 'content'):
-                    return {"output_text": response.content.strip()}
+                    return {"output_text": response.content.strip(),
+                            "graph": plot_stock_graph(symbol)}
                 else:
                     return {"output_text": "Sorry! No information avaiable for this question."}
+
             
             # Finally, fall back to LLM response
             else:
