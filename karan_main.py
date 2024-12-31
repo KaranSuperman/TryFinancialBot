@@ -335,6 +335,7 @@ def is_stock_query(user_question):
          "What is the updates of US" → "News What are the latest US financial market updates?"
          "What happened to nifty50 down today?" → "News What caused the decline in Nifty50 today?^NSEI"
          "What happened to apple today?"  → "News What happened to apple stock today?AAPL"
+         "Tell me updates regards bitcoin?" → "Tell me updates regards bitcoin?BTC-USD"
 
     3. IF the question is about Finance or tax related information, respond: "News [REPHRASED_QUERY]"
        - Examples:
