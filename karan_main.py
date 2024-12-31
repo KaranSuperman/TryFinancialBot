@@ -721,9 +721,13 @@ def plot_stock_graph(symbol):
         return False
 
 def extract_last_word(query):
-    # Find the last word after the question mark
+    # First try to find word after question mark
     match = re.search(r'\?([^\s]+)$', query)
-    return match.group(1) if match else None
+    if match:
+        return match.group(1)
+    # If no question mark, just get the last word
+    words = query.split()
+    return words[-1] if words else None
 # ----------------------------------------------------------------------------------------------------------
 
 def user_input(user_question):
@@ -865,7 +869,6 @@ def user_input(user_question):
             
             # Handle news/analysis queries only if PDF/FAQ didn't have good matches
             elif result.startswith("News "):
-                # st.info("Using Exa response")
                 research_query = result[5:]
                 exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
                 gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
@@ -876,13 +879,24 @@ def user_input(user_question):
                 research_chain = create_research_chain(exa_api_key, gemini_api_key)
                 response = research_chain.invoke(research_query)
 
-                symbol = extract_last_word(research_query)  
+                symbol = extract_last_word(research_query)
                 
                 if hasattr(response, 'content'):
-                    return {"output_text": response.content.strip(),
-                            "graph": plot_stock_graph(symbol)}
+                    # Only include graph if we have a valid symbol
+                    if symbol:
+                        try:
+                            graph = plot_stock_graph(symbol)
+                            return {
+                                "output_text": response.content.strip(),
+                                "graph": graph
+                            }
+                        except Exception as e:
+                            print(f"Error plotting graph: {e}")
+                            return {"output_text": response.content.strip()}
+                    else:
+                        return {"output_text": response.content.strip()}
                 else:
-                    return {"output_text": "Sorry! No information avaiable for this question."}
+                    return {"output_text": "Sorry! No information available for this question."}
 
             
             # Finally, fall back to LLM response
