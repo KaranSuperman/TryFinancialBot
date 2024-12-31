@@ -472,22 +472,26 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Set start time to current time minus 5 minutes to get very recent data
-        start_date = (datetime.now() - timedelta(minutes=5)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Get today's date in IST
+        ist = pytz.timezone('Asia/Kolkata')
+        current_date = datetime.now(ist).strftime('%Y-%m-%d')
+        
+        # Set exact date range for today only
+        start_date = f"{current_date}T00:00:00Z"
+        end_date = f"{current_date}T23:59:59Z"
 
-        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
             highlights=True,
             start_published_date=start_date,
-            end_published_date=datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),  # Add end date
+            end_published_date=end_date,
             type="news",
-            sort="date",  # Ensure sorting by date
-            min_relevance=0.7  # Add relevance threshold
+            sort="date",
+            min_relevance=0.8
         )
 
-        # Rest of the code remains the same...
+        # Rest of the code remains exactly the same...
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
