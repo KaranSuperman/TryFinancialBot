@@ -295,9 +295,9 @@ def is_relevant(question, embeddings_model, threshold=0.55):
     max_similarity = max(similarities)
     # st.write(max_similarity)
     if max_similarity >= threshold: 
-        return True
+        return True 
     else:
-        return False
+        return False 
 
 def is_stock_query(user_question):
     prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
