@@ -294,7 +294,7 @@ def is_relevant(question, embeddings_model, threshold=0.55):
     # Check if any similarity exceeds the threshold
     max_similarity = max(similarities)
     # st.write(max_similarity)
-    if max_similarity >= threshold:
+    if max_similarity >= threshold: 
         return True
     else:
         return False
