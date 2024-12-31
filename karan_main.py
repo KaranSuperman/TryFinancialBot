@@ -503,22 +503,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        document_template = """<source>
-            <name>{source}</name>
-            <url>{url}</url>
-            <content>
-                {highlights}
-            </content>
-        </source>"""
+        document_template = """
+        <financial_news>
+            <headline>{title}</headline>
+            <date>{date}</date>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
+        </financial_news>
+        """
         
         document_prompt = PromptTemplate.from_template(document_template)
         
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "source": doc.metadata.get("source", "Unknown Source"),
-                "url": doc.metadata.get("url", "#"),
-                "highlights": doc.metadata.get("highlights", "No key insights available.")
+                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "date": doc.metadata.get("published_date", "Today"),
+                "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
         
@@ -531,35 +533,43 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         generation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a senior financial analyst specializing in market analysis. Follow these rules strictly:
 
-            1. NEVER include current stock prices or specific percentage changes
-            2. Focus on qualitative insights:
+            1. NEVER include current stock prices or specific percentage changes in your responses
+            2. Focus instead on:
                - Company news and events
-               - Market sentiment and trends
+               - Market sentiment
                - Analyst opinions
-               - Industry developments
+               - Industry trends
                - Company announcements
-            3. Use phrases like "trended upward", "showed weakness", "remained stable"
-            
+               - Trading volume trends
+            3. If asked about stock price movement, discuss the general trend without specific numbers
+            4. Use phrases like "trended upward", "showed weakness", "remained stable" instead of exact prices
+
             FORMATTING RULES:
-            1. Use clear paragraphs with line breaks
-            2. For insider transactions:
-               - Each transaction on a new line
-               - Format: "[Name] ([Title]) - [Action] [Number] shares on [Date]"
-            3. Cite sources using ONLY the exact source name and URL from the provided XML:
-               - Get source name from <name> tag
-               - Get URL from <url> tag
-               - Format: "Statement [sourcename]"
-            4. Keep proper spacing and punctuation throughout"""),
+            1. Use clear paragraphs with line breaks between them
+            2. For lists or multiple items, put each on a new line with proper spacing
+            3. When mentioning insider transactions:
+               - List each transaction on a separate line
+               - Use a consistent format: "[Name] ([Title]) - [Action] [Number] shares"
+               - Include dates for each transaction
+            4. Use proper punctuation and spacing throughout
+            5. Ensure all numerical values are properly formatted with commas and spaces
+
+            Keep responses focused on qualitative analysis with clean, consistent formatting."""),
             
-            ("human", """Analyze this financial query using the provided sources:
+            ("human", """Analyze this financial query within the given context:
 
             Query: {query}
-            Sources: {context}
+            Context: {context}
             
-            Use clear paragraphs and proper spacing.
-            For time-sensitive queries, focus on recent updates.
-            Cite sources using exact names and URLs from XML.
-            Maximum response length: 200 words.""")
+            Structure your response in clear paragraphs with proper spacing.
+            For time-sensitive queries (today/latest), focus only on the most recent updates.
+            If no specific recent news is found, clearly state that no recent updates are available.
+
+            For source citations, use this format:
+            "Your news statement. [sourcename](source_url)"
+
+            Maximum response length: 200 words
+            Focus on qualitative insights with clean formatting.""")
         ])
 
         chain = (
