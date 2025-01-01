@@ -600,7 +600,7 @@ def plot_stock_graph(symbol):
         period = st.selectbox(
             "Select Time Period", 
             ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'ytd', 'max'], 
-            index=2  # Default to 1 month
+            index=1  # Default to 5 days
         )
         
         # Validate period input
