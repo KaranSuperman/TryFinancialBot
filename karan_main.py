@@ -882,25 +882,24 @@ def user_input(user_question):
                 research_chain = create_research_chain(exa_api_key, gemini_api_key)
                 response = research_chain.invoke(research_query)
 
-                symbol = extract_last_word(research_query)
-                
+                # Only attempt to extract symbol and create graph if we have a valid response
                 if hasattr(response, 'content'):
-                    # Only include graph if we have a valid symbol
-                    if symbol:
+                    # First create the base response
+                    result_dict = {"output_text": response.content.strip()}
+                    
+                    # Check if the query contains a stock symbol pattern
+                    symbol = extract_last_word(research_query)
+                    if symbol and any(char.isalpha() for char in symbol):  # Basic validation that symbol contains letters
                         try:
                             graph = plot_stock_graph(symbol)
-                            return {
-                                "output_text": response.content.strip(),
-                                "graph": graph
-                            }
+                            # Only add graph to response if successfully created
+                            result_dict["graph"] = graph
                         except Exception as e:
                             print(f"Error plotting graph: {e}")
-                            return {"output_text": response.content.strip()}
-                    else:
-                        return {"output_text": response.content.strip()}
+                    
+                    return result_dict
                 else:
                     return {"output_text": "Sorry! No information available for this question."}
-
             
             # Finally, fall back to LLM response
             else:
