@@ -724,13 +724,12 @@ def plot_stock_graph(symbol):
         return False
 
 def extract_last_word(query):
-    # First try to find word after question mark
+    # Match a word or symbol directly after the question mark
     match = re.search(r'\?([^\s]+)$', query)
     if match:
         return match.group(1)
-    # If no question mark, just get the last word
-    words = query.split()
-    return words[-1] if words else None
+    # If no word or symbol is found after the question mark, return None
+    return None
 # ----------------------------------------------------------------------------------------------------------
 
 def user_input(user_question):
@@ -882,24 +881,25 @@ def user_input(user_question):
                 research_chain = create_research_chain(exa_api_key, gemini_api_key)
                 response = research_chain.invoke(research_query)
 
-                # Only attempt to extract symbol and create graph if we have a valid response
+                symbol = extract_last_word(research_query)
+                
                 if hasattr(response, 'content'):
-                    # First create the base response
-                    result_dict = {"output_text": response.content.strip()}
-                    
-                    # Check if the query contains a stock symbol pattern
-                    symbol = extract_last_word(research_query)
-                    if symbol and any(char.isalpha() for char in symbol):  # Basic validation that symbol contains letters
+                    # Only include graph if we have a valid symbol
+                    if not symbol:
+                        return {"output_text": response.content.strip()}
+                    else:
                         try:
                             graph = plot_stock_graph(symbol)
-                            # Only add graph to response if successfully created
-                            result_dict["graph"] = graph
+                            return {
+                                "output_text": response.content.strip(),
+                                "graph": graph
+                            }
                         except Exception as e:
                             print(f"Error plotting graph: {e}")
-                    
-                    return result_dict
+                            return {"output_text": response.content.strip()}
                 else:
                     return {"output_text": "Sorry! No information available for this question."}
+
             
             # Finally, fall back to LLM response
             else:
