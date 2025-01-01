@@ -469,6 +469,7 @@ def get_stock_price(symbol):
         # Return None values for all expected return values
         return None, None, None, None, None, None
 
+
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
@@ -476,35 +477,29 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
         start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=8,
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date",  # Ensure sorting by date
-            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com"]  # Trusted sources
+            sort="date",
+            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com"]
         )
 
-        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
-        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0.1,
@@ -513,24 +508,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Enhanced document template with clear XML structure
         document_template = """
-        <financial_news>
-            <headline>{title}</headline>
-            <date>{date}</date>
-            <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
-        </financial_news>
+        <article>
+            <title>{title}</title>
+            <published>{date}</published>
+            <summary>{highlights}</summary>
+            <link>{url}</link>
+        </article>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
-                "date": doc.metadata.get("published_date", "Today"),
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
+                "title": doc.metadata.get("title", "").strip(),
+                "date": doc.metadata.get("published_date", ""),
+                "highlights": doc.metadata.get("highlights", "").strip(),
+                "url": doc.metadata.get("url", "")
             }) | document_prompt
         )
         
@@ -540,41 +535,40 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Improved prompt with explicit formatting instructions
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
+            ("system", """You are a senior financial analyst specializing in market analysis and reporting. Your responses should be:
 
-            Core Areas:
-            - Indian equity markets and sectoral analysis
-            - Cryptocurrency markets and blockchain technology
-            - Global market correlations and trends
-            - Technical and fundamental analysis
-            - Macroeconomic indicators and ratios
-            - Market valuations and metrics
+            1. Clearly formatted using proper Markdown
+            2. Consistently structured
+            3. Easy to read and scan
+            4. Free of formatting errors or special characters
 
-            Response Style:
-            - Time-sensitive: Prioritize the most recent information
-            - Quantitative: Include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points
-            - Comprehensive: Cover both traditional and digital assets
-            - Forward-looking: Include potential market implications
-            - Risk-aware: Highlight key risks and uncertainties"""),
+            When formatting:
+            - Use proper Markdown headers (# with a space after)
+            - Ensure clean bullet points with proper spacing
+            - Use bold (**) and italic (*) consistently
+            - Include source links in proper Markdown format [text](url)
+            - Maintain uniform spacing between sections"""),
             
-            ("human", """Analyze this financial query within the given context:
+            ("human", """Analyze and format this financial information:
 
             Query: {query}
             Context: {context}
+
+            Format your response as follows:
+
+            # Market Updates
             
-            Structure your response based on user query.
-            For time-sensitive queries (today/latest), focus only on the most recent updates.
-            If no specific recent news is found, clearly state that no recent updates are available.
+            Each update should be formatted as:
+            - **Headline:** Description. [Source Name](source_url)
 
-            IMPORTANT: For source citations, use this exact format:
-            "Your news statement. [sourcename](source_url)"
-            Ensure the source name is clickable.
-
-            Maximum response length: 200 words
-            Focus on actionable insights relevant to the query context.""")
+            Rules:
+            1. Use clean Markdown formatting
+            2. Include only the most relevant updates
+            3. Ensure each bullet point is complete and properly formatted
+            4. Maximum 3-4 key updates
+            5. Verify all formatting before output""")
         ])
 
         chain = (
@@ -591,8 +585,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
-
-     
 
 def plot_stock_graph(symbol):
     try:
