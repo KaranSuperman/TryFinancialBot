@@ -331,13 +331,9 @@ QUERY TRANSFORMATION RULES:
    - "What is bitcoin price" → "True BTC-USD"
 
 3. NEWS/ANALYSIS QUERIES - respond: "News [FINANCIAL_REPHRASED_QUERY]"
-   For listed companies/indices only:
+   Must include stock symbols when specific companies are mentioned:
    - "What happened to apple today?" → "News What happened to Apple stock today?AAPL"
-   - "Tell me news about Microsoft" → "News What are the latest updates about Microsoft?MSFT"
-   
-   For unlisted/private companies:
-   - "Tell me news about BSNL" → "News What are the latest financial updates about BSNL?"
-   - "Updates about SpaceX" → "News What are the recent financial developments at SpaceX?"
+   - "Tesla's performance" → "News What are Tesla's recent financial performance metrics?TSLA"
    
    Generic news queries must be transformed:
    - "What's happening today?" → "News What are today's key financial market developments?"
@@ -395,10 +391,6 @@ NOTE: Append appropriate exchange suffix if needed
       - .MI = Milan Stock Exchange (Italy)
       - .MC = Madrid Stock Exchange (Spain)
 
-
-IMPORTANT RULES FOR TICKERS:
-1. For queries about private/unlisted companies, DO NOT append any ticker
-2. If unsure about listing status, DO NOT append ticker
 
 AUTOMATIC QUERY ENHANCEMENT:
 1. Time Context:
