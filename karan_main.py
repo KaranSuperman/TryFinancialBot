@@ -334,6 +334,7 @@ def is_stock_query(user_question):
          "What's the today news?" → "News What are today's top financial market updates?"
          "What happened today?" → "News What are the major financial market movements today?"
          "what is top 10 news?" → "News What are the top 10 financial market developments?"
+         "what is top 5 news?" → "News What are the top 5 financial market developments?"
          "What is the updates of US" → "News What are the latest US financial market updates?"
          "What happened to nifty50 down today?" → "News What caused the decline in Nifty50 today?^NSEI"
          "What happened to apple today?"  → "News What happened to apple stock today?AAPL"
