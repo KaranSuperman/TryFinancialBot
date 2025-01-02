@@ -301,54 +301,52 @@ def is_relevant(question, embeddings_model, threshold=0.55):
 
 def is_stock_query(user_question):
     prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
-    SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. ALSO [PAASA] is a fintech company if 
-    any user ask query related to the company then donot response to that query.
 
-    SPECIAL NOTES: 
-    - ALL news queries MUST be rephrased to focus ONLY on financial markets, economy, or business news
-    - ANY general news query should be automatically converted to a financial news query
-    - DO NOT include general news, political news, or non-financial news in rephrasing
+SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. ALSO [PAASA] is a fintech company if any user ask query related to the company then do not response to that query.
 
-    RULES:
-    1. IF the question is about STOCK PRICE then Generate only [Yahoo Finance] compatible symbol, respond: "True [STOCK_SYMBOL]"
-       - Examples:
-         "What is Microsoft's current stock price?" → "True MSFT"
-         "How much is Tesla trading for?" → "True TSLA"
-         "What is the price of google?" → "True GOOGL"
-         "What is price of cspx" → "True CSPX.L"
-         "csndx price" → "True CSNDX.SW"
-         "What is bitcoin price"  → "True BTC-USD"
+SPECIAL NOTES: 
+- ALL queries, including generic ones, MUST be automatically converted to focus on financial markets, economy, or business news
+- ANY general or non-specific query should be transformed into a financial news query
+- DO NOT include general news, political news, or non-financial news in responses
 
-    2. IF the question is about NEWS/ANALYSIS (ANY GENERAL NEWS QUERY), respond: "News [FINANCIAL_REPHRASED_QUERY]"
-       - All general news queries MUST be rephrased to focus on financial markets/economy
-       - Always add specific financial context when rephrasing
-       - If any stock yahoo finance symbol coming in question then add their yahoo finance ticker at the end.
-        for example-    "What happened to apple today?"  → "News What happened to apple stock today?AAPL"
-       Examples:
-         "What's happening today?" → "News Give 5 finance news of today?"
-         "Give me latest news" → "News What are the latest financial market updates?"
-         "Top stories" → "News What are today's top financial market stories?"
-         "US news" → "News What are the major US financial market developments?"
-         "Why is Apple's stock falling?" → "News Why has Apple's stock price decreased?"
-         "Tesla's recent financial performance" → "News What are Tesla's recent financial trends?"
-         "What's the today news?" → "News What are today's top financial market updates?"
-         "What happened today?" → "News What are the major financial market movements today?"
-         "what is top 10 news?" → "News What are the top 10 financial market developments?"
-         "what is top 5 news?" → "News What are the top 5 financial market developments?"
-         "What is the updates of US" → "News What are the latest US financial market updates?"
-         "What happened to nifty50 down today?" → "News What caused the decline in Nifty50 today?^NSEI"
-         "What happened to apple today?"  → "News What happened to apple stock today?AAPL"
-         "Tell me updates regards bitcoin?" → "Tell me updates regards bitcoin?BTC-USD"
+QUERY TRANSFORMATION RULES:
+1. Generic Questions to Financial Queries:
+   - "what is happening?" → "News What are the major financial market movements today?"
+   - "latest updates" → "News What are the latest financial market developments?"
+   - "global news" → "News What are the significant global financial market updates?"
+   - "what happened today" → "News What were the key financial market events today?"
+   - "morning news" → "News What are the important financial market updates this morning?"
+   - "breaking news" → "News What are the breaking developments in financial markets?"
 
-    3. IF the question is about Finance or tax related information, respond: "News [REPHRASED_QUERY]"
-       - Examples:
-         "What is the market cap to gdp ratio of India?" → "News What is the market cap to gdp ratio of India?"
-         "What is the tax I pay on debt ETF's overseas?" → "News What is the tax I pay on debt ETF's overseas?"
+2. STOCK PRICE QUERIES - respond: "True [STOCK_SYMBOL]"
+   - "What is Microsoft's current stock price?" → "True MSFT"
+   - "How much is Tesla trading for?" → "True TSLA"
+   - "What is the price of google?" → "True GOOGL"
+   - "What is price of cspx" → "True CSPX.L"
+   - "csndx price" → "True CSNDX.SW"
+   - "What is bitcoin price" → "True BTC-USD"
 
-    4. Do not response on financial terms , respond: "False NONE"
-        - Example: 
-        "What is PE ratio?"
-        "What is high risk portfolio?"
+3. NEWS/ANALYSIS QUERIES - respond: "News [FINANCIAL_REPHRASED_QUERY]"
+   Must include stock symbols when specific companies are mentioned:
+   - "What happened to apple today?" → "News What happened to Apple stock today?AAPL"
+   - "Tesla's performance" → "News What are Tesla's recent financial performance metrics?TSLA"
+   
+   Generic news queries must be transformed:
+   - "What's happening today?" → "News What are today's key financial market developments?"
+   - "Give me latest news" → "News What are the latest financial market updates?"
+   - "Top stories" → "News What are today's top financial market stories?"
+   - "US news" → "News What are the major US financial market developments?"
+   - "What happened to nifty50?" → "News What are the recent movements in Nifty50?^NSEI"
+
+4. FINANCE/TAX QUERIES - respond: "News [REPHRASED_QUERY]"
+   - "What is the market cap to gdp ratio of India?" → "News What is the market cap to gdp ratio of India?"
+   - "What is the tax on debt ETFs overseas?" → "News What is the tax treatment for overseas debt ETFs?"
+
+5. FINANCIAL TERMS/DEFINITIONS - respond: "False NONE"
+   - "What is PE ratio?"
+   - "What is high risk portfolio?"
+   - Any definitional questions about financial terms
+
 
 
     Important Stock Symbols:
@@ -363,12 +361,12 @@ def is_stock_query(user_question):
     - Nifyt = ^NSEI
  
 
-    COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
-    EXCHANGE SUFFIXES:
-    - US Exchanges:
-      * No suffix for NYSE/NASDAQ (AAPL, MSFT)
+COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
+EXCHANGE SUFFIXES:
+- US Exchanges:
+    * No suffix for NYSE/NASDAQ (AAPL, MSFT)
     
-    NOTE: Append appropriate exchange suffix if needed
+NOTE: Append appropriate exchange suffix if needed
     - International Exchanges:
       - .L = London Stock Exchange (UK)
       - .SW = SIX Swiss Exchange (Switzerland)
@@ -390,7 +388,23 @@ def is_stock_query(user_question):
       - .MC = Madrid Stock Exchange (Spain)
 
 
-    Question: {user_question}'''
+AUTOMATIC QUERY ENHANCEMENT:
+1. Time Context:
+   - Add "today" if timeframe is not specified
+   - Use "recent" for general queries about trends
+   - Specify "morning/afternoon/evening" if mentioned
+
+2. Market Context:
+   - Add "financial markets" for generic news requests
+   - Specify "stock market" for equity-related queries
+   - Include "global markets" for international queries
+
+3. Specificity Enhancement:
+   - Add "financial" before generic terms like "updates," "news," "developments"
+   - Include "market performance" for general status queries
+   - Append relevant stock symbols for company-specific queries
+
+Question: {user_question} '''
 
     try:
         # Use Gemini for intelligent classification
