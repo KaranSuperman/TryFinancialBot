@@ -310,7 +310,7 @@ SPECIAL NOTES:
 - ANY general or non-specific query should be transformed into a financial news query
 - DO NOT include general news, political news, or non-financial news in responses
 - ONLY append Yahoo Finance tickers for publicly listed companies and active indices
-- DO NOT append tickers for unlisted companies, private companies, or delisted stocks . For example: BSNL, SpaceX
+- DO NOT append tickers for unlisted companies, private companies, or delisted stocks which is not available on yahoo finance publicly . For example: BSNL, SpaceX
 
 
 QUERY TRANSFORMATION RULES:
