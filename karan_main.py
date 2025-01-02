@@ -300,7 +300,8 @@ def is_relevant(question, embeddings_model, threshold=0.55):
         return False 
 
 def is_stock_query(user_question):
-    prompt = f'''Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
+    prompt = f'''
+Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
 
 SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. ALSO [PAASA] is a fintech company if any user ask query related to the company then do not response to that query.
 
@@ -308,6 +309,9 @@ SPECIAL NOTES:
 - ALL queries, including generic ones, MUST be automatically converted to focus on financial markets, economy, or business news
 - ANY general or non-specific query should be transformed into a financial news query
 - DO NOT include general news, political news, or non-financial news in responses
+- ONLY append Yahoo Finance tickers for publicly listed companies and active indices
+- DO NOT append tickers for unlisted companies, private companies, or delisted stocks
+
 
 QUERY TRANSFORMATION RULES:
 1. Generic Questions to Financial Queries:
