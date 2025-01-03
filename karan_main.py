@@ -842,118 +842,107 @@ def user_input(user_question):
                 else:
                     # Use PDF response
                     st.info("Using PDF response")
-                    if docs and any(doc.page_content.strip() for doc in docs):
-                        prompt_template = """
-                        Use the information from the provided PDF context to answer the question in detail.
-                        If the context doesn't contain relevant information to answer the question,
-                        return "NO_RELEVANT_CONTENT" as the response.
+                    prompt_template = """
+                    Use the information from the provided PDF context to answer the question in detail.
 
-                        Context:\n{context}
+                    Context:\n{context}
 
-                        Question: {question}
+                    Question: {question}
 
-                        Provide a comprehensive answer, including all relevant details and explanations.
-                        """
-                        prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-                        chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), 
-                                           chain_type="stuff", 
-                                           prompt=prompt)
-                        response = chain({"input_documents": docs, "question": user_question}, 
-                                      return_only_outputs=True)
-                        
-                        # If no relevant content found, continue to LLM
-                        if response.get("output_text", "").strip() == "NO_RELEVANT_CONTENT":
-                            raise ValueError("No relevant content found in PDF")
-                        
-                        return response
+                    Provide a comprehensive answer, including all relevant details and explanations. Ensure the response is clear and informative, using the factual information available in the document.
+                    """
+                    prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+                    chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+                    return chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
 
             except Exception as e:
                 print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
         
         # If no good matches in PDF/FAQ, use alternative processing
-
-        # Handle stock price queries
-        if result.startswith("True "):
-            st.info("Using Stocks response")
-            _, symbol = result.split(maxsplit=1)
-            try:
-                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-                if stock_price is not None:
-                    output_text = (
-                        f"**Stock Update for {symbol}**\n\n"
-                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
-                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                    )
-                    
-                    return {
-                        "output_text": output_text,
-                        "graph": plot_stock_graph(symbol),
-                        "display_order": ["text", "graph"]
-                    }
-                else:
-                    return {
-                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
-                    }
-            except Exception as e:
-                print(f"DEBUG: Stock price error: {str(e)}")
-                return {
-                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
-                }
-            
-        # Handle news/analysis queries only if PDF/FAQ didn't have good matches
-        elif result.startswith("News "):
-            st.info("Using Exa response")
-            research_query = result[5:]
-            exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-            gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
-
-            if not exa_api_key or not gemini_api_key:
-                raise ValueError("API keys are missing")
-
-            research_chain = create_research_chain(exa_api_key, gemini_api_key)
-            response = research_chain.invoke(research_query)
-
-            symbol = extract_last_word(research_query)
-            
-            if hasattr(response, 'content'):
-                # Only include graph if we have a valid symbol
-                if not symbol:
-                    return {"output_text": response.content.strip()}
-                else:
-                    try:
-                        graph = plot_stock_graph(symbol)
-                        return {
-                            "output_text": response.content.strip(),
-                            "graph": graph
-                        }
-                    except Exception as e:
-                        print(f"Error plotting graph: {e}")
-                        return {"output_text": response.content.strip()}
-            else:
-                return {"output_text": "Sorry! No information available for this question."}
-
-        
-        # Finally, fall back to LLM response
         else:
-            st.info("Using LLM response")
-            llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+            # Handle stock price queries
+            if result.startswith("True "):
+                st.info("Using Stocks response")
+                _, symbol = result.split(maxsplit=1)
+                try:
+                    stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
+                    if stock_price is not None:
+                        output_text = (
+                            f"**Stock Update for {symbol}**\n\n"
+                            f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                            f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                        )
+                        
+                        return {
+                            "output_text": output_text,
+                            "graph": plot_stock_graph(symbol),
+                            "display_order": ["text", "graph"]
+                        }
+                    else:
+                        return {
+                            "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                        }
+                except Exception as e:
+                    print(f"DEBUG: Stock price error: {str(e)}")
+                    return {
+                        "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                    }
+             
+            # Handle news/analysis queries only if PDF/FAQ didn't have good matches
+            elif result.startswith("News "):
+                st.info("Using Exa response")
+                research_query = result[5:]
+                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+
+                if not exa_api_key or not gemini_api_key:
+                    raise ValueError("API keys are missing")
+
+                research_chain = create_research_chain(exa_api_key, gemini_api_key)
+                response = research_chain.invoke(research_query)
+
+                symbol = extract_last_word(research_query)
+                
+                if hasattr(response, 'content'):
+                    # Only include graph if we have a valid symbol
+                    if not symbol:
+                        return {"output_text": response.content.strip()}
+                    else:
+                        try:
+                            graph = plot_stock_graph(symbol)
+                            return {
+                                "output_text": response.content.strip(),
+                                "graph": graph
+                            }
+                        except Exception as e:
+                            print(f"Error plotting graph: {e}")
+                            return {"output_text": response.content.strip()}
+                else:
+                    return {"output_text": "Sorry! No information available for this question."}
+
             
-            prompt = f"""
-            Please provide a clear and comprehensive explanation of the financial concept or term: {user_question}
+            # Finally, fall back to LLM response
+            else:
+                st.info("Using LLM response")
+                prompt1 = user_question + """\
+                Don't response if the user_question is rather than financial terms.
+                If other question ask response with 'Please tell only finance related queries' .
+                Finance Term Query Guidelines:
+                1. Context: Finance domain
+                2. Response Requirements:
+                - Focus exclusively on defining finance-related terms
+                - Provide clear, concise explanations of financial terminology
 
-            Guidelines:
-            1. Provide a thorough explanation of the financial concept
-            2. Include key aspects and importance in the financial world
-            3. Use clear, accessible language
-            4. If applicable, include a brief real-world example
-            5. Keep the response informative and educational
+                Examples of Acceptable Queries:
+                - What is PE ratio?
+                - Define market capitalization
+                - Explain book value
+                - What does EBITDA mean?
 
-            If the question is not finance-related, respond with: "Please ask only finance-related questions."
-            """
-            
-            response = llm([HumanMessage(content=prompt)])
-            return {"output_text": response.content if response else "No response generated."}
-
+                Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
+                """
+                response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+                return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
