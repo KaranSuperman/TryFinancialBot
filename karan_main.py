@@ -925,38 +925,22 @@ def user_input(user_question):
             else:
                 st.info("Using LLM response")
                 prompt1 = user_question + """\
-                Always provide a well-structured, concise, and accurate response for any financial generic term query.  
+                Don't response if the user_question is rather than financial terms.
+                If other question ask response with 'Please tell only finance related queries' .
+                Finance Term Query Guidelines:
+                1. Context: Finance domain
+                2. Response Requirements:
+                - Focus exclusively on defining finance-related terms
+                - Provide clear, concise explanations of financial terminology
 
-                **Response Guidelines**:  
-                1. **Clarity**:  
-                - Use simple, precise language to define financial terms.  
-                - Avoid jargon unless it's defined in context.  
-
-                2. **Structure**:  
-                - Start with a clear definition of the term.  
-                - Highlight key components, relevance, or formulas.  
-                - Conclude with an example or practical application (if applicable).  
-
-                3. **Formatting**:  
-                - Use markdown for emphasis (e.g., `**bold**`, `*italic*`).  
-                - Include formulas or calculations where necessary.  
-                - Use bullet points or numbered lists for better readability.  
-
-                4. **Accuracy**:  
-                - Ensure the response is fact-based and reflects standard financial knowledge.  
-
-                5. **Length**:  
-                - Keep responses concise, ideally 50–100 words, while ensuring completeness.  
-
-                **Examples of Questions**:  
-                - What is market capitalization?  
-                - Explain the concept of book value.  
-                - What does EBITDA stand for?  
-                - Define return on equity (ROE).  
-
-                **Note**: Responses should be purely educational, relevant to finance, and formatted for clarity. Avoid unrelated or speculative content. Provide examples for better understanding where applicable.  
+                Examples of Acceptable Queries:
+                - What is PE ratio?
+                - Define market capitalization
+                - Explain book value
+                - What does EBITDA mean?
                 
-                \
+                Stuructural the information in good manner.
+                Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
                 """
                 response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
                 return {"output_text": response.content} if response else {"output_text": "No response generated."}
