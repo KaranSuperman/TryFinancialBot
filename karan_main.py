@@ -831,13 +831,28 @@ def user_input(user_question):
                         """
                         prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
                         chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                        response = chain({"input_documents": docs, "question": user_question, "answer": answer, "context": """
-                        Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
-                        """}, return_only_outputs=True)
-                        return response
+                        try:
+                            response = chain({
+                                "input_documents": docs,
+                                "question": user_question,
+                                "answer": answer,
+                                "context": """
+                                Paasa is a financial platform that enables global market access and portfolio diversification without hassle. It was founded by the team behind the successful US digital bank, SoFi. Paasa offers cross-border flows, tailored portfolios, and individualized guidance for worldwide investing. Their platform helps users develop wealth while simplifying the complexity of global investing.
+                                """
+                            }, return_only_outputs=True)
+                            answer_text = response.get("output_text", "").strip()
+
+                            # Check for verbose fallback phrases and replace them
+                            if "does not contain any information" in answer_text.lower():
+                                return "Sorry, I don't have the information regarding this."
+                            return answer_text
+                        except Exception as e:
+                            print(f"DEBUG: Error in FAQ processing: {str(e)}")
+                            return "Sorry, an error occurred while processing your request."
                     elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
                         return {"output_text": best_faq.metadata['answer']}
                     else:
+                        # Fallback for no relevant information
                         return "Sorry, I don't have the information regarding this."
                 else:
                     # Use PDF response
