@@ -859,89 +859,89 @@ def user_input(user_question):
                 print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
         
         # If no good matches in PDF/FAQ, use alternative processing
-        else:
-            # Handle stock price queries
-            if result.startswith("True "):
-                st.info("Using Stocks response")
-                _, symbol = result.split(maxsplit=1)
-                try:
-                    stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
-                    if stock_price is not None:
-                        output_text = (
-                            f"**Stock Update for {symbol}**\n\n"
-                            f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
-                            f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
-                        )
-                        
-                        return {
-                            "output_text": output_text,
-                            "graph": plot_stock_graph(symbol),
-                            "display_order": ["text", "graph"]
-                        }
-                    else:
-                        return {
-                            "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
-                        }
-                except Exception as e:
-                    print(f"DEBUG: Stock price error: {str(e)}")
+
+        # Handle stock price queries
+        if result.startswith("True "):
+            st.info("Using Stocks response")
+            _, symbol = result.split(maxsplit=1)
+            try:
+                stock_price, previous_day_stock_price, currency_symbol, price_change, change_direction, percentage_change = get_stock_price(symbol)
+                if stock_price is not None:
+                    output_text = (
+                        f"**Stock Update for {symbol}**\n\n"
+                        f"- Current Price: {currency_symbol}{stock_price:.2f}\n\n"
+                        f"\n- Previous Close: {currency_symbol}{previous_day_stock_price:.2f}\n\n"
+                    )
+                    
                     return {
-                        "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                        "output_text": output_text,
+                        "graph": plot_stock_graph(symbol),
+                        "display_order": ["text", "graph"]
                     }
-             
-            # Handle news/analysis queries only if PDF/FAQ didn't have good matches
-            elif result.startswith("News "):
-                st.info("Using Exa response")
-                research_query = result[5:]
-                exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
-                gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
-
-                if not exa_api_key or not gemini_api_key:
-                    raise ValueError("API keys are missing")
-
-                research_chain = create_research_chain(exa_api_key, gemini_api_key)
-                response = research_chain.invoke(research_query)
-
-                symbol = extract_last_word(research_query)
-                
-                if hasattr(response, 'content'):
-                    # Only include graph if we have a valid symbol
-                    if not symbol:
-                        return {"output_text": response.content.strip()}
-                    else:
-                        try:
-                            graph = plot_stock_graph(symbol)
-                            return {
-                                "output_text": response.content.strip(),
-                                "graph": graph
-                            }
-                        except Exception as e:
-                            print(f"Error plotting graph: {e}")
-                            return {"output_text": response.content.strip()}
                 else:
-                    return {"output_text": "Sorry! No information available for this question."}
-
+                    return {
+                        "output_text": f"Sorry, I was unable to retrieve the current stock price for {symbol}."
+                    }
+            except Exception as e:
+                print(f"DEBUG: Stock price error: {str(e)}")
+                return {
+                    "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
+                }
             
-            # Finally, fall back to LLM response
+        # Handle news/analysis queries only if PDF/FAQ didn't have good matches
+        elif result.startswith("News "):
+            st.info("Using Exa response")
+            research_query = result[5:]
+            exa_api_key = st.secrets.get("exa", {}).get("api_key", os.getenv("EXA_API_KEY"))
+            gemini_api_key = st.secrets.get("gemini", {}).get("api_key", os.getenv("GEMINI_API_KEY"))
+
+            if not exa_api_key or not gemini_api_key:
+                raise ValueError("API keys are missing")
+
+            research_chain = create_research_chain(exa_api_key, gemini_api_key)
+            response = research_chain.invoke(research_query)
+
+            symbol = extract_last_word(research_query)
+            
+            if hasattr(response, 'content'):
+                # Only include graph if we have a valid symbol
+                if not symbol:
+                    return {"output_text": response.content.strip()}
+                else:
+                    try:
+                        graph = plot_stock_graph(symbol)
+                        return {
+                            "output_text": response.content.strip(),
+                            "graph": graph
+                        }
+                    except Exception as e:
+                        print(f"Error plotting graph: {e}")
+                        return {"output_text": response.content.strip()}
             else:
-                st.info("Using LLM response")
-                llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
-                
-                # Create a more focused prompt for financial terms
-                prompt = f"""
-                Please provide a clear and concise explanation of the financial concept or term: {user_question}
+                return {"output_text": "Sorry! No information available for this question."}
 
-                Guidelines:
-                1. Focus on financial terminology and concepts
-                2. Provide a comprehensive yet concise explanation
-                3. Include relevant examples if applicable
-                4. Keep the response informative and educational
-                5. Aim for approximately 100 words
+        
+        # Finally, fall back to LLM response
+        else:
+            st.info("Using LLM response")
+            llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+            
+            # Create a more focused prompt for financial terms
+            prompt = f"""
+            Please provide a clear and concise explanation of the financial concept or term: {user_question}
 
-                If the question is not finance-related, respond with: "Please ask only finance-related questions."
-                """
-                
-                response = llm([HumanMessage(content=prompt)])
-                return {"output_text": response.content} if response else {"output_text": "No response generated."}
+            Guidelines:
+            1. Focus on financial terminology and concepts
+            2. Provide a comprehensive yet concise explanation
+            3. Include relevant examples if applicable
+            4. Keep the response informative and educational
+            5. Aim for approximately 100 words
+
+            If the question is not finance-related, respond with: "Please ask only finance-related questions."
+            """
+            
+            response = llm([HumanMessage(content=prompt)])
+            return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
 
     except Exception as e:
