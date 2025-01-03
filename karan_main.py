@@ -925,23 +925,29 @@ def user_input(user_question):
             else:
                 st.info("Using LLM response")
                 prompt1 = user_question + """\
-                Don't response if the user_question is rather than financial terms.
-                If other question ask response with 'Please tell only finance related queries' .
-                Finance Term Query Guidelines:
-                1. Context: Finance domain
-                2. Response Requirements:
-                - Focus exclusively on defining finance-related terms
-                - Provide clear, concise explanations of financial terminology
+                    Only respond to finance-related queries. For non-financial questions, reply with:  
+                    "Please ask only finance-related queries."  
 
-                Examples of Acceptable Queries:
-                - What is PE ratio?
-                - Define market capitalization
-                - Explain book value
-                - What does EBITDA mean?
+                    **Finance Term Query Guidelines:**  
+                    1. **Context**: Focus on financial terminology and concepts.  
+                    2. **Response Requirements**:  
+                    - Provide concise, clear explanations of financial terms.  
+                    - Use examples or calculations if applicable for better understanding.  
+                    - Limit responses to 100 words for brevity and clarity.  
 
-                Structure your response based on user query.
+                    **Examples of Acceptable Queries**:  
+                    - What is the PE ratio?  
+                    - Define market capitalization.  
+                    - Explain book value.  
+                    - What does EBITDA mean?  
 
-                Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
+                    **Structure**:  
+                    - Begin with a definition or explanation of the term.  
+                    - Highlight key features or relevance in finance.  
+                    - If applicable, include a simple example or calculation to clarify.  
+
+                    **Note**: Responses must be purely educational and focus on finance-related terms. Ensure clarity, accuracy, and relevance.  
+                \
                 """
                 response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
                 return {"output_text": response.content} if response else {"output_text": "No response generated."}
