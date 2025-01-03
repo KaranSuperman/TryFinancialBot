@@ -925,28 +925,37 @@ def user_input(user_question):
             else:
                 st.info("Using LLM response")
                 prompt1 = user_question + """\
-                    Only respond to finance-related queries. For non-financial questions, reply with:  
-                    "Please ask only finance-related queries."  
+                Always provide a well-structured, concise, and accurate response for any financial generic term query.  
 
-                    **Finance Term Query Guidelines:**  
-                    1. **Context**: Focus on financial terminology and concepts.  
-                    2. **Response Requirements**:  
-                    - Provide concise, clear explanations of financial terms.  
-                    - Use examples or calculations if applicable for better understanding.  
-                    - Limit responses to 100 words for brevity and clarity.  
+                **Response Guidelines**:  
+                1. **Clarity**:  
+                - Use simple, precise language to define financial terms.  
+                - Avoid jargon unless it's defined in context.  
 
-                    **Examples of Acceptable Queries**:  
-                    - What is the PE ratio?  
-                    - Define market capitalization.  
-                    - Explain book value.  
-                    - What does EBITDA mean?  
+                2. **Structure**:  
+                - Start with a clear definition of the term.  
+                - Highlight key components, relevance, or formulas.  
+                - Conclude with an example or practical application (if applicable).  
 
-                    **Structure**:  
-                    - Begin with a definition or explanation of the term.  
-                    - Highlight key features or relevance in finance.  
-                    - If applicable, include a simple example or calculation to clarify.  
+                3. **Formatting**:  
+                - Use markdown for emphasis (e.g., `**bold**`, `*italic*`).  
+                - Include formulas or calculations where necessary.  
+                - Use bullet points or numbered lists for better readability.  
 
-                    **Note**: Responses must be purely educational and focus on finance-related terms. Ensure clarity, accuracy, and relevance.  
+                4. **Accuracy**:  
+                - Ensure the response is fact-based and reflects standard financial knowledge.  
+
+                5. **Length**:  
+                - Keep responses concise, ideally 50–100 words, while ensuring completeness.  
+
+                **Examples of Questions**:  
+                - What is market capitalization?  
+                - Explain the concept of book value.  
+                - What does EBITDA stand for?  
+                - Define return on equity (ROE).  
+
+                **Note**: Responses should be purely educational, relevant to finance, and formatted for clarity. Avoid unrelated or speculative content. Provide examples for better understanding where applicable.  
+                
                 \
                 """
                 response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
