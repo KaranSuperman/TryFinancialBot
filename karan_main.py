@@ -924,25 +924,25 @@ def user_input(user_question):
             # Finally, fall back to LLM response
             else:
                 st.info("Using LLM response")
-                prompt1 = user_question + """\
-                Don't response if the user_question is rather than financial terms.
-                If other question ask response with 'Please tell only finance related queries' .
-                Finance Term Query Guidelines:
-                1. Context: Finance domain
-                2. Response Requirements:
-                - Focus exclusively on defining finance-related terms
-                - Provide clear, concise explanations of financial terminology
+                llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+                
+                # Create a more focused prompt for financial terms
+                prompt = f"""
+                Please provide a clear and concise explanation of the financial concept or term: {user_question}
 
-                Examples of Acceptable Queries:
-                - What is PE ratio?
-                - Define market capitalization
-                - Explain book value
-                - What does EBITDA mean?
+                Guidelines:
+                1. Focus on financial terminology and concepts
+                2. Provide a comprehensive yet concise explanation
+                3. Include relevant examples if applicable
+                4. Keep the response informative and educational
+                5. Aim for approximately 100 words
 
-                Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
+                If the question is not finance-related, respond with: "Please ask only finance-related questions."
                 """
-                response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+                
+                response = llm([HumanMessage(content=prompt)])
                 return {"output_text": response.content} if response else {"output_text": "No response generated."}
+
 
     except Exception as e:
         print(f"DEBUG: Error in user_input: {str(e)}")
