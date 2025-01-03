@@ -507,7 +507,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             start_published_date=start_date,
             type="news",
             sort="date",  # Ensure sorting by date
-            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com"]  # Trusted sources
+            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
         )
 
         # Ensure the API key is set in the headers
