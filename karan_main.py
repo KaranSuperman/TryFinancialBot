@@ -939,6 +939,8 @@ def user_input(user_question):
                 - Explain book value
                 - What does EBITDA mean?
 
+                Structure your response based on user query.
+
                 Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
                 """
                 response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
