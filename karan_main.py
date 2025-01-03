@@ -842,18 +842,30 @@ def user_input(user_question):
                 else:
                     # Use PDF response
                     st.info("Using PDF response")
-                    prompt_template = """
-                    Use the information from the provided PDF context to answer the question in detail.
+                    if docs and any(doc.page_content.strip() for doc in docs):
+                        prompt_template = """
+                        Use the information from the provided PDF context to answer the question in detail.
+                        If the context doesn't contain relevant information to answer the question,
+                        return "NO_RELEVANT_CONTENT" as the response.
 
-                    Context:\n{context}
+                        Context:\n{context}
 
-                    Question: {question}
+                        Question: {question}
 
-                    Provide a comprehensive answer, including all relevant details and explanations. Ensure the response is clear and informative, using the factual information available in the document.
-                    """
-                    prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-                    chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                    return chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+                        Provide a comprehensive answer, including all relevant details and explanations.
+                        """
+                        prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+                        chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), 
+                                           chain_type="stuff", 
+                                           prompt=prompt)
+                        response = chain({"input_documents": docs, "question": user_question}, 
+                                      return_only_outputs=True)
+                        
+                        # If no relevant content found, continue to LLM
+                        if response.get("output_text", "").strip() == "NO_RELEVANT_CONTENT":
+                            raise ValueError("No relevant content found in PDF")
+                        
+                        return response
 
             except Exception as e:
                 print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
@@ -926,22 +938,21 @@ def user_input(user_question):
             st.info("Using LLM response")
             llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
             
-            # Create a more focused prompt for financial terms
             prompt = f"""
-            Please provide a clear and concise explanation of the financial concept or term: {user_question}
+            Please provide a clear and comprehensive explanation of the financial concept or term: {user_question}
 
             Guidelines:
-            1. Focus on financial terminology and concepts
-            2. Provide a comprehensive yet concise explanation
-            3. Include relevant examples if applicable
-            4. Keep the response informative and educational
-            5. Aim for approximately 100 words
+            1. Provide a thorough explanation of the financial concept
+            2. Include key aspects and importance in the financial world
+            3. Use clear, accessible language
+            4. If applicable, include a brief real-world example
+            5. Keep the response informative and educational
 
             If the question is not finance-related, respond with: "Please ask only finance-related questions."
             """
             
             response = llm([HumanMessage(content=prompt)])
-            return {"output_text": response.content} if response else {"output_text": "No response generated."}
+            return {"output_text": response.content if response else "No response generated."}
 
 
     except Exception as e:
