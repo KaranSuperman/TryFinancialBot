@@ -887,7 +887,7 @@ def user_input(user_question):
                     return {
                         "output_text": f"An error occurred while trying to get the stock price for {symbol}: {str(e)}"
                     }
-            
+             
             # Handle news/analysis queries only if PDF/FAQ didn't have good matches
             elif result.startswith("News "):
                 st.info("Using Exa response")
