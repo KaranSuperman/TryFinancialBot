@@ -856,8 +856,11 @@ def user_input(user_question):
                     try:
                         response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
                         answer = response.get("output_text", "").strip()
-                        if not answer or "does not contain any information" in answer.lower():
+                        
+                        # Check and replace specific response
+                        if "does not contain any information" in answer.lower():
                             return "Sorry, I don't have the information regarding this."
+                        
                         return answer
                     except Exception as e:
                         print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
