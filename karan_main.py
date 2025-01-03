@@ -853,7 +853,15 @@ def user_input(user_question):
                     """
                     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
                     chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
-                    return chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+                    try:
+                        response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+                        answer = response.get("output_text", "").strip()
+                        if not answer or "does not contain any information" in answer.lower():
+                            return "Sorry, I don't have the information regarding this."
+                        return answer
+                    except Exception as e:
+                        print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
+                        return "Sorry, an error occurred while processing your request."
 
             except Exception as e:
                 print(f"DEBUG: Error in FAQ/PDF processing: {str(e)}")
