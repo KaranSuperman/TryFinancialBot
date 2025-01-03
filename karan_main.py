@@ -838,7 +838,7 @@ def user_input(user_question):
                     elif hasattr(best_faq, 'metadata') and 'answer' in best_faq.metadata:
                         return {"output_text": best_faq.metadata['answer']}
                     else:
-                        return {"output_text": best_faq.page_content}
+                        return "Sorry, I don't have the information regarding this."
                 else:
                     # Use PDF response
                     st.info("Using PDF response")
