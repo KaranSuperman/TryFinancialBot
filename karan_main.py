@@ -496,32 +496,40 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Reduce timeframe to last 15 minutes for more recent news
+        start_date = (datetime.now() - timedelta(minutes=15)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
+        # Enhanced Retriever Configuration with more reliable sources
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=8,
+            k=12,  # Increased to get more results for better filtering
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date",  # Ensure sorting by date
-            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
+            sort="date",
+            source_filters=[
+                "reuters.com", 
+                "bloomberg.com", 
+                "wsj.com",
+                "ft.com",
+                "cnbc.com",
+                "marketwatch.com",
+                "finance.yahoo.com"
+            ]
         )
 
-        # Ensure the API key is set in the headers
+        # Add validation headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "User-Agent": "FinancialNewsBot/1.0"
             })
         
         # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
         # Enhanced LLM Configuration
@@ -533,83 +541,110 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Enhanced Document Template with Source Validation
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
+            <source>{source}</source>
             <key_insights>{highlights}</key_insights>
+            <full_text>{content}</full_text>
             <source_url>{url}</source_url>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
+        # Enhanced document processing with content validation
+        def validate_and_process_doc(doc):
+            # Extract timestamp and convert to local time
+            published_date = doc.metadata.get("published_date", "")
+            try:
+                dt = datetime.strptime(published_date, "%Y-%m-%dT%H:%M:%SZ")
+                formatted_date = dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+            except:
+                formatted_date = "Date unknown"
+
+            # Validate content exists in the source
+            content = doc.metadata.get("text", "").strip()
+            if not content:
+                return None
+
+            return {
+                "title": doc.metadata.get("title", "").strip(),
+                "date": formatted_date,
+                "source": doc.metadata.get("source", "Unknown Source"),
+                "highlights": doc.metadata.get("highlights", ""),
+                "content": content,
+                "url": doc.metadata.get("url", "")
+            }
+
         document_chain = (
             RunnablePassthrough() | 
-            RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
-                "date": doc.metadata.get("published_date", "Today"),
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
-            }) | document_prompt
+            RunnableLambda(validate_and_process_doc) |
+            RunnableLambda(lambda x: x if x is not None else "") |
+            document_prompt
         )
         
+        # Enhanced retrieval chain with filtering
+        def filter_and_combine_docs(docs):
+            valid_docs = []
+            seen_urls = set()
+            
+            for doc in docs:
+                if not doc or not str(doc).strip():
+                    continue
+                    
+                url = doc.metadata.get("url", "")
+                if url in seen_urls:
+                    continue
+                    
+                seen_urls.add(url)
+                valid_docs.append(doc)
+            
+            return "\n\n".join(str(doc) for doc in valid_docs[:5])  # Limit to top 5 most recent
+
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
-            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+            RunnableLambda(filter_and_combine_docs)
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Enhanced prompt template with source verification requirement
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
-
-            Core Areas:
-            - Indian equity markets and sectoral analysis
-            - Cryptocurrency markets and blockchain technology
-            - Global market correlations and trends
-            - Technical and fundamental analysis
-            - Macroeconomic indicators and ratios
-            - Market valuations and metrics
-
-            Response Style:
-            - Time-sensitive: Prioritize the most recent information
-            - Quantitative: Include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points
-            - Comprehensive: Cover both traditional and digital assets
-            - Forward-looking: Include potential market implications
-            - Risk-aware: Highlight key risks and uncertainties"""),
+            ("system", """You are a senior financial analyst. For every piece of information you share:
+            1. Verify the source article contains the specific information
+            2. Include ONLY news from the last 15 minutes
+            3. Format citations exactly as: [Source Name](full_url) - Timestamp
+            4. If you're unsure about any information, exclude it
+            5. Clearly state when no recent updates are available
             
-            ("human", """Analyze this financial query within the given context:
-
+            Core expertise areas:
+            - Global financial markets
+            - Cryptocurrency markets
+            - Indian markets
+            - Economic indicators"""),
+            
+            ("human", """Analyze this financial query:
             Query: {query}
-            Context: {context}
+            Recent Context: {context}
             
-            Structure your response based on user query.
-            For time-sensitive queries (today/latest), focus only on the most recent updates.
-            If no specific recent news is found, clearly state that no recent updates are available.
-
-            IMPORTANT: For source citations, use this exact format:
-            "Your news statement. [sourcename](source_url)"
-            Ensure the source name is clickable.
-
-            Maximum response length: 200 words
-            Focus on actionable insights relevant to the query context.""")
+            Requirements:
+            1. Only include verified information from the provided sources
+            2. Each fact must have a corresponding source link
+            3. Maximum 200 words
+            4. Group updates by market category
+            5. Include timestamps for each update""")
         ])
 
-        chain = (
-            RunnableParallel({
-                "query": RunnablePassthrough(),  
-                "context": retrieval_chain,  
-            }) 
-            | generation_prompt 
-            | llm
-        )
+        chain = RunnableParallel({
+            "query": RunnablePassthrough(),
+            "context": retrieval_chain,
+        }) | generation_prompt | llm
         
         return chain
 
     except Exception as e:
-        st.error(f"Error in create_research_chain: {str(e)}")
+        logging.error(f"Error in create_research_chain: {str(e)}")
         raise
      
 
