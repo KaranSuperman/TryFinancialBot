@@ -498,27 +498,18 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Stricter time window - only get news from last 2 hours
-        start_date = (datetime.now() - timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Change to 1 days (24 hours) to get very recent news
+        start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration with more trusted sources
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date",
-            source_filters=[
-                "reuters.com", 
-                "bloomberg.com", 
-                "moneycontrol.com",
-                "economictimes.indiatimes.com",
-                "livemint.com",
-                "ndtv.com/business",
-                "businesstoday.in",
-                "finance.yahoo.com"
-            ]
+            sort="date",  # Ensure sorting by date
+            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
         )
 
         # Ensure the API key is set in the headers
@@ -535,7 +526,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration with lower temperature
+        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0,
@@ -544,30 +535,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Enhanced Document Template with publication date validation
+        # Detailed Document Template
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
             <key_insights>{highlights}</key_insights>
             <source_url>{url}</source_url>
-            <timestamp>{timestamp}</timestamp>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
-        # Add timestamp validation in document chain
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL"),
-                "timestamp": datetime.strptime(
-                    doc.metadata.get("published_date", datetime.now().isoformat()),
-                    "%Y-%m-%dT%H:%M:%SZ" if "Z" in doc.metadata.get("published_date", "") else "%Y-%m-%dT%H:%M:%S"
-                ).strftime("%Y-%m-%d %H:%M:%S")
+                "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
         
@@ -577,34 +562,41 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Modified Financial News Prompt with Strict Data Validation
+        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a financial data validator and reporter specialized in Indian markets. Your primary responsibilities are:
+            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
 
-            1. ONLY report information from articles published within the last 2 hours
-            2. For market indices (like Nifty, Sensex), ONLY report current/latest values if explicitly mentioned in the sources
-            3. VERIFY that any market levels mentioned are from current trading session
-            4. If you find outdated information, IGNORE it completely
-            5. If no current information is available, respond with: "No current market data available from the trusted sources in the last 2 hours"
+            Core Areas:
+            - Indian equity markets and sectoral analysis
+            - Cryptocurrency markets and blockchain technology
+            - Global market correlations and trends
+            - Technical and fundamental analysis
+            - Macroeconomic indicators and ratios
+            - Market valuations and metrics
 
-            Critical Rules:
-            - Never report historical levels or outdated predictions
-            - Only use data points that have explicit timestamps
-            - For any market index, the data point must be from the current trading session
-            - Ignore any article that doesn't specify the exact time of the market data
-            - Double-check that reported numbers align with typical ranges (e.g., Nifty should be around 20000-25000 range in 2024)"""),
+            Response Style:
+            - Time-sensitive: Prioritize the most recent information
+            - Quantitative: Include specific numbers, percentages, and time periods
+            - Evidence-based: Support insights with recent data points
+            - Comprehensive: Cover both traditional and digital assets
+            - Forward-looking: Include potential market implications
+            - Risk-aware: Highlight key risks and uncertainties"""),
             
-            ("human", """Analyze the following query using ONLY current market data from the provided sources:
+            ("human", """Analyze this financial query within the given context:
 
             Query: {query}
             Context: {context}
+            
+            Structure your response based on user query.
+            For time-sensitive queries (today/latest), focus only on the most recent updates.
+            If no specific recent news is found, clearly state that no recent updates are available.
 
-            Requirements:
-            1. Only use data points with clear timestamps from the last 2 hours
-            2. Format citations as: "Current market data point [sourcename](source_url)"
-            3. Include the timestamp of the data point if available
-            4. If no current data is found, explicitly state that
-            5. Maximum response length: 150 words""")
+            IMPORTANT: For source citations, use this exact format:
+            "Your news statement. [sourcename](source_url)"
+            Ensure the source name is clickable.
+
+            Maximum response length: 200 words
+            Focus on actionable insights relevant to the query context.""")
         ])
 
         chain = (
