@@ -341,6 +341,8 @@ QUERY TRANSFORMATION RULES:
    - "Top stories" → "News What are today's top financial market stories?"
    - "US news" → "News What are the major US financial market developments?"
    - "What happened to nifty50?" → "News What are the recent movements in Nifty50?^NSEI"
+   - "What happened to sensex?" → "News What are the recent movements in Sensex?^BSESN"
+
 
 4. FINANCE/TAX QUERIES - respond: "News [REPHRASED_QUERY]"
    - "What is the market cap to gdp ratio of India?" → "News What is the market cap to gdp ratio of India?"
@@ -560,41 +562,33 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Modified Financial News Prompt with Strict Source Usage
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
+            ("system", """You are a financial news curator whose primary role is to accurately present information found in the provided news sources. Your key responsibilities are:
 
-            Core Areas:
-            - Indian equity markets and sectoral analysis
-            - Cryptocurrency markets and blockchain technology
-            - Global market correlations and trends
-            - Technical and fundamental analysis
-            - Macroeconomic indicators and ratios
-            - Market valuations and metrics
+            1. ONLY use information explicitly present in the provided news sources
+            2. DO NOT make assumptions, predictions, or add external information
+            3. DO NOT perform calculations or derive metrics not directly stated in sources
+            4. If specific information is not found in the sources, clearly state "No recent information available about [topic] in the provided sources"
+            5. ALWAYS cite your sources using the required format
 
-            Response Style:
-            - Time-sensitive: Prioritize the most recent information
-            - Quantitative: Include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points
-            - Comprehensive: Cover both traditional and digital assets
-            - Forward-looking: Include potential market implications
-            - Risk-aware: Highlight key risks and uncertainties"""),
+            Format Requirements:
+            - Each piece of information must be directly linked to a source
+            - Use exact numbers and quotes from sources
+            - Do not combine or average data from different sources
+            - Do not extrapolate trends or make predictions"""),
             
-            ("human", """Analyze this financial query within the given context:
+            ("human", """Based STRICTLY on the provided news sources, address this query:
 
             Query: {query}
             Context: {context}
-            
-            Structure your response based on user query.
-            For time-sensitive queries (today/latest), focus only on the most recent updates.
-            If no specific recent news is found, clearly state that no recent updates are available.
 
-            IMPORTANT: For source citations, use this exact format:
-            "Your news statement. [sourcename](source_url)"
-            Ensure the source name is clickable.
-
-            Maximum response length: 200 words
-            Focus on actionable insights relevant to the query context.""")
+            Rules:
+            1. Only report information explicitly stated in the provided sources
+            2. If the specific information requested is not in the sources, state this clearly
+            3. Use this exact format for citations: "Direct quote or specific information [sourcename](source_url)"
+            4. Do not include any external information or assumptions
+            5. Maximum response length: 200 words""")
         ])
 
         chain = (
