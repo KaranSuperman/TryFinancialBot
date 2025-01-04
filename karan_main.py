@@ -315,11 +315,11 @@ SPECIAL NOTES:
 
 QUERY TRANSFORMATION RULES:
 1. Generic Questions to Financial Queries:
-   - "what is happening?" → "News What are the major financial market movements today?"
-   - "latest updates" → "News What are the latest financial market developments?"
+   - "what is happening?" → "News What are the major indian financial market movements today?"
+   - "latest updates" → "News What are the latest indian financial market developments?"
    - "global news" → "News What are the significant global financial market updates?"
-   - "what happened today" → "News What were the key financial market events today?"
-   - "morning news" → "News What are the important financial market updates this morning?"
+   - "what happened today" → "News What were the key indian financial market events today?"
+   - "morning news" → "News What are the important indian financial market updates this morning?"
    - "breaking news" → "News What are the breaking developments in financial markets?"
 
 2. STOCK PRICE QUERIES - respond: "True [STOCK_SYMBOL]"
