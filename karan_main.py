@@ -504,7 +504,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,
+            k=8,
             highlights=True,
             start_published_date=start_date,
             type="news",
