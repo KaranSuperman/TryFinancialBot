@@ -502,7 +502,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,
+            k=15,
             highlights=True,
             start_published_date=start_date,
             type="news",
@@ -565,6 +565,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
 
             Core Areas:
+            - Only Up to date Information of news and analysis
             - Indian equity markets and sectoral analysis
             - Cryptocurrency markets and blockchain technology
             - Global market correlations and trends
