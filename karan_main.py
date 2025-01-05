@@ -336,9 +336,9 @@ QUERY TRANSFORMATION RULES:
    - "Tesla's performance" → "News What are Tesla's recent financial performance metrics?TSLA"
    
    Generic news queries must be transformed:
-   - "What's happening today?" → "News What are today's key financial market developments?"
-   - "Give me latest news" → "News What are the latest financial market updates?"
-   - "Top stories" → "News What are today's top financial market stories?"
+   - "What's happening today?" → "News What are today's key indian financial market developments?"
+   - "Give me latest news" → "News What are the latest indian financial market updates?"
+   - "Top stories" → "News What are today's top indian financial market stories?"
    - "US news" → "News What are the major US financial market developments?"
    - "What happened to nifty50?" → "News What are the recent movements in Nifty50?^NSEI"
    - "What happened to sensex?" → "News What are the recent movements in Sensex?^BSESN"
@@ -499,12 +499,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     
     try:
         # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=12,
+            k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
