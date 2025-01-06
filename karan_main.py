@@ -606,7 +606,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Maximum response length: 200 words
             Focus on actionable insights relevant to the query context.
 
-            IMPORTANT: Every number must be verified in source text. Do not report unconfirmed values.If data seems outdated, note timing uncertainty""")
+            IMPORTANT: Every number must be verified in source text.""")
         ])
 
         chain = (
