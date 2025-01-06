@@ -509,11 +509,11 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             start_published_date=start_date,
             type="news",
             sort="date",  # Ensure sorting by date
-            # source_filters=[
-            #     "reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com",
-            #     "wsj.com", "ft.com", "cnbc.com", "marketwatch.com", "investing.com",
-            #     "finance.yahoo.com", "businessinsider.com", "thestreet.com"
-            # ]            
+            source_filters=[
+                "reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com",
+                "wsj.com", "ft.com", "cnbc.com", "marketwatch.com", "investing.com",
+                "finance.yahoo.com", "businessinsider.com", "thestreet.com"
+            ]            
            
             # source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
         )
