@@ -498,41 +498,47 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
+        # Get current time in IST
+        ist_time = datetime.now(timezone('Asia/Kolkata'))
+        market_hours = {
+            'open': time(9, 15),  # 9:15 AM IST
+            'close': time(15, 30)  # 3:30 PM IST
+        }
+        
+        # Check if within market hours
+        current_time = ist_time.time()
+        is_market_open = (
+            current_time >= market_hours['open'] and 
+            current_time < market_hours['close'] and 
+            ist_time.weekday() < 5  # Monday (0) to Friday (4)
+        )
+
         start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date",  # Ensure sorting by date
+            sort="date",
             source_filters=[
-                "reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com",
-                "wsj.com", "ft.com", "cnbc.com", "marketwatch.com", "investing.com",
-                "finance.yahoo.com", "businessinsider.com", "thestreet.com"
-            ]            
-           
-            # source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
+                "reuters.com", "bloomberg.com", "moneycontrol.com", "economictimes.indiatimes.com",
+                "livemint.com", "ndtv.com/business", "business-standard.com", "financialexpress.com"
+            ]
         )
 
-        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
-        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0,
@@ -541,23 +547,22 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
         document_template = """
-        <financial_news>
+        <market_news>
             <headline>{title}</headline>
-            <date>{date}</date>
-            <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
-        </financial_news>
+            <timestamp>{date}</timestamp>
+            <key_points>{highlights}</key_points>
+            <source>{url}</source>
+        </market_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
-                "date": doc.metadata.get("published_date", "Today"),
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "title": doc.metadata.get("title", "Market Update"),
+                "date": doc.metadata.get("published_date", "Current"),
+                "highlights": doc.metadata.get("highlights", "No highlights available."),
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
@@ -568,47 +573,45 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
+            ("system", """You are a financial analyst specializing in Indian markets. Follow these rules strictly:
 
-            Core Areas:
-            - Indian equity markets and sectoral analysis
-            - Cryptocurrency markets and blockchain technology
-            - Global market correlations and trends
-            - Technical and fundamental analysis
-            - Macroeconomic indicators and ratios
-            - Market valuations and metrics
-
-            Response Style:
-            - Time-sensitive: Prioritize the most recent information
-            - Quantitative: Include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points
-            - Comprehensive: Cover both traditional and digital assets
-            - Forward-looking: Include potential market implications
-            - Risk-aware: Highlight key risks and uncertainties"""),
+            1. For live market updates:
+               - If market is open: Use "Currently trading at" or "Trading at"
+               - If market is closed: Use "Last traded at" or "Closed at"
+               - Never make assumptions about closing prices during trading hours
             
-            ("human", """Analyze this financial query within the given context:
+            2. Time sensitivity:
+               - Only use news from the last 30 minutes
+               - Clearly state the time of the price quote
+               - Format time in IST (Indian Standard Time)
+            
+            3. Source attribution:
+               - Use exact format: "Statement [Source Name](URL)"
+               - Verify source reliability before citing
+               - Prefer direct market data sources
+            
+            4. Accuracy:
+               - Only quote prices mentioned in verified sources
+               - Distinguish between intraday movements and closing prices
+               - Include percentage changes when available
+            
+            Market Status: {market_status}"""),
+            
+            ("human", """Analyze the market data:
 
             Query: {query}
             Context: {context}
             
-            Structure your response based on user query.
-            For time-sensitive queries (today/latest), focus only on the most recent updates.
-            If no specific recent news is found, clearly state that no recent updates are available.
-
-            IMPORTANT: For source citations, use this exact format:
-            "Your news statement. [sourcename](source_url)"
-            Ensure the source name is clickable.
-
-            Maximum response length: 200 words
-            Focus on actionable insights relevant to the query context.""")
+            Provide only verified information with proper source attribution.
+            Maximum length: 100 words.""")
         ])
 
         chain = (
             RunnableParallel({
-                "query": RunnablePassthrough(),  
-                "context": retrieval_chain,  
+                "query": RunnablePassthrough(),
+                "context": retrieval_chain,
+                "market_status": lambda _: "OPEN" if is_market_open else "CLOSED"
             }) 
             | generation_prompt 
             | llm
@@ -617,8 +620,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         return chain
 
     except Exception as e:
-        st.error(f"Error in create_research_chain: {str(e)}")
-        raise
+        raise Exception(f"Research chain creation failed: {str(e)}")
      
 
 def plot_stock_graph(symbol):
