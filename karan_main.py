@@ -546,6 +546,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
+            <full_text>{content}</full_text>
             <key_insights>{highlights}</key_insights>
             <source_url>{url}</source_url>
         </financial_news>
