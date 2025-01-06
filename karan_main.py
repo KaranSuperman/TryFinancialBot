@@ -558,6 +558,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda doc: {
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
+                "content": doc.page_content,
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
