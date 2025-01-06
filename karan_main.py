@@ -439,58 +439,6 @@ Question: {user_question} '''
         return "False NONE"
 
 
-def get_stock_price(symbol):
-    try:
-        # Initialize variables
-        stock = yf.Ticker(symbol)
-        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) or symbol in ('^NSEI', '^BSESN') else "$"
-        
-        # Fetch historical data with error checking
-        hist = stock.history(period="5d")
-        
-        # Check if we received any data
-        if hist.empty:
-            print(f"DEBUG: No data received for symbol {symbol}")
-            return None, None, None, None, None, None
-            
-        # Get the most recent data points
-        recent_prices = hist['Close'].tail(2)
-        
-        # Check if we have enough data points
-        if len(recent_prices) < 2:
-            print(f"DEBUG: Insufficient price data for {symbol}. Got {len(recent_prices)} days of data")
-            return None, None, None, None, None, None
-            
-        # Get current and previous prices
-        stock_price = recent_prices.iloc[-1]
-        previous_day_stock_price = recent_prices.iloc[-2]
-        
-        # Calculate changes
-        price_change = stock_price - previous_day_stock_price
-        change_direction = "up" if price_change > 0 else "down"
-        percentage_change = (price_change / previous_day_stock_price) * 100
-        
-        # Debug logging
-        # st.write(f"DEBUG: Successfully fetched data for {symbol}")
-        # st.write(f"DEBUG: Current price: {stock_price}")
-        # st.write(f"DEBUG: Previous price: {previous_day_stock_price}")
-        
-        return (
-            stock_price,
-            previous_day_stock_price,
-            currency_symbol,
-            price_change,
-            change_direction,
-            percentage_change
-        )
-        
-    except Exception as e:
-        print(f"DEBUG: Error in get_stock_price for {symbol}: {str(e)}")
-        st.write(f"DEBUG: Error in get_stock_price for {symbol}: {str(e)}")
-        # Return None values for all expected return values
-        return None, None, None, None, None, None
-
-
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
@@ -499,7 +447,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     
     try:
         start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
-
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
@@ -537,21 +484,22 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
-            <content>{content}</content>
+            <full_text>{content}</full_text>
             <key_insights>{highlights}</key_insights>
             <source_url>{url}</source_url>
+            <source>{source}</source>
         </financial_news>
         """
-        document_prompt = PromptTemplate.from_template(document_template)
         
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "title": doc.metadata.get("title", "Untitled"),
                 "date": doc.metadata.get("published_date", "Today"),
                 "content": doc.page_content,
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
+                "highlights": doc.metadata.get("highlights", ""),
+                "url": doc.metadata.get("url", ""),
+                "source": doc.metadata.get("source", "")
             }) | document_prompt
         )
         
@@ -562,29 +510,35 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         )
 
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in market analysis and data interpretation. Follow these critical guidelines:
+            ("system", """You are a senior financial analyst. Follow these STRICT rules for market data:
 
-            DATA PRECISION RULES:
-            1. Distinguish between live trading values and closing prices
-            2. Only state "closed at" for confirmed closing prices
-            3. Use "trading at" or "currently at" for live market values
-            4. Include timestamps for live values when available
-            5. Verify numbers in article content, not just headlines
-            6. Express uncertainty when timing is ambiguous
+            NUMERICAL PRECISION:
+            1. NEVER report values without explicit confirmation in source text
+            2. Exact numbers must match source VERBATIM - no rounding or approximation
+            3. For indices, report ALL decimal places shown in source
+            4. Include source timestamps when available
+            5. Verify numbers in full article text, not just headlines
 
-            CITATION RULES:
-            1. Direct quotes must match source text exactly
-            2. Include time context for market data
-            3. Use "[sourcename](source_url)" format
-            4. Verify data across multiple sources when possible"""),
+            MARKET STATUS REPORTING:
+            1. "Closed at X" - ONLY for confirmed closing prices with explicit text
+            2. "Trading at X" - ONLY for confirmed live prices with timestamp
+            3. For ambiguous timing - report as "was reported at X (timestamp if available)"
+            4. For percentage changes - must match source exactly
+            5. Multiple value points require separate timestamps
+
+            VERIFICATION:
+            1. Each number requires direct source text evidence
+            2. Do not infer or calculate values
+            3. If sources conflict, report discrepancy
+            4. If data seems outdated, note timing uncertainty
+            5. Cite each value with exact source"""),
             
-            ("human", """Analyze this financial query within the given context:
+            ("human", """Analyze this query using ONLY explicit data from sources:
 
             Query: {query}
             Context: {context}
             
-            Maximum response length: 200 words
-            Focus on verified facts and precise market status.""")
+            IMPORTANT: Every number must be verified in source text. Do not report unconfirmed values.""")
         ])
 
         chain = (
@@ -601,7 +555,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
-     
 
 def plot_stock_graph(symbol):
     try:
