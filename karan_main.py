@@ -498,32 +498,41 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
+        # Change to 1 days (24 hours) to get very recent news
         start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
             k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date",
+            sort="date",  # Ensure sorting by date
             source_filters=[
                 "reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com",
                 "wsj.com", "ft.com", "cnbc.com", "marketwatch.com", "investing.com",
                 "finance.yahoo.com", "businessinsider.com", "thestreet.com"
             ]            
+           
+            # source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
         )
 
+        # Ensure the API key is set in the headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
         
+        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
+        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
+        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0,
@@ -532,29 +541,24 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        document_prompt = PromptTemplate(
-            template="""
-            <financial_news>
-                <headline>{title}</headline>
-                <date>{date}</date>
-                <full_text>{content}</full_text>
-                <key_insights>{highlights}</key_insights>
-                <source_url>{url}</source_url>
-                <source>{source}</source>
-            </financial_news>
-            """,
-            input_variables=["title", "date", "content", "highlights", "url", "source"]
-        )
+        # Detailed Document Template
+        document_template = """
+        <financial_news>
+            <headline>{title}</headline>
+            <date>{date}</date>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
+        </financial_news>
+        """
+        document_prompt = PromptTemplate.from_template(document_template)
         
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled"),
+                "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
-                "content": doc.page_content,
-                "highlights": doc.metadata.get("highlights", ""),
-                "url": doc.metadata.get("url", ""),
-                "source": doc.metadata.get("source", "")
+                "highlights": doc.metadata.get("highlights", "No key insights available."),
+                "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
         
@@ -564,54 +568,41 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
+        # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets. Follow these rules:
+            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
 
-            EXPERTISE AREAS:
+            Core Areas:
             - Indian equity markets and sectoral analysis
-            - Cryptocurrency and blockchain technology
+            - Cryptocurrency markets and blockchain technology
             - Global market correlations and trends
             - Technical and fundamental analysis
-            - Macroeconomic indicators and metrics
+            - Macroeconomic indicators and ratios
+            - Market valuations and metrics
 
-            NUMERICAL PRECISION:
-            1. NEVER report values without source confirmation
-            2. Match numbers VERBATIM from source text
-            3. Report ALL decimal places shown
-            4. Include source timestamps
-            5. Verify full article text
-
-            MARKET REPORTING:
-            1. "Closed at X" - ONLY for confirmed closing prices
-            2. "Trading at X" - ONLY for live prices with timestamp
-            3. Ambiguous timing - "reported at X (timestamp)"
-            4. Exact percentage changes only
-            5. Separate timestamps for multiple values
-
-            ANALYSIS STYLE:
-            - Prioritize recent information
-            - Support with verified data points
-            - Cover both traditional and digital assets
-            - Include market implications
-            - Highlight key risks
-
-            VERIFICATION:
-            1. Direct source evidence for all numbers
-            2. No calculated values
-            3. Report source conflicts
-            4. Note timing uncertainty
-            5. Use "[sourcename](source_url)" format"""),
+            Response Style:
+            - Time-sensitive: Prioritize the most recent information
+            - Quantitative: Include specific numbers, percentages, and time periods
+            - Evidence-based: Support insights with recent data points
+            - Comprehensive: Cover both traditional and digital assets
+            - Forward-looking: Include potential market implications
+            - Risk-aware: Highlight key risks and uncertainties"""),
             
-            ("human", """Analyze this query:
+            ("human", """Analyze this financial query within the given context:
 
             Query: {query}
             Context: {context}
+            
+            Structure your response based on user query.
+            For time-sensitive queries (today/latest), focus only on the most recent updates.
+            If no specific recent news is found, clearly state that no recent updates are available.
 
-            Rules:
-            1. For market data: Only report verified numbers
-            2. For analysis: Focus on recent insights
-            3. Maximum length: 200 words
-            4. No recent updates? State clearly""")
+            IMPORTANT: For source citations, use this exact format:
+            "Your news statement. [sourcename](source_url)"
+            Ensure the source name is clickable.
+
+            Maximum response length: 200 words
+            Focus on actionable insights relevant to the query context.""")
         ])
 
         chain = (
