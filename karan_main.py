@@ -480,16 +480,19 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        document_template = """
-        <financial_news>
-            <headline>{title}</headline>
-            <date>{date}</date>
-            <full_text>{content}</full_text>
-            <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
-            <source>{source}</source>
-        </financial_news>
-        """
+        document_prompt = PromptTemplate(
+            template="""
+            <financial_news>
+                <headline>{title}</headline>
+                <date>{date}</date>
+                <full_text>{content}</full_text>
+                <key_insights>{highlights}</key_insights>
+                <source_url>{url}</source_url>
+                <source>{source}</source>
+            </financial_news>
+            """,
+            input_variables=["title", "date", "content", "highlights", "url", "source"]
+        )
         
         document_chain = (
             RunnablePassthrough() | 
@@ -556,6 +559,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
 
+    
 def plot_stock_graph(symbol):
     try:
         # Period selection
