@@ -439,6 +439,58 @@ Question: {user_question} '''
         return "False NONE"
 
 
+def get_stock_price(symbol):
+    try:
+        # Initialize variables
+        stock = yf.Ticker(symbol)
+        currency_symbol = "₹" if symbol.endswith(('.NS', '.BO')) or symbol in ('^NSEI', '^BSESN') else "$"
+        
+        # Fetch historical data with error checking
+        hist = stock.history(period="5d")
+        
+        # Check if we received any data
+        if hist.empty:
+            print(f"DEBUG: No data received for symbol {symbol}")
+            return None, None, None, None, None, None
+            
+        # Get the most recent data points
+        recent_prices = hist['Close'].tail(2)
+        
+        # Check if we have enough data points
+        if len(recent_prices) < 2:
+            print(f"DEBUG: Insufficient price data for {symbol}. Got {len(recent_prices)} days of data")
+            return None, None, None, None, None, None
+            
+        # Get current and previous prices
+        stock_price = recent_prices.iloc[-1]
+        previous_day_stock_price = recent_prices.iloc[-2]
+        
+        # Calculate changes
+        price_change = stock_price - previous_day_stock_price
+        change_direction = "up" if price_change > 0 else "down"
+        percentage_change = (price_change / previous_day_stock_price) * 100
+        
+        # Debug logging
+        # st.write(f"DEBUG: Successfully fetched data for {symbol}")
+        # st.write(f"DEBUG: Current price: {stock_price}")
+        # st.write(f"DEBUG: Previous price: {previous_day_stock_price}")
+        
+        return (
+            stock_price,
+            previous_day_stock_price,
+            currency_symbol,
+            price_change,
+            change_direction,
+            percentage_change
+        )
+        
+    except Exception as e:
+        print(f"DEBUG: Error in get_stock_price for {symbol}: {str(e)}")
+        st.write(f"DEBUG: Error in get_stock_price for {symbol}: {str(e)}")
+        # Return None values for all expected return values
+        return None, None, None, None, None, None
+
+
 def create_research_chain(exa_api_key: str, gemini_api_key: str):
     if not exa_api_key or not isinstance(exa_api_key, str):
         raise ValueError("Valid Exa API key is required")
@@ -513,54 +565,53 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         )
 
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets. Follow these guidelines:
+            ("system", """You are a senior financial analyst specializing in Indian and global markets. Follow these rules:
 
-            CORE EXPERTISE:
+            EXPERTISE AREAS:
             - Indian equity markets and sectoral analysis
+            - Cryptocurrency and blockchain technology
             - Global market correlations and trends
             - Technical and fundamental analysis
-            - Macroeconomic indicators and market metrics
+            - Macroeconomic indicators and metrics
 
-            DATA REPORTING RULES:
-            1. For Market Values:
-               - "Closed at X" - ONLY for confirmed closing prices
-               - "Trading at X" - ONLY for live prices with timestamp
-               - Report ALL decimal places shown in source
-               - Include timestamps when available
-               - Verify full article text, not just headlines
+            NUMERICAL PRECISION:
+            1. NEVER report values without source confirmation
+            2. Match numbers VERBATIM from source text
+            3. Report ALL decimal places shown
+            4. Include source timestamps
+            5. Verify full article text
 
-            2. For Market Analysis:
-               - Prioritize most recent information
-               - Include specific data points with sources
-               - Highlight key market drivers
-               - Note sector-specific impacts
-               - Identify relevant global factors
+            MARKET REPORTING:
+            1. "Closed at X" - ONLY for confirmed closing prices
+            2. "Trading at X" - ONLY for live prices with timestamp
+            3. Ambiguous timing - "reported at X (timestamp)"
+            4. Exact percentage changes only
+            5. Separate timestamps for multiple values
 
-            3. Source Requirements:
-               - Cite using "[sourcename](source_url)" format
-               - Multiple sources for trend confirmation
-               - Note any data discrepancies
-               - Include timestamps for time-sensitive data
+            ANALYSIS STYLE:
+            - Prioritize recent information
+            - Support with verified data points
+            - Cover both traditional and digital assets
+            - Include market implications
+            - Highlight key risks
 
-            4. Response Style:
-               - Time-sensitive: Focus on latest developments
-               - Evidence-based: Support with recent data
-               - Risk-aware: Note key uncertainties
-               - Forward-looking: Include market implications
-               
-            5. Quality Controls:
-               - Verify all numerical data in source text
-               - No inferred or calculated values
-               - Report conflicting sources
-               - Note timing uncertainty"""),
+            VERIFICATION:
+            1. Direct source evidence for all numbers
+            2. No calculated values
+            3. Report source conflicts
+            4. Note timing uncertainty
+            5. Use "[sourcename](source_url)" format"""),
             
-            ("human", """Analyze this query using available market data and news:
+            ("human", """Analyze this query:
 
             Query: {query}
             Context: {context}
-            
-            For specific market values: Only report explicitly verified numbers.
-            For market trends: Synthesize insights from recent sources.""")
+
+            Rules:
+            1. For market data: Only report verified numbers
+            2. For analysis: Focus on recent insights
+            3. Maximum length: 200 words
+            4. No recent updates? State clearly""")
         ])
 
         chain = (
@@ -577,6 +628,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
+     
 
 def plot_stock_graph(symbol):
     try:
