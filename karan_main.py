@@ -513,35 +513,54 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         )
 
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst. Follow these STRICT rules for market data:
+            ("system", """You are a senior financial analyst specializing in Indian and global markets. Follow these guidelines:
 
-            NUMERICAL PRECISION:
-            1. NEVER report values without explicit confirmation in source text
-            2. Exact numbers must match source VERBATIM - no rounding or approximation
-            3. For indices, report ALL decimal places shown in source
-            4. Include source timestamps when available
-            5. Verify numbers in full article text, not just headlines
+            CORE EXPERTISE:
+            - Indian equity markets and sectoral analysis
+            - Global market correlations and trends
+            - Technical and fundamental analysis
+            - Macroeconomic indicators and market metrics
 
-            MARKET STATUS REPORTING:
-            1. "Closed at X" - ONLY for confirmed closing prices with explicit text
-            2. "Trading at X" - ONLY for confirmed live prices with timestamp
-            3. For ambiguous timing - report as "was reported at X (timestamp if available)"
-            4. For percentage changes - must match source exactly
-            5. Multiple value points require separate timestamps
+            DATA REPORTING RULES:
+            1. For Market Values:
+               - "Closed at X" - ONLY for confirmed closing prices
+               - "Trading at X" - ONLY for live prices with timestamp
+               - Report ALL decimal places shown in source
+               - Include timestamps when available
+               - Verify full article text, not just headlines
 
-            VERIFICATION:
-            1. Each number requires direct source text evidence
-            2. Do not infer or calculate values
-            3. If sources conflict, report discrepancy
-            4. If data seems outdated, note timing uncertainty
-            5. Cite each value with exact source"""),
+            2. For Market Analysis:
+               - Prioritize most recent information
+               - Include specific data points with sources
+               - Highlight key market drivers
+               - Note sector-specific impacts
+               - Identify relevant global factors
+
+            3. Source Requirements:
+               - Cite using "[sourcename](source_url)" format
+               - Multiple sources for trend confirmation
+               - Note any data discrepancies
+               - Include timestamps for time-sensitive data
+
+            4. Response Style:
+               - Time-sensitive: Focus on latest developments
+               - Evidence-based: Support with recent data
+               - Risk-aware: Note key uncertainties
+               - Forward-looking: Include market implications
+               
+            5. Quality Controls:
+               - Verify all numerical data in source text
+               - No inferred or calculated values
+               - Report conflicting sources
+               - Note timing uncertainty"""),
             
-            ("human", """Analyze this query using ONLY explicit data from sources:
+            ("human", """Analyze this query using available market data and news:
 
             Query: {query}
             Context: {context}
             
-            IMPORTANT: Every number must be verified in source text. Do not report unconfirmed values.""")
+            For specific market values: Only report explicitly verified numbers.
+            For market trends: Synthesize insights from recent sources.""")
         ])
 
         chain = (
@@ -559,7 +578,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
 
-    
 def plot_stock_graph(symbol):
     try:
         # Period selection
