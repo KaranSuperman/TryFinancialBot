@@ -498,21 +498,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Get current time in IST
-        ist_time = datetime.now(timezone('Asia/Kolkata'))
-        market_hours = {
-            'open': time(9, 15),  # 9:15 AM IST
-            'close': time(15, 30)  # 3:30 PM IST
-        }
-        
-        # Check if within market hours
-        current_time = ist_time.time()
-        is_market_open = (
-            current_time >= market_hours['open'] and 
-            current_time < market_hours['close'] and 
-            ist_time.weekday() < 5  # Monday (0) to Friday (4)
-        )
-
         start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         retriever = ExaSearchRetriever(
@@ -523,9 +508,10 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             type="news",
             sort="date",
             source_filters=[
-                "reuters.com", "bloomberg.com", "moneycontrol.com", "economictimes.indiatimes.com",
-                "livemint.com", "ndtv.com/business", "business-standard.com", "financialexpress.com"
-            ]
+                "reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com",
+                "wsj.com", "ft.com", "cnbc.com", "marketwatch.com", "investing.com",
+                "finance.yahoo.com", "businessinsider.com", "thestreet.com"
+            ]            
         )
 
         if hasattr(retriever, 'client'):
@@ -548,21 +534,23 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         )
 
         document_template = """
-        <market_news>
+        <financial_news>
             <headline>{title}</headline>
-            <timestamp>{date}</timestamp>
-            <key_points>{highlights}</key_points>
-            <source>{url}</source>
-        </market_news>
+            <date>{date}</date>
+            <content>{content}</content>
+            <key_insights>{highlights}</key_insights>
+            <source_url>{url}</source_url>
+        </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Market Update"),
-                "date": doc.metadata.get("published_date", "Current"),
-                "highlights": doc.metadata.get("highlights", "No highlights available."),
+                "title": doc.metadata.get("title", "Untitled Financial Update"),
+                "date": doc.metadata.get("published_date", "Today"),
+                "content": doc.page_content,
+                "highlights": doc.metadata.get("highlights", "No key insights available."),
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
         )
@@ -574,44 +562,35 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         )
 
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a financial analyst specializing in Indian markets. Follow these rules strictly:
+            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in market analysis and data interpretation. Follow these critical guidelines:
 
-            1. For live market updates:
-               - If market is open: Use "Currently trading at" or "Trading at"
-               - If market is closed: Use "Last traded at" or "Closed at"
-               - Never make assumptions about closing prices during trading hours
+            DATA PRECISION RULES:
+            1. Distinguish between live trading values and closing prices
+            2. Only state "closed at" for confirmed closing prices
+            3. Use "trading at" or "currently at" for live market values
+            4. Include timestamps for live values when available
+            5. Verify numbers in article content, not just headlines
+            6. Express uncertainty when timing is ambiguous
+
+            CITATION RULES:
+            1. Direct quotes must match source text exactly
+            2. Include time context for market data
+            3. Use "[sourcename](source_url)" format
+            4. Verify data across multiple sources when possible"""),
             
-            2. Time sensitivity:
-               - Only use news from the last 30 minutes
-               - Clearly state the time of the price quote
-               - Format time in IST (Indian Standard Time)
-            
-            3. Source attribution:
-               - Use exact format: "Statement [Source Name](URL)"
-               - Verify source reliability before citing
-               - Prefer direct market data sources
-            
-            4. Accuracy:
-               - Only quote prices mentioned in verified sources
-               - Distinguish between intraday movements and closing prices
-               - Include percentage changes when available
-            
-            Market Status: {market_status}"""),
-            
-            ("human", """Analyze the market data:
+            ("human", """Analyze this financial query within the given context:
 
             Query: {query}
             Context: {context}
             
-            Provide only verified information with proper source attribution.
-            Maximum length: 100 words.""")
+            Maximum response length: 200 words
+            Focus on verified facts and precise market status.""")
         ])
 
         chain = (
             RunnableParallel({
-                "query": RunnablePassthrough(),
-                "context": retrieval_chain,
-                "market_status": lambda _: "OPEN" if is_market_open else "CLOSED"
+                "query": RunnablePassthrough(),  
+                "context": retrieval_chain,  
             }) 
             | generation_prompt 
             | llm
@@ -620,7 +599,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         return chain
 
     except Exception as e:
-        raise Exception(f"Research chain creation failed: {str(e)}")
+        st.error(f"Error in create_research_chain: {str(e)}")
+        raise
      
 
 def plot_stock_graph(symbol):
