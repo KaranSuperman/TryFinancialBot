@@ -336,9 +336,9 @@ QUERY TRANSFORMATION RULES:
    - "Tesla's performance" → "News What are Tesla's recent financial performance metrics?TSLA"
    
    Generic news queries must be transformed:
-   - "What's happening today?" → "News What are today's key indian financial market developments?"
-   - "Give me latest news" → "News What are the latest indian financial market updates?"
-   - "Top stories" → "News What are today's top indian financial market stories?"
+   - "What's happening today?" → "News What are today's key financial market developments?"
+   - "Give me latest news" → "News What are the latest financial market updates?"
+   - "Top stories" → "News What are today's top financial market stories?"
    - "US news" → "News What are the major US financial market developments?"
    - "What happened to nifty50?" → "News What are the recent movements in Nifty50?^NSEI"
    - "What happened to sensex?" → "News What are the recent movements in Sensex?^BSESN"
