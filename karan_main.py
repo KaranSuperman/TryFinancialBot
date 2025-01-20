@@ -498,69 +498,72 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Get news from last 2 hours for better coverage
+        start_date = (datetime.now() - timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
+        # Enhanced Retriever with better source filtering and parameters
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,
+            k=8,  # Increased number of results
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date",  # Ensure sorting by date
+            sort="date",
             source_filters=[
-                "reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com",
-                "wsj.com", "ft.com", "cnbc.com", "marketwatch.com", "investing.com",
-                "finance.yahoo.com", "businessinsider.com", "thestreet.com"
-            ]            
-           
-            # source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
+                "reuters.com", "bloomberg.com", "ft.com", "cnbc.com", 
+                "marketwatch.com", "investing.com", "finance.yahoo.com",
+                "businessinsider.com", "wsj.com", "barrons.com",
+                "money.usnews.com", "fool.com", "seekingalpha.com",
+                "economist.com", "forbes.com", "moneycontrol.com",
+                "livemint.com", "economictimes.indiatimes.com"
+            ]
         )
 
-        # Ensure the API key is set in the headers
-        if hasattr(retriever, 'client'):
-            retriever.client.headers.update({
-                "x-api-key": exa_api_key,
-                "Content-Type": "application/json"
-            })
+        retriever.client.headers.update({
+            "x-api-key": exa_api_key,
+            "Content-Type": "application/json"
+        })
         
-        # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0,
+            temperature=0.3,  # Slightly increased for more natural responses
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Enhanced document template with better structure
         document_template = """
-        <financial_news>
+        <article>
             <headline>{title}</headline>
-            <date>{date}</date>
-            <full_text>{content}</full_text>
-            <key_insights>{highlights}</key_insights>
-            <source_url>{url}</source_url>
-        </financial_news>
+            <timestamp>{date}</timestamp>
+            <content>
+                {content}
+            </content>
+            <key_points>
+                {highlights}
+            </key_points>
+            <source>{source_name}</source>
+            <url>{url}</url>
+        </article>
         """
+        
         document_prompt = PromptTemplate.from_template(document_template)
         
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
-                "date": doc.metadata.get("published_date", "Today"),
+                "title": doc.metadata.get("title", ""),
+                "date": doc.metadata.get("published_date", ""),
                 "content": doc.page_content,
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
+                "highlights": doc.metadata.get("highlights", ""),
+                "source_name": doc.metadata.get("source", ""),
+                "url": doc.metadata.get("url", "")
             }) | document_prompt
         )
         
@@ -570,43 +573,51 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Significantly improved prompt for better news synthesis
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
+            ("system", """You are an expert financial news analyst specializing in global markets. Your role is to:
 
-            Core Areas:
-            - Indian equity markets and sectoral analysis
-            - Cryptocurrency markets and blockchain technology
-            - Global market correlations and trends
-            - Technical and fundamental analysis
-            - Macroeconomic indicators and ratios
-            - Market valuations and metrics
+1. Synthesize key market developments from multiple sources
+2. Prioritize breaking news and significant market moves
+3. Provide context and potential market impact
+4. Include specific numbers and data points
+5. Maintain balanced coverage across different market sectors
 
-            Response Style:
-            - Time-sensitive: Prioritize the most recent information
-            - Quantitative: Include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points
-            - Comprehensive: Cover both traditional and digital assets
-            - Forward-looking: Include potential market implications
-            - Risk-aware: Highlight key risks and uncertainties"""),
+Guidelines:
+- Focus on the most impactful news first
+- Include market movements with specific percentages
+- Cover both positive and negative developments
+- Highlight unusual market activity or breaking news
+- Add relevant context from credible sources
+- Include specific details about Asian and Indian markets when available
+
+Always verify data points against the provided sources and include proper citations."""),
             
-            ("human", """Analyze this financial query within the given context:
+            ("human", """Analyze and summarize the following financial news context:
 
-            Query: {query}
-            Context: {context}
-            
-            Structure your response based on user query.
-            For time-sensitive queries (today/latest), focus only on the most recent updates.
-            If no specific recent news is found, clearly state that no recent updates are available.
+Query: {query}
+Context: {context}
 
-            IMPORTANT: For source citations, use this exact format:
-            "Your news statement. [sourcename](source_url)"
-            Ensure the source name is clickable.
+Required format for your response:
 
-            Maximum response length: 200 words
-            Focus on actionable insights relevant to the query context.
+MARKET HEADLINES:
+• Start with 2-3 most important breaking news items
+• Each point should include specific numbers/data
+• Cite sources using format: [Source Name](URL)
 
-            IMPORTANT: Every number must be verified in source text.""")
+MARKET MOVEMENTS (if applicable):
+• Major index moves (with percentages)
+• Significant currency movements
+• Notable commodity price changes
+• Key stock movements
+
+ADDITIONAL CONTEXT:
+• Brief analysis of market implications
+• Any relevant upcoming events/data releases
+• Key risk factors to watch
+
+Keep total response under 250 words. Focus on accuracy and relevance.
+If no recent news is available for a specific area, skip that section rather than stating "no updates available".""")
         ])
 
         chain = (
@@ -621,8 +632,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         return chain
 
     except Exception as e:
-        st.error(f"Error in create_research_chain: {str(e)}")
-        raise
+        raise Exception(f"Error in create_research_chain: {str(e)}")
      
 
 def plot_stock_graph(symbol):
