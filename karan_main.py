@@ -498,35 +498,44 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     exa_api_key = exa_api_key.strip()
     
     try:
-        # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # More granular time window for recent news
+        start_date = (datetime.now() - timedelta(minutes=15)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # Enhanced Retriever Configuration
+        # Enhanced Retriever Configuration with more sources and better filtering
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,
+            k=8,  # Increased from 5 to get more context
             highlights=True,
             start_published_date=start_date,
             type="news",
-            sort="date",  # Ensure sorting by date
-            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com"]  # Trusted sources
+            sort="date",
+            source_filters=[
+                "reuters.com", "bloomberg.com", "cnbc.com", "ft.com",
+                "wsj.com", "marketwatch.com", "coindesk.com", 
+                "cointelegraph.com", "investing.com", "finance.yahoo.com",
+                "moneycontrol.com", "economictimes.indiatimes.com"
+            ],
+            # Add content filters to ensure relevance
+            content_filters=[
+                "market", "stock", "trading", "economy", "finance",
+                "cryptocurrency", "forex", "investment", "banking"
+            ]
         )
 
-        # Ensure the API key is set in the headers
+        # Enhanced headers
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Accept": "application/json"
             })
         
-        # Verify Gemini API key
+        # Gemini configuration remains the same
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
 
-        # Configure Gemini
         genai.configure(api_key=gemini_api_key)
         
-        # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             temperature=0,
@@ -535,68 +544,100 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             convert_system_message_to_human=True
         )
 
-        # Detailed Document Template
+        # Enhanced Document Template with more metadata
         document_template = """
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
-            <key_insights>{highlights}</key_insights>
+            <source>{source}</source>
+            <key_insights>
+                <main_points>{highlights}</main_points>
+                <market_impact>{market_impact}</market_impact>
+            </key_insights>
+            <metadata>
+                <category>{category}</category>
+                <relevance_score>{relevance}</relevance_score>
+            </metadata>
             <source_url>{url}</source_url>
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
         
+        # Enhanced document chain with better metadata handling
         document_chain = (
             RunnablePassthrough() | 
             RunnableLambda(lambda doc: {
-                "title": doc.metadata.get("title", "Untitled Financial Update"),
-                "date": doc.metadata.get("published_date", "Today"),
-                "highlights": doc.metadata.get("highlights", "No key insights available."),
-                "url": doc.metadata.get("url", "No source URL")
+                "title": doc.metadata.get("title", "Untitled"),
+                "date": doc.metadata.get("published_date", datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')),
+                "source": doc.metadata.get("source", "Unknown Source"),
+                "highlights": doc.metadata.get("highlights", "No highlights available."),
+                "market_impact": doc.metadata.get("market_impact", "Impact analysis not available."),
+                "category": doc.metadata.get("category", "General Finance"),
+                "relevance": doc.metadata.get("relevance_score", "N/A"),
+                "url": doc.metadata.get("url", "#")
             }) | document_prompt
         )
         
+        # Enhanced retrieval chain with better document processing
         retrieval_chain = (
             retriever | 
             document_chain.map() | 
-            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in sorted(
+                docs,
+                key=lambda x: datetime.strptime(
+                    x.metadata.get("published_date", "1900-01-01T00:00:00Z"),
+                    '%Y-%m-%dT%H:%M:%SZ'
+                ),
+                reverse=True
+            )))
         )
 
-        # Improved Financial News Prompt with Better Formatting
+        # Improved Financial News Analysis Prompt
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
+            ("system", """You are an expert financial analyst specializing in real-time market analysis. Your key responsibilities include:
 
-            Core Areas:
-            - Indian equity markets and sectoral analysis
-            - Cryptocurrency markets and blockchain technology
-            - Global market correlations and trends
-            - Technical and fundamental analysis
-            - Macroeconomic indicators and ratios
-            - Market valuations and metrics
+            1. News Analysis:
+               - Prioritize breaking news and market-moving events
+               - Verify source credibility and cross-reference information
+               - Identify market patterns and correlations
 
-            Response Style:
-            - Time-sensitive: Prioritize the most recent information
-            - Quantitative: Include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points
-            - Comprehensive: Cover both traditional and digital assets
-            - Forward-looking: Include potential market implications
-            - Risk-aware: Highlight key risks and uncertainties"""),
+            2. Market Coverage:
+               - Global equity markets and indices
+               - Cryptocurrency and digital assets
+               - Forex and commodities
+               - Fixed income and rates
+               - Corporate actions and earnings
+
+            3. Response Guidelines:
+               - Lead with the most impactful recent news
+               - Include specific numbers, timestamps, and price movements
+               - Highlight market sentiment and trading volume
+               - Connect news events to potential market impacts
+               - Identify key risks and opportunities
+
+            4. Quality Standards:
+               - Use only verified information from reliable sources
+               - Include specific timestamps for all market data
+               - Provide context for market movements
+               - Flag any unusual market activity
+               - Maintain objectivity in analysis"""),
             
-            ("human", """Analyze this financial query within the given context:
+            ("human", """Analyze this financial query using the latest market data:
 
             Query: {query}
             Context: {context}
             
-            Structure your response based on user query.
-            For time-sensitive queries (today/latest), focus only on the most recent updates.
-            If no specific recent news is found, clearly state that no recent updates are available.
-
-            IMPORTANT: For source citations, use this exact format:
-            "Your news statement. [sourcename](source_url)"
-            Ensure the source name is clickable.
-
-            Maximum response length: 200 words
-            Focus on actionable insights relevant to the query context.""")
+            Required Response Structure:
+            1. Breaking News: Most recent market-moving events
+            2. Market Data: Current prices, movements, and volumes
+            3. Analysis: Impact assessment and market implications
+            4. Risk Factors: Key concerns and potential catalysts
+            
+            Source Citation Format:
+            "[Source Name](URL) - Timestamp: HH:MM UTC"
+            
+            Note: Focus on news from the last 15 minutes for real-time queries.
+            Maximum response length: 250 words.""")
         ])
 
         chain = (
@@ -613,7 +654,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
-
      
 
 def plot_stock_graph(symbol):
