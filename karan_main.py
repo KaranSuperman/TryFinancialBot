@@ -504,18 +504,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,
+            k=8,
             highlights=True,
             start_published_date=start_date,
             type="news",
             sort="date",  # Ensure sorting by date
-            source_filters=[
-                "reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com",
-                "wsj.com", "ft.com", "cnbc.com", "marketwatch.com", "investing.com",
-                "finance.yahoo.com", "businessinsider.com", "thestreet.com"
-            ]            
-           
-            # source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
+            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
         )
 
         # Ensure the API key is set in the headers
@@ -535,7 +529,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0.2,
+            temperature=0,
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
