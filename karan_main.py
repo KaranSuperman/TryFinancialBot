@@ -504,12 +504,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=8,
+            k=5,
             highlights=True,
             start_published_date=start_date,
             type="news",
             sort="date",  # Ensure sorting by date
-            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
+            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com"]  # Trusted sources
         )
 
         # Ensure the API key is set in the headers
@@ -529,7 +529,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
-            temperature=0,
+            temperature=0.2,
             google_api_key=gemini_api_key,
             max_output_tokens=2048,
             convert_system_message_to_human=True
@@ -540,7 +540,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         <financial_news>
             <headline>{title}</headline>
             <date>{date}</date>
-            <full_text>{content}</full_text>
             <key_insights>{highlights}</key_insights>
             <source_url>{url}</source_url>
         </financial_news>
@@ -552,7 +551,6 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             RunnableLambda(lambda doc: {
                 "title": doc.metadata.get("title", "Untitled Financial Update"),
                 "date": doc.metadata.get("published_date", "Today"),
-                "content": doc.page_content,
                 "highlights": doc.metadata.get("highlights", "No key insights available."),
                 "url": doc.metadata.get("url", "No source URL")
             }) | document_prompt
@@ -598,9 +596,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             Ensure the source name is clickable.
 
             Maximum response length: 200 words
-            Focus on actionable insights relevant to the query context.
-
-            IMPORTANT: Every number must be verified in source text.""")
+            Focus on actionable insights relevant to the query context.""")
         ])
 
         chain = (
@@ -617,6 +613,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     except Exception as e:
         st.error(f"Error in create_research_chain: {str(e)}")
         raise
+
      
 
 def plot_stock_graph(symbol):
