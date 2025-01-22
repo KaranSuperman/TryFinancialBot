@@ -364,7 +364,7 @@ AUTO-ENHANCEMENT:
 4. Convert generic queries to finance focus
 
 Question: {user_question}
-''''''
+'''
 
     try:
         # Use Gemini for intelligent classification
