@@ -522,7 +522,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "x-api-key": exa_api_key,
                 "Content-Type": "application/json"
             })
-        
+         
         # Verify Gemini API key
         if not gemini_api_key or not isinstance(gemini_api_key, str):
             raise ValueError("Valid Gemini API key is required")
