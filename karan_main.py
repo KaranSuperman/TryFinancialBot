@@ -334,6 +334,10 @@ QUERY TRANSFORMATION RULES:
    Must include stock symbols when specific companies are mentioned:
    - "What happened to apple today?" → "News What happened to Apple stock today?AAPL"
    - "Tesla's performance" → "News What are Tesla's recent financial performance metrics?TSLA"
+
+   Reason based queries:
+   - "Why nifty down today?"  → "News What are the reason of fall nifty stock today?^NSEI"
+   - "Why sofi stock up today?"  → "News What are the reasons of rise of sofi stock today?SOFI"
    
    Generic news queries must be transformed:
    - "What's happening today?" → "News What are 5 today's key finance news happening?"
