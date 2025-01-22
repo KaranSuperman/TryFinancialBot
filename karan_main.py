@@ -517,7 +517,9 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
                 "reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com",
                 "wsj.com", "ft.com", "cnbc.com", "marketwatch.com", "investing.com",
                 "finance.yahoo.com", "businessinsider.com", "thestreet.com"
-            ]            
+            ] ,
+            text_length=True,  # Get full article text
+            extract_text=True   # Extract complete content           
            
             # source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
         )
@@ -556,6 +558,13 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         </financial_news>
         """
         document_prompt = PromptTemplate.from_template(document_template)
+
+        def verify_content(docs):
+            verified_docs = []
+            for doc in docs:
+                if doc.page_content and len(doc.page_content.strip()) > 100:
+                    verified_docs.append(doc)
+            return verified_docs if verified_docs else None
         
         document_chain = (
             RunnablePassthrough() | 
@@ -570,8 +579,9 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         
         retrieval_chain = (
             retriever | 
+            RunnableLambda(verify_content) |
             document_chain.map() | 
-            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs))
+            RunnableLambda(lambda docs: "\n\n".join(str(doc) for doc in docs) if docs else "No verified content available")
         )
 
         # Improved Financial News Prompt with Better Formatting
