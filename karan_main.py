@@ -301,116 +301,70 @@ def is_relevant(question, embeddings_model, threshold=0.55):
 
 def is_stock_query(user_question):
     prompt = f'''
-Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
+Analyze if query is stock/finance related only. Follow these strict rules:
+1. REJECT all non-finance queries and queries about [PAASA] company
+2. ALL queries must be converted to financial market focus
+3. Use ONLY Yahoo Finance tickers for public companies and active indices
+4. DO NOT use tickers for private/unlisted/delisted companies (e.g. BSNL, SpaceX, TATA SONS LIMITED)
 
-SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. ALSO [PAASA] is a fintech company if any user ask query related to the company then do not response to that query.
+QUERY TYPES & RESPONSES:
 
-SPECIAL NOTES: 
-- ALL queries, including generic ones, MUST be automatically converted to focus on financial markets, economy, or business news
-- ANY general or non-specific query should be transformed into a financial news query
-- DO NOT include general news, political news, or non-financial news in responses
-- ONLY append Yahoo Finance tickers for publicly listed companies and active indices
-- DO NOT append tickers for unlisted companies, private companies, or delisted stocks which is not available on yahoo finance publicly . For example: BSNL, SpaceX ,  TATA SONS LIMITED	
+1. STOCK PRICE - respond: "True [STOCK_SYMBOL]"
+- "Microsoft price?" → "True MSFT"
+- "Tesla trading?" → "True TSLA"
+- "Bitcoin price" → "True BTC-USD"
 
+2. NEWS/ANALYSIS - respond: "News [QUERY]"
+Generic to Finance Conversion:
+- "what's happening" → "News What are 5 major finance news today?"
+- "latest updates" → "News What are 5 latest finance news today?"
+- "breaking news" → "News What are 5 breaking finance developments?"
 
-QUERY TRANSFORMATION RULES:
-1. Generic Questions to Financial Queries:
-   - "what is happening?" → "News What are the 5 major finance news today?"
-   - "latest updates" → "News What are the 5 latest finance news today?"
-   - "global news" → "News What are the 5 significant global finance news updates?"
-   - "what happened today" → "News What are the 5 major finance news today?"
-   - "morning news" → "News What are the 5 significant global finance news updates this morning?"
-   - "breaking news" → "News What are the 5 breaking developments in finance news?"
+Company Specific (add symbol):
+- "Apple news" → "News Apple's financial updates AAPL"
+- "Tesla results" → "News Tesla's performance metrics TSLA"
+- "Nifty50 movement" → "News Nifty50 recent trends ^NSEI"
 
-2. STOCK PRICE QUERIES - respond: "True [STOCK_SYMBOL]"
-   - "What is Microsoft's current stock price?" → "True MSFT"
-   - "How much is Tesla trading for?" → "True TSLA"
-   - "What is the price of google?" → "True GOOGL"
-   - "What is price of cspx" → "True CSPX.L"
-   - "csndx price" → "True CSNDX.SW"
-   - "What is bitcoin price" → "True BTC-USD"
+3. FINANCE/TAX - respond: "News [QUERY]"
+- Market ratios, economic data, tax queries
 
-3. NEWS/ANALYSIS QUERIES - respond: "News [FINANCIAL_REPHRASED_QUERY]"
-   Must include stock symbols when specific companies are mentioned:
-   - "What happened to apple today?" → "News What happened to Apple stock today?AAPL"
-   - "Tesla's performance" → "News What are Tesla's recent financial performance metrics?TSLA"
-   
-   Generic news queries must be transformed:
-   - "What's happening today?" → "News What are 5 today's key finance news happening?"
-   - "Give me latest news" → "News What are the 5 latest finance news updates?"
-   - "Top stories" → "News What are today's top 5 financial market stories?"
-   - "US news" → "News What are the 5 major US financial market developments?"
-   - "What happened to nifty50?" → "News What are the recent movements in Nifty50?^NSEI"
-   - "What happened to sensex?" → "News What are the recent movements in Sensex?^BSESN"
+4. FINANCIAL TERMS - respond: "False NONE"
+- Definitions of financial terms or concepts
 
+KEY SYMBOLS:
+Stock: MSFT, AAPL, TSLA, GOOGL, AMZN, META
+Crypto: BTC-USD
+Indices: ^BSESN (Sensex), ^NSEI (Nifty)
 
-4. FINANCE/TAX QUERIES - respond: "News [REPHRASED_QUERY]"
-   - "What is the market cap to gdp ratio of India?" → "News What is the market cap to gdp ratio of India?"
-   - "What is the tax on debt ETFs overseas?" → "News What is the tax treatment for overseas debt ETFs?"
-
-5. FINANCIAL TERMS/DEFINITIONS - respond: "False NONE"
-   - "What is PE ratio?"
-   - "What is high risk portfolio?"
-   - Any definitional questions about financial terms
-
-
-
-    Important Stock Symbols:
-    - Microsoft = MSFT
-    - Apple = AAPL
-    - Tesla = TSLA
-    - Google = GOOGL
-    - Amazon = AMZN
-    - Meta = META
-    - Bitcoin = BTC-USD
-    - Sensex = ^BSESN
-    - Nifyt = ^NSEI
- 
-
-COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
 EXCHANGE SUFFIXES:
-- US Exchanges:
-    * No suffix for NYSE/NASDAQ (AAPL, MSFT)
-    
-NOTE: Append appropriate exchange suffix if needed
-    - International Exchanges:
-      - .L = London Stock Exchange (UK)
-      - .SW = SIX Swiss Exchange (Switzerland)
-      - .NS = National Stock Exchange (India)
-      - .BO = Bombay Stock Exchange (India)
-      - .JK = Indonesia Stock Exchange
-      - .SI = Singapore Exchange
-      - .HK = Hong Kong Stock Exchange
-      - .T = Tokyo Stock Exchange (Japan)
-      - .AX = Australian Securities Exchange
-      - .SA = São Paulo Stock Exchange (Brazil)
-      - .TO = Toronto Stock Exchange (Canada)
-      - .MX = Mexican Stock Exchange
-      - .KS = Korea Exchange
-      - .DE = Deutsche Börse (Germany)
-      - .PA = Euronext Paris
-      - .AS = Euronext Amsterdam
-      - .MI = Milan Stock Exchange (Italy)
-      - .MC = Madrid Stock Exchange (Spain)
+Base: No suffix for NYSE/NASDAQ stocks
+International:
+.L = London
+.SW = Switzerland
+.NS/.BO = India
+.HK = Hong Kong
+.T = Japan
+.AX = Australia
+.JK = Indonesia
+.SI = Singapore
+.SA = Brazil
+.TO = Canada
+.MX = Mexico
+.KS = Korea
+.DE = Germany
+.PA = Paris
+.AS = Amsterdam
+.MI = Milan
+.MC = Madrid
 
+AUTO-ENHANCEMENT:
+1. Add time context if missing ("today", "recent")
+2. Add market context ("financial markets", "stock market")
+3. Add relevant stock symbols for company queries
+4. Convert generic queries to finance focus
 
-AUTOMATIC QUERY ENHANCEMENT:
-1. Time Context:
-   - Add "today" if timeframe is not specified
-   - Use "recent" for general queries about trends
-   - Specify "morning/afternoon/evening" if mentioned
-
-2. Market Context:
-   - Add "financial markets" for generic news requests
-   - Specify "stock market" for equity-related queries
-   - Include "global markets" for international queries
-
-3. Specificity Enhancement:
-   - Add "financial" before generic terms like "updates," "news," "developments"
-   - Include "market performance" for general status queries
-   - Append relevant stock symbols for company-specific queries
-
-Question: {user_question} '''
+Question: {user_question}
+''''''
 
     try:
         # Use Gemini for intelligent classification
