@@ -315,12 +315,12 @@ SPECIAL NOTES:
 
 QUERY TRANSFORMATION RULES:
 1. Generic Questions to Financial Queries:
-   - "what is happening?" → "News What are the major financial market movements today?"
-   - "latest updates" → "News What are the latest financial market developments?"
-   - "global news" → "News What are the significant global financial market updates?"
-   - "what happened today" → "News What were the key financial market events today?"
-   - "morning news" → "News What are the important financial market updates this morning?"
-   - "breaking news" → "News What are the breaking developments in financial markets?"
+   - "what is happening?" → "News What are the major finance news today?"
+   - "latest updates" → "News What are the latest finance news today?"
+   - "global news" → "News What are the significant global finance news updates?"
+   - "what happened today" → "News What are the major finance news today?"
+   - "morning news" → "News What are the significant global finance news updates this morning?"
+   - "breaking news" → "News What are the breaking developments in finance news?"
 
 2. STOCK PRICE QUERIES - respond: "True [STOCK_SYMBOL]"
    - "What is Microsoft's current stock price?" → "True MSFT"
@@ -336,8 +336,8 @@ QUERY TRANSFORMATION RULES:
    - "Tesla's performance" → "News What are Tesla's recent financial performance metrics?TSLA"
    
    Generic news queries must be transformed:
-   - "What's happening today?" → "News What are today's key financial market developments?"
-   - "Give me latest news" → "News What are the latest financial market updates?"
+   - "What's happening today?" → "News What are today's key finance news happening?"
+   - "Give me latest news" → "News What are the latest finance news updates?"
    - "Top stories" → "News What are today's top financial market stories?"
    - "US news" → "News What are the major US financial market developments?"
    - "What happened to nifty50?" → "News What are the recent movements in Nifty50?^NSEI"
