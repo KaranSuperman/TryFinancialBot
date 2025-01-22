@@ -300,70 +300,84 @@ def is_relevant(question, embeddings_model, threshold=0.55):
         return False 
 
 def is_stock_query(user_question):
-    prompt = f'''
-Analyze if query is stock/finance related only. Follow these strict rules:
-1. REJECT all non-finance queries and queries about [PAASA] company
-2. ALL queries must be converted to financial market focus
-3. Use ONLY Yahoo Finance tickers for public companies and active indices
-4. DO NOT use tickers for private/unlisted/delisted companies (e.g. BSNL, SpaceX, TATA SONS LIMITED)
+    prompt = '''
+FINANCE QUERY ANALYZER
+Purpose: Analyze and respond to stock market and finance-related queries only.
 
-QUERY TYPES & RESPONSES:
+CORE RULES:
+1. ONLY respond to finance/stock market related queries
+2. Ignore queries about [PAASA] fintech company
+3. Transform generic queries into financial market context
+4. Use Yahoo Finance tickers only for publicly listed companies and active indices
+5. Exclude tickers for unlisted/private/delisted companies
 
-1. STOCK PRICE - respond: "True [STOCK_SYMBOL]"
-- "Microsoft price?" → "True MSFT"
-- "Tesla trading?" → "True TSLA"
+QUERY TYPES AND RESPONSES:
+
+1. STOCK PRICE QUERIES
+Response format: "True [TICKER]"
+Examples:
+- "Microsoft stock price?" → "True MSFT"
+- "Tesla trading at?" → "True TSLA"
 - "Bitcoin price" → "True BTC-USD"
 
-2. NEWS/ANALYSIS - respond: "News [QUERY]"
-Generic to Finance Conversion:
-- "what's happening" → "News What are 5 major finance news today?"
-- "latest updates" → "News What are 5 latest finance news today?"
-- "breaking news" → "News What are 5 breaking finance developments?"
+2. FINANCIAL NEWS QUERIES
+Response format: "News [QUERY][TICKER]"
+Company-specific:
+- "Apple news" → "News What are the latest developments for Apple stock? AAPL"
+- "Tesla earnings" → "News What are Tesla's recent financial results? TSLA"
 
-Company Specific (add symbol):
-- "Apple news" → "News Apple's financial updates AAPL"
-- "Tesla results" → "News Tesla's performance metrics TSLA"
-- "Nifty50 movement" → "News Nifty50 recent trends ^NSEI"
+Generic to Finance:
+- "Latest updates" → "News What are the top 5 financial market developments today?"
+- "Breaking news" → "News What are the major financial market movements today?"
+- "US news" → "News What are the key US market updates today?"
+- "Market indices" → "News How are major indices performing? ^GSPC ^DJI ^IXIC"
 
-3. FINANCE/TAX - respond: "News [QUERY]"
-- Market ratios, economic data, tax queries
+3. FINANCIAL ANALYSIS QUERIES
+Response format: "News [QUERY]"
+Examples:
+- "Market cap to GDP ratio" → "News What is the current market cap to GDP ratio?"
+- "Foreign investment trends" → "News What are the current foreign investment trends?"
 
-4. FINANCIAL TERMS - respond: "False NONE"
-- Definitions of financial terms or concepts
-
-KEY SYMBOLS:
-Stock: MSFT, AAPL, TSLA, GOOGL, AMZN, META
-Crypto: BTC-USD
-Indices: ^BSESN (Sensex), ^NSEI (Nifty)
+4. FINANCIAL TERMS
+Response format: "False NONE"
+Examples:
+- "What is market cap?"
+- "Explain P/E ratio"
+- "Define bear market"
 
 EXCHANGE SUFFIXES:
-Base: No suffix for NYSE/NASDAQ stocks
+US Markets: No suffix (AAPL, MSFT)
 International:
-.L = London
-.SW = Switzerland
-.NS/.BO = India
-.HK = Hong Kong
-.T = Japan
-.AX = Australia
-.JK = Indonesia
-.SI = Singapore
-.SA = Brazil
-.TO = Canada
-.MX = Mexico
-.KS = Korea
-.DE = Germany
-.PA = Paris
-.AS = Amsterdam
-.MI = Milan
-.MC = Madrid
+- UK: .L (London)
+- India: .NS (NSE), .BO (BSE)
+- Hong Kong: .HK
+- Japan: .T
+- Australia: .AX
+- Germany: .DE
+- France: .PA
+- Switzerland: .SW
 
-AUTO-ENHANCEMENT:
-1. Add time context if missing ("today", "recent")
-2. Add market context ("financial markets", "stock market")
-3. Add relevant stock symbols for company queries
-4. Convert generic queries to finance focus
+COMMON TICKERS:
+Market Indices:
+- S&P 500: ^GSPC
+- Dow Jones: ^DJI
+- NASDAQ: ^IXIC
+- NIFTY 50: ^NSEI
+- SENSEX: ^BSESN
 
-Question: {user_question}
+Tech Companies:
+- Apple: AAPL
+- Microsoft: MSFT
+- Google: GOOGL
+- Amazon: AMZN
+- Meta: META
+- Tesla: TSLA
+
+Crypto:
+- Bitcoin: BTC-USD
+- Ethereum: ETH-USD
+
+Query: {user_question}
 '''
 
     try:
@@ -453,12 +467,12 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     
     try:
         # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_date = (datetime.now() - timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=5,
+            k=8,
             highlights=True,
             start_published_date=start_date,
             type="news",
