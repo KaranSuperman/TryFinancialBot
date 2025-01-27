@@ -338,7 +338,7 @@ QUERY TRANSFORMATION RULES:
    Reason based queries:
    - "Why nifty down today?"  → "News What are the reason of fall nifty stock today?^NSEI"
    - "Why sofi stock up today?"  → "News What are the reasons of rise of sofi stock today?SOFI"
-   - "What happened to zomato stock today?"  → "News What happened to zomato stock today?ZOMATO.NS"
+   - For indian stocks add ".NS"
    
    Generic news queries must be transformed:
    - "What's happening today?" → "News What are 5 today's key finance news happening?"
