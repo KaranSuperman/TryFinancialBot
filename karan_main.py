@@ -574,7 +574,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             ("human", """Query: {query}
             Context: {context}
             
-            Provide a response in under 200 words. Focus on actionable insights and ensure all numbers are verified in the source text.""")
+            Provide a response in under 200 words. Focus on actionable insights and ensure all numbers are verified in the source text. Use the format: "Your news statement. [sourcename](source_url)".""")
         ])
 
         chain = (
