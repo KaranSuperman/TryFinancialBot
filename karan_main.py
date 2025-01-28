@@ -570,7 +570,9 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets. Provide a concise, data-driven analysis of the query based on the provided context. Include specific numbers, percentages, and time periods where applicable. Highlight key risks and uncertainties. Use the following format for source citations: "Your news statement. [sourcename](source_url)"."""),
+            ("system", """You are a senior financial analyst specializing in Indian and global markets. Provide a concise, data-driven analysis of the query based on the provided context. Include specific numbers, percentages, and time periods where applicable. Highlight key risks and uncertainties. Use the following format for source citations: "Your news statement. [sourcename](source_url)".
+            
+            IMPORTANT: Ensure the response is well-structured, with proper paragraphs and formatting. Do not split words or sentences into individual characters."""),
             ("human", """Query: {query}
             Context: {context}
             
