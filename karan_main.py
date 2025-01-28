@@ -298,7 +298,7 @@ def is_relevant(question, embeddings_model, threshold=0.55):
         return True 
     else:
         return False 
-
+ 
 def is_stock_query(user_question):
     prompt = f'''
 Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
