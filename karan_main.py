@@ -503,7 +503,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
     
     try:
         # Change to 1 days (24 hours) to get very recent news
-        start_date = (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        start_date = (datetime.now() - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
@@ -513,7 +513,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             start_published_date=start_date,
             type="news",
             sort="date",  # Ensure sorting by date
-            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com","finance.yahoo.com"]  # Trusted sources
+            source_filters=["reuters.com", "bloomberg.com", "coindesk.com", "cointelegraph.com", "finance.yahoo.com", "wsj.com", "ft.com", "cnbc.com"]  # Trusted sources
         )
 
         # Ensure the API key is set in the headers
@@ -570,41 +570,11 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets with expertise in:
-
-            Core Areas:
-            - Indian equity markets and sectoral analysis
-            - Cryptocurrency markets and blockchain technology
-            - Global market correlations and trends
-            - Technical and fundamental analysis
-            - Macroeconomic indicators and ratios
-            - Market valuations and metrics
-
-            Response Style:
-            - Time-sensitive: Prioritize the most recent information
-            - Quantitative: Include specific numbers, percentages, and time periods
-            - Evidence-based: Support insights with recent data points
-            - Comprehensive: Cover both traditional and digital assets
-            - Forward-looking: Include potential market implications
-            - Risk-aware: Highlight key risks and uncertainties"""),
-            
-            ("human", """Analyze this financial query within the given context:
-
-            Query: {query}
+            ("system", """You are a senior financial analyst specializing in Indian and global markets. Provide a concise, data-driven analysis of the query based on the provided context. Include specific numbers, percentages, and time periods where applicable. Highlight key risks and uncertainties. Use the following format for source citations: "Your news statement. [sourcename](source_url)"."""),
+            ("human", """Query: {query}
             Context: {context}
             
-            Structure your response based on user query.
-            For time-sensitive queries (today/latest), focus only on the most recent updates.
-            If no specific recent news is found, clearly state that no recent updates are available.
-
-            IMPORTANT: For source citations, use this exact format:
-            "Your news statement. [sourcename](source_url)"
-            Ensure the source name is clickable.
-
-            Maximum response length: 200 words
-            Focus on actionable insights relevant to the query context.
-
-            IMPORTANT: Every number must be verified in source text.""")
+            Provide a response in under 200 words. Focus on actionable insights and ensure all numbers are verified in the source text.""")
         ])
 
         chain = (
