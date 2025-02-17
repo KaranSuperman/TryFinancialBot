@@ -301,120 +301,40 @@ def is_relevant(question, embeddings_model, threshold=0.55):
  
 def is_stock_query(user_question):
     prompt = f'''
-Analyze the following question precisely. Determine if it's a stock-related or finance related query Only:
+Analyze the following question precisely. Determine if it's a stock-related or finance-related query ONLY. DO NOT RESPOND to non-financial queries or queries about [PAASA].
 
-SPECIAL NOTE: DO NOT RESPONSE IF OTHER THAN STOCKS OR FINANCE RELATED NEWS/QUESTION ASK. ALSO [PAASA] is a fintech company if any user ask query related to the company then do not response to that query.
+**RULES:**
+1. **Stock Price Queries**: Respond with "True [STOCK_SYMBOL]".
+   - Example: "What is Microsoft's stock price?" → "True MSFT"
+   - Example: "Bitcoin price?" → "True BTC-USD"
 
-SPECIAL NOTES: 
-- ALL queries, including generic ones, MUST be automatically converted to focus on financial markets, economy, or business news
-- ANY general or non-specific query should be transformed into a financial news query
-- DO NOT include general news, political news, or non-financial news in responses
-- ONLY append Yahoo Finance tickers for publicly listed companies and active indices
-- DO NOT append tickers for unlisted companies, private companies, or delisted stocks which is not available on yahoo finance publicly . For example: BSNL, SpaceX ,  TATA SONS LIMITED	
+2. **News/Analysis Queries**: Respond with "News [REPHRASED_QUERY]".
+   - Append stock symbols for specific companies.
+   - Example: "What happened to Apple today?" → "News What happened to Apple stock today?AAPL"
+   - Transform generic queries into financial news queries.
+   - Example: "What's happening today?" → "News What are today's key finance news?"
+   - Example: "What happened today?" → "News What are today 5 generic finance news?"
+   - Example: "What is today news?" → "News What are today top 5 generic finance news of tech companies?"
 
+3. **Finance/Tax Queries**: Respond with "News [REPHRASED_QUERY]".
+   - Example: "What is the market cap to GDP ratio of India?" → "News What is the market cap to GDP ratio of India?"
 
-QUERY TRANSFORMATION RULES:
-1. Generic Questions to Financial Queries:
-   - "what is happening?" → "News What are the 5 major finance news today?"
-   - "latest updates" → "News What are the 5 latest finance news today?"
-   - "global news" → "News What are the 5 significant global finance news updates?"
-   - "what happened today" → "News What are the 5 major finance news today?"
-   - "morning news" → "News What are the 5 significant global finance news updates this morning?"
-   - "breaking news" → "News What are the 5 breaking developments in finance news?"
+4. **Financial Terms/Definitions**: Respond with "False NONE".
+   - Example: "What is PE ratio?" → "False NONE"
 
-2. STOCK PRICE QUERIES - respond: "True [STOCK_SYMBOL]"
-   - "What is Microsoft's current stock price?" → "True MSFT"
-   - "How much is Tesla trading for?" → "True TSLA"
-   - "What is the price of google?" → "True GOOGL"
-   - "What is price of cspx" → "True CSPX.L"
-   - "csndx price" → "True CSNDX.SW"
-   - "What is bitcoin price" → "True BTC-USD"
+**Stock Symbols:**
+- Microsoft = MSFT, Apple = AAPL, Tesla = TSLA, Google = GOOGL, Bitcoin = BTC-USD, Sensex = ^BSESN, Nifty = ^NSEI
 
-3. NEWS/ANALYSIS QUERIES - respond: "News [FINANCIAL_REPHRASED_QUERY]"
-   Must include stock symbols when specific companies are mentioned:
-   - "What happened to apple today?" → "News What happened to Apple stock today?AAPL"
-   - "Tesla's performance" → "News What are Tesla's recent financial performance metrics?TSLA"
+**Exchange Suffixes:**
+- US: No suffix (e.g., AAPL, MSFT)
+- International: .L (London), .SW (Swiss), .NS (India), .HK (Hong Kong), etc.
 
-   Reason based queries:
-   - "Why nifty down today?"  → "News What are the reason of fall nifty stock today?^NSEI"
-   - "Why sofi stock up today?"  → "News What are the reasons of rise of sofi stock today?SOFI"
-   
-   Generic news queries must be transformed:
-   - "What's happening today?" → "News What are 5 today's key finance news happening?"
-   - "Give me latest news" → "News What are the 5 latest finance news updates?"
-   - "Top stories" → "News What are today's top 5 financial market stories?"
-   - "US news" → "News What are the 5 major US financial market developments?"
-   - "What happened to nifty50?" → "News What are the recent movements in Nifty50?^NSEI"
-   - "What happened to sensex?" → "News What are the recent movements in Sensex?^BSESN"
+**Automatic Query Enhancement:**
+- Add "today" if no timeframe is specified.
+- Append stock symbols for company-specific queries.
+- Transform generic queries into financial news queries.
 
-
-4. FINANCE/TAX QUERIES - respond: "News [REPHRASED_QUERY]"
-   - "What is the market cap to gdp ratio of India?" → "News What is the market cap to gdp ratio of India?"
-   - "What is the tax on debt ETFs overseas?" → "News What is the tax treatment for overseas debt ETFs?"
-
-5. FINANCIAL TERMS/DEFINITIONS - respond: "False NONE"
-   - "What is PE ratio?"
-   - "What is high risk portfolio?"
-   - Any definitional questions about financial terms
-
-
-
-    Important Stock Symbols:
-    - Microsoft = MSFT
-    - Apple = AAPL
-    - Tesla = TSLA
-    - Google = GOOGL
-    - Amazon = AMZN
-    - Meta = META
-    - Bitcoin = BTC-USD
-    - Sensex = ^BSESN
-    - Nifyt = ^NSEI
- 
-
-COMPREHENSIVE GLOBAL STOCK SYMBOL GENERATION RULES:
-EXCHANGE SUFFIXES:
-- US Exchanges:
-    * No suffix for NYSE/NASDAQ (AAPL, MSFT)
-    
-NOTE: Append appropriate exchange suffix if needed
-    - International Exchanges:
-      - .L = London Stock Exchange (UK)
-      - .SW = SIX Swiss Exchange (Switzerland)
-      - .NS = National Stock Exchange (India)
-      - .BO = Bombay Stock Exchange (India)
-      - .JK = Indonesia Stock Exchange
-      - .SI = Singapore Exchange
-      - .HK = Hong Kong Stock Exchange
-      - .T = Tokyo Stock Exchange (Japan)
-      - .AX = Australian Securities Exchange
-      - .SA = São Paulo Stock Exchange (Brazil)
-      - .TO = Toronto Stock Exchange (Canada)
-      - .MX = Mexican Stock Exchange
-      - .KS = Korea Exchange
-      - .DE = Deutsche Börse (Germany)
-      - .PA = Euronext Paris
-      - .AS = Euronext Amsterdam
-      - .MI = Milan Stock Exchange (Italy)
-      - .MC = Madrid Stock Exchange (Spain)
-
-
-AUTOMATIC QUERY ENHANCEMENT:
-1. Time Context:
-   - Add "today" if timeframe is not specified
-   - Use "recent" for general queries about trends
-   - Specify "morning/afternoon/evening" if mentioned
-
-2. Market Context:
-   - Add "financial markets" for generic news requests
-   - Specify "stock market" for equity-related queries
-   - Include "global markets" for international queries
-
-3. Specificity Enhancement:
-   - Add "financial" before generic terms like "updates," "news," "developments"
-   - Include "market performance" for general status queries
-   - Append relevant stock symbols for company-specific queries
-
-Question: {user_question} '''
+Question: {user_question}'''
 
     try:
         # Use Gemini for intelligent classification
@@ -508,7 +428,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         # Enhanced Retriever Configuration
         retriever = ExaSearchRetriever(
             api_key=exa_api_key,
-            k=6,
+            k=3,
             highlights=True,
             start_published_date=start_date,
             type="news",
@@ -520,7 +440,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         if hasattr(retriever, 'client'):
             retriever.client.headers.update({
                 "x-api-key": exa_api_key,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Accept-Encoding": "gzip"
             })
          
         # Verify Gemini API key
@@ -535,7 +456,8 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
             model="gemini-pro",
             temperature=0,
             google_api_key=gemini_api_key,
-            max_output_tokens=2048,
+            max_output_tokens=1024,  
+            request_timeout=5,
             convert_system_message_to_human=True
         )
 
@@ -932,24 +854,30 @@ def user_input(user_question):
             # Finally, fall back to LLM response
             else:
                 # st.info("Using LLM response")
-                prompt1 = user_question + """\
-                Don't response if the user_question is rather than financial terms.
-                If other question ask response with 'Please tell only finance related queries' .
-                Finance Term Query Guidelines:
-                1. Context: Finance domain
-                2. Response Requirements:
-                - Focus exclusively on defining finance-related terms
-                - Provide clear, concise explanations of financial terminology
+                prompt1 = f"""
+                            The user has asked: "{user_question}"
+                            
+                            **Important Instructions:**
+                            - If the question is NOT related to finance, respond only with: "Please ask only finance-related queries."
+                            - If the question is about finance, provide a concise explanation (within 100 words) defining the term.
+                            
+                            **Finance Term Query Guidelines:**
+                            - Context: Finance domain
+                            - Response should only define financial terms and concepts.
+                            - Keep it clear, concise, and informative.
 
-                Examples of Acceptable Queries:
-                - What is PE ratio?
-                - Define market capitalization
-                - Explain book value
-                - What does EBITDA mean?
-                
-                Stuructural the information in good manner.
-                Note: Responses must be purely informative and educational about financial terms. Try to give response within 100 words with solid answer.\
-                """
+                            **Examples of Acceptable Queries:**
+                            - What is PE ratio?
+                            - Define market capitalization
+                            - Explain book value
+                            - What does EBITDA mean?
+
+                            **Examples of Unacceptable Queries:**
+                            - What is the capital of France? ❌
+                            - Who is the CEO of Tesla? ❌
+                            
+                            **Final Rule:** If the question does not fit within finance, strictly return: "Please ask only finance-related queries."
+                            """
                 response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
                 return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
