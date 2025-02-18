@@ -346,6 +346,7 @@ QUERY TRANSFORMATION RULES:
    - "US news" → "News What are the 5 major US financial market developments?"
    - "What happened to nifty50?" → "News What are the recent movements in Nifty50?^NSEI"
    - "What happened to sensex?" → "News What are the recent movements in Sensex?^BSESN"
+   - "Why tcs stock down today?"  → "News What are the reasons of fall of sofi stock today?TCS.NS"
 
 
 4. FINANCE/TAX QUERIES - respond: "News [REPHRASED_QUERY]"
