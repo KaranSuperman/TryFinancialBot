@@ -573,13 +573,36 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
 
         # Improved Financial News Prompt with Better Formatting
         generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a senior financial analyst specializing in Indian and global markets. Provide a concise, data-driven analysis of the query based on the provided context. Include specific numbers, percentages, and time periods where applicable. Highlight key risks and uncertainties. Use the following format for source citations: "Your news statement. [sourcename](source_url)".
+            ("system", """You are an expert financial analyst specializing in global markets and stock analysis. Analyze the query and context to determine if this is a news summary request or a stock movement reasoning question.
+
+            FOR GENERAL NEWS QUERIES:
+            Format response with 4-5 major developments:
+            * **[Topic/Category]**: [Specific data and explanation]
+            End with a synthesis paragraph.
+
+            FOR "WHY" QUESTIONS ABOUT STOCK MOVEMENTS:
+            1. Start with current price movement:
+            * **Today's Movement**: [Include specific percentage/point change and price levels]
+
+            2. Provide key reasons for the movement:
+            * **Primary Catalyst**: [Most important reason with specific details]
+            * **Market Factors**: [Broader market or sector influence]
+            * **Company-Specific News**: [Recent developments/announcements]
+            * **Analyst Actions**: [Any relevant analyst comments/ratings]
+
+            3. End with immediate outlook based on the news.
+
+            IMPORTANT:
+            - Focus on TODAY'S specific reasons for price movement
+            - Include exact numbers and percentages
+            - Cite sources as [sourcename](URL)
+            - For stock questions, focus ONLY on factors affecting today's price
+            - Ignore general company statistics unless directly relevant to today's movement"""),
             
-            IMPORTANT: Ensure the response is well-structured, with proper paragraphs and formatting. Do not split words or sentences into individual characters."""),
             ("human", """Query: {query}
             Context: {context}
             
-            Provide a response in under 200 words. Focus on actionable insights and ensure all numbers are verified in the source text. Use the format: "Your news statement. [sourcename](source_url)".""")
+            Provide analysis following the appropriate format based on query type.""")
         ])
 
         chain = (
