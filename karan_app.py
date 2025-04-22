@@ -3,46 +3,46 @@ from karan_main import extract_text_from_pdfs, get_text_chunks, get_vector_store
 
 #changes
 # ---------------------------------------------------------
-from supabase import create_client, Client
+# from supabase import create_client, Client
 
 # Initialize Supabase client
-supabase_url = st.secrets["supabase"]["url"]
-supabase_key = st.secrets["supabase"]["key"]
-supabase: Client = create_client(supabase_url, supabase_key)
+# supabase_url = st.secrets["supabase"]["url"]
+# supabase_key = st.secrets["supabase"]["key"]
+# supabase: Client = create_client(supabase_url, supabase_key)
 
-def store_chat_data(user_message, bot_response):
-    data = {
-        "user_message": user_message,
-        "bot_response": bot_response,
-    }
-    try:
-        response = supabase.table("chat_data").insert(data).execute()
-        return response
-    except Exception as e:
-        st.error(f"Error storing chat data: {e}")
-        return None
+# def store_chat_data(user_message, bot_response):
+#     data = {
+#         "user_message": user_message,
+#         "bot_response": bot_response,
+#     }
+#     try:
+#         response = supabase.table("chat_data").insert(data).execute()
+#         return response
+#     except Exception as e:
+#         st.error(f"Error storing chat data: {e}")
+#         return None
 
-def store_questions(user_message):
-    data = {
-        "questions": user_message
-    }
-    try:
-        response = supabase.table("questions_data").insert(data).execute()
-        return response
-    except Exception as e:
-        st.error(f"Error storing chat data: {e}")
-        return None
+# def store_questions(user_message):
+#     data = {
+#         "questions": user_message
+#     }
+#     try:
+#         response = supabase.table("questions_data").insert(data).execute()
+#         return response
+#     except Exception as e:
+#         st.error(f"Error storing chat data: {e}")
+#         return None
 
-def store_answers(bot_response):
-    data = {
-        "answers": bot_response
-    }
-    try:
-        response = supabase.table("answers_data").insert(data).execute()
-        return response
-    except Exception as e:
-        st.error(f"Error storing chat data: {e}")
-        return None
+# def store_answers(bot_response):
+#     data = {
+#         "answers": bot_response
+#     }
+#     try:
+#         response = supabase.table("answers_data").insert(data).execute()
+#         return response
+#     except Exception as e:
+#         st.error(f"Error storing chat data: {e}")
+#         return None
 # ---------------------------------------------------------
 
                                                                                                                                                                         
@@ -95,9 +95,9 @@ if user_question:
         st.write(bot_response)
 
         #Store chat data in Supabase
-        store_chat_data(user_question, bot_response)
-        store_questions(user_question)
-        store_answers(bot_response)
+        # store_chat_data(user_question, bot_response)
+        # store_questions(user_question)
+        # store_answers(bot_response)
         
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
