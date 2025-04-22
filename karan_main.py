@@ -420,7 +420,7 @@ Question: {user_question} '''
     try:
         # Use Gemini for intelligent classification
         response = ChatGoogleGenerativeAI(
-            model="gemini-pro", 
+            model="gemini-1.5-pro-latest", 
             temperature=0
         )([HumanMessage(content=prompt)]).content
 
@@ -534,7 +534,7 @@ def create_research_chain(exa_api_key: str, gemini_api_key: str):
         
         # Enhanced LLM Configuration
         llm = ChatGoogleGenerativeAI(
-            model="gemini-pro",
+            model="gemini-1.5-pro-latest",
             temperature=0,
             google_api_key=gemini_api_key,
             max_output_tokens=1024,  
@@ -783,7 +783,7 @@ def user_input(user_question):
         new_db1 = FAISS.load_local("faiss_index_DS", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever = MultiQueryRetriever.from_llm(
             retriever=new_db1.as_retriever(search_kwargs={'k': 5}),
-            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+            llm=ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0)
         )
         docs = mq_retriever.get_relevant_documents(query=user_question)
         
@@ -798,7 +798,7 @@ def user_input(user_question):
         new_db2 = FAISS.load_local("faiss_index_faq", embeddings_model, allow_dangerous_deserialization=True)
         mq_retriever_faq = MultiQueryRetriever.from_llm(
             retriever=new_db2.as_retriever(search_kwargs={'k': 3}),
-            llm=ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+            llm=ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0)
         )
         faqs = mq_retriever_faq.get_relevant_documents(query=user_question)
         
@@ -838,7 +838,7 @@ def user_input(user_question):
                         Please let me know if you have any other questions about Paasa or its services. I'm happy to provide more details or clarification.
                         """
                         prompt = PromptTemplate(template=prompt_template, input_variables=["question", "answer", "context"])
-                        chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+                        chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0), chain_type="stuff", prompt=prompt)
                         try:
                             response = chain({
                                 "input_documents": docs,
@@ -875,7 +875,7 @@ def user_input(user_question):
                     Provide a comprehensive answer, including all relevant details and explanations. Ensure the response is clear and informative, using the factual information available in the document.
                     """
                     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-                    chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-pro", temperature=0), chain_type="stuff", prompt=prompt)
+                    chain = load_qa_chain(ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0), chain_type="stuff", prompt=prompt)
                     try:
                         response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
                         answer = response.get("output_text", "").strip()
@@ -982,7 +982,7 @@ def user_input(user_question):
                             
                             **Final Rule:** If the question does not fit within finance, strictly return: "Please ask only finance-related queries."
                             """
-                response = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)([HumanMessage(content=prompt1)])
+                response = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", temperature=0)([HumanMessage(content=prompt1)])
                 return {"output_text": response.content} if response else {"output_text": "No response generated."}
 
     except Exception as e:
